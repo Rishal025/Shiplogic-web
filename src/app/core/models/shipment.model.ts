@@ -79,6 +79,54 @@ export interface CreateShipmentResponse {
   };
 }
 
+/**
+ * Response from document extraction API (POST /shipment/extract-documents).
+ * Used to autopopulate shipment form from uploaded PI/PO documents.
+ * Keys match Create New Shipment form controls; supplier/item are resolved from supplierCode/itemCode.
+ */
+export interface ExtractedShipmentData {
+  // Shipment info
+  piNo?: string;
+  piDate?: string;
+  fpoNo?: string;
+  purchaseDate?: string;
+  incoTerms?: string;
+  portOfLoading?: string;
+  portOfDischarge?: string;
+  commodity?: string;
+  brandName?: string;
+  itemDescription?: string;
+  // Supplier (frontend resolves to supplier _id via supplierCode or supplierName)
+  supplierCode?: string;
+  supplierName?: string;
+  countryOfOrigin?: string;
+  // Item (frontend resolves to item _id via itemCode or itemDescription)
+  itemCode?: string;
+  // Quantity & packaging
+  packagingType?: string;
+  containerSize?: string;
+  plannedContainers?: number;
+  fcl?: number;
+  pallet?: number;
+  bags?: number;
+  noOfShipments?: number;
+  // Price & payment
+  buyingUnit?: string;
+  fcPerUnit?: number;
+  totalUSD?: number;
+  totalAED?: number;
+  paymentTerms?: string;
+  advanceAmount?: number;
+  // Dates
+  expectedETD?: string;
+  expectedETA?: string;
+}
+
+export interface ExtractShipmentFromDocumentsResponse {
+  message?: string;
+  data?: ExtractedShipmentData;
+}
+
 // Shipment Details API Response (GET /shipment/:id)
 export interface ShipmentDetailsResponse {
   shipment: ShipmentInfo;

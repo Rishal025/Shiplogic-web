@@ -60,9 +60,9 @@
         <ng-template pTemplate="header">
           <tr>
             <th scope="col" style="width: 50px">#</th>
+            <th scope="col" style="width: 100px">FCL</th>
             <th scope="col" style="width: 100px">Size</th>
             <th scope="col" style="width: 120px">Qty MT</th>
-            <th scope="col" style="width: 100px">FCL</th>
             <th scope="col" style="width: 150px">ETD</th>
             <th scope="col" style="width: 150px">ETA</th>
             <th scope="col" style="width: 180px">Week</th>
@@ -72,6 +72,11 @@
           <tr [formGroup]="$any(group)">
             <td class="text-slate-400 font-bold text-xs">{{ i + 1 }}</td>
             <td>
+              <p-inputNumber formControlName="FCL" styleClass="w-full"
+                inputStyleClass="table-input" ariaLabel="FCL Units" placeholder="1"
+              ></p-inputNumber>
+            </td>
+            <td>
               <p-inputNumber formControlName="size" styleClass="w-full"
                 inputStyleClass="table-input bg-slate-100 font-bold opacity-80"
                 ariaLabel="Container Size" placeholder="Size" [readonly]="true"
@@ -80,11 +85,6 @@
             <td>
               <p-inputNumber formControlName="qtyMT" styleClass="w-full"
                 inputStyleClass="table-input" ariaLabel="Quantity in MT" placeholder="0.00"
-              ></p-inputNumber>
-            </td>
-            <td>
-              <p-inputNumber formControlName="FCL" styleClass="w-full"
-                inputStyleClass="table-input" ariaLabel="FCL Units" placeholder="1"
               ></p-inputNumber>
             </td>
             <td>

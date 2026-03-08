@@ -1,7 +1,8 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink, ActivatedRoute } from '@angular/router';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 // PrimeNG Imports (v21 matching package.json)
 import { InputTextModule } from 'primeng/inputtext';
@@ -12,12 +13,13 @@ import { TextareaModule } from 'primeng/textarea';
 import { ButtonModule } from 'primeng/button';
 import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
+import { DialogModule } from 'primeng/dialog';
 
 import { PrimaryButtonDirective } from '../../../../shared/directives/button.directive';
 import { ShipmentService } from '../../../../core/services/shipment.service';
 import { Item } from '../../../../core/models/item.model';
 import { Supplier } from '../../../../core/models/supplier.model';
-import { CreateShipmentPayload } from '../../../../core/models/shipment.model';
+import { CreateShipmentPayload, ExtractedShipmentData } from '../../../../core/models/shipment.model';
 
 @Component({
   selector: 'app-create-shipment',
@@ -33,6 +35,7 @@ import { CreateShipmentPayload } from '../../../../core/models/shipment.model';
     TextareaModule,
     ButtonModule,
     ToastModule,
+    DialogModule,
     PrimaryButtonDirective
   ],
   providers: [MessageService],
@@ -46,9 +49,24 @@ export class CreateShipmentComponent implements OnInit {
   items = signal<Item[]>([]);
   suppliers = signal<Supplier[]>([]);
   submitting = signal(false);
-  uploadedFiles = signal<File[]>([]);
 
-  // Static Dropdown Options - Updated per requirements
+  // Document extraction: document1 = Purchase order, document2 = Performa Invoice
+  document1File = signal<File | null>(null);
+  document2File = signal<File | null>(null);
+  extracting = signal(false);
+
+  // Document preview modal
+  showPreviewModal = signal(false);
+  previewUrl = signal<string | null>(null);
+  previewTitle = signal('');
+  previewIsImage = signal(false);
+  previewSafeUrl = computed(() => {
+    const url = this.previewUrl();
+    if (!url || this.previewIsImage()) return null;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  });
+
+  // Static Dropdown Options
   buyingUnits = [
     { label: 'MT', value: 'MT' },
     { label: 'KG', value: 'KG' },
@@ -98,7 +116,8 @@ export class CreateShipmentComponent implements OnInit {
     private route: ActivatedRoute,
     private shipmentService: ShipmentService,
     private messageService: MessageService,
-    private router: Router
+    private router: Router,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
@@ -197,15 +216,180 @@ export class CreateShipmentComponent implements OnInit {
     });
   }
 
-  onFilesSelected(event: Event): void {
+  // Purchase order (document1) & Performa Invoice (document2) for extraction
+  onDocument1Selected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    if (!input.files) return;
-    this.uploadedFiles.update(current => [...current, ...Array.from(input.files!)]);
+    const file = input.files?.[0];
+    if (file) this.document1File.set(file);
     input.value = '';
   }
 
-  removeFile(index: number): void {
-    this.uploadedFiles.update(current => current.filter((_, i) => i !== index));
+  onDocument2Selected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) this.document2File.set(file);
+    input.value = '';
+  }
+
+  clearDocument1(): void {
+    this.document1File.set(null);
+  }
+
+  clearDocument2(): void {
+    this.document2File.set(null);
+  }
+
+  openDocumentPreview(file: File, title: string): void {
+    const url = URL.createObjectURL(file);
+    this.previewUrl.set(url);
+    this.previewTitle.set(title);
+    this.previewIsImage.set(file.type.startsWith('image/'));
+    this.showPreviewModal.set(true);
+  }
+
+  closeDocumentPreview(): void {
+    const url = this.previewUrl();
+    if (url) URL.revokeObjectURL(url);
+    this.previewUrl.set(null);
+    this.previewTitle.set('');
+    this.showPreviewModal.set(false);
+  }
+
+  onPreviewModalHide(): void {
+    this.closeDocumentPreview();
+  }
+
+  /** Called when dialog visibility changes; only close/revoke when dialog is hidden */
+  onPreviewVisibleChange(visible: boolean): void {
+    if (!visible) this.closeDocumentPreview();
+  }
+
+  onExtractAndAutopopulate(): void {
+    const file1 = this.document1File();
+    const file2 = this.document2File();
+    if (!file1 || !file2) return;
+
+    const formData = new FormData();
+    formData.append('document1', file1, file1.name);
+    formData.append('document2', file2, file2.name);
+
+    this.extracting.set(true);
+    this.shipmentService.extractShipmentFromDocuments(formData).subscribe({
+      next: (response) => {
+        this.extracting.set(false);
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Extraction complete',
+          detail: response.message ?? 'Values extracted and form autopopulated.'
+        });
+        if (response.data) {
+          this.patchFormFromExtraction(response.data);
+        }
+      },
+      error: (err) => {
+        this.extracting.set(false);
+        console.error('Extract documents error:', err);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Extraction failed',
+          detail: err.error?.message ?? 'Could not extract data from documents.'
+        });
+      }
+    });
+  }
+
+  /**
+   * Patch Create New Shipment form from extracted data.
+   * Resolves supplier/item by supplierCode/itemCode from resolved lists.
+   * All keys are optional; missing or invalid values are skipped (no error).
+   */
+  private patchFormFromExtraction(data: ExtractedShipmentData): void {
+    try {
+      const d = data as Record<string, unknown>;
+      const patch: Record<string, unknown> = {};
+
+      const dateKeys = ['piDate', 'purchaseDate', 'expectedETD', 'expectedETA'];
+      for (const key of dateKeys) {
+        const v = d[key];
+        if (v == null || v === '') continue;
+        const dateVal = typeof v === 'string' ? this.parseDate(v) : v;
+        if (dateVal != null) patch[key] = dateVal;
+      }
+
+      const directKeys = [
+        'piNo', 'fpoNo', 'incoTerms', 'portOfLoading', 'portOfDischarge',
+        'commodity', 'brandName', 'itemDescription', 'countryOfOrigin',
+        'packagingType', 'containerSize', 'fcl', 'pallet', 'bags',
+        'plannedContainers', 'noOfShipments', 'buyingUnit', 'fcPerUnit',
+        'totalUSD', 'totalAED', 'paymentTerms', 'advanceAmount'
+      ];
+      for (const key of directKeys) {
+        const v = d[key];
+        if (v == null) continue;
+        if (typeof v === 'string' && v.trim() === '') continue;
+        patch[key] = v;
+      }
+
+      // Resolve supplier: match by supplierCode (case-insensitive) first, then by name (case-insensitive / contains)
+      const rawCode = d['supplierCode'];
+      const rawName = d['supplierName'];
+      const code = typeof rawCode === 'string' ? rawCode.trim() : '';
+      const name = typeof rawName === 'string' ? rawName.trim() : '';
+      if (code || name) {
+        const supplier = this.findSupplierByCodeOrName(code, name);
+        if (supplier) patch['supplier'] = supplier._id;
+      }
+
+      // Resolve item: match by itemCode (case-insensitive) first, then by description (case-insensitive / contains)
+      const rawItemCode = d['itemCode'];
+      const rawDesc = d['itemDescription'];
+      const itemCode = typeof rawItemCode === 'string' ? rawItemCode.trim() : '';
+      const itemDesc = typeof rawDesc === 'string' ? rawDesc.trim() : '';
+      if (itemCode || itemDesc) {
+        const item = this.findItemByCodeOrDescription(itemCode, itemDesc);
+        if (item) patch['item'] = item._id;
+      }
+
+      this.shipmentForm.patchValue(patch, { emitEvent: false });
+    } catch {
+      // If anything fails, just skip autopopulate; user can fill manually
+    }
+  }
+
+  private parseDate(v: string): Date | null {
+    if (!v || typeof v !== 'string') return null;
+    const parsed = new Date(v.trim());
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private findSupplierByCodeOrName(code: string, name: string): Supplier | undefined {
+    const list = this.suppliers();
+    if (!list.length) return undefined;
+    const codeLower = code.toLowerCase().replace(/[\s\-_]+/g, '');
+    const nameLower = name.toLowerCase();
+    return list.find(s => {
+      const sCode = s.supplierCode?.toLowerCase().replace(/[\s\-_]+/g, '') ?? '';
+      if (codeLower && sCode && sCode === codeLower) return true;
+      if (nameLower && s.name?.toLowerCase() === nameLower) return true;
+      if (nameLower && s.name?.toLowerCase().includes(nameLower)) return true;
+      if (nameLower && nameLower.includes(s.name?.toLowerCase() ?? '')) return true;
+      return false;
+    });
+  }
+
+  private findItemByCodeOrDescription(code: string, desc: string): Item | undefined {
+    const list = this.items();
+    if (!list.length) return undefined;
+    const codeLower = code.toLowerCase().replace(/[\s\-_]+/g, '');
+    const descLower = desc.toLowerCase();
+    return list.find(i => {
+      const iCode = i.itemCode?.toLowerCase().replace(/[\s\-_]+/g, '') ?? '';
+      if (codeLower && iCode && iCode === codeLower) return true;
+      if (descLower && i.description?.toLowerCase() === descLower) return true;
+      if (descLower && i.description?.toLowerCase().includes(descLower)) return true;
+      if (descLower && descLower.includes(i.description?.toLowerCase() ?? '')) return true;
+      return false;
+    });
   }
 
   onSubmit(): void {

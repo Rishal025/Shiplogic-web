@@ -1,4 +1,5 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://api.shipmenttracker.rhutility.com:5000/api/v1'
+  // Local backend when running ng serve; use environment.prod.ts for production build
+  apiUrl: 'http://localhost:5000/api/v1'
 };

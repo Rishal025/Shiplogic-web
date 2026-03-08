@@ -8,7 +8,8 @@ import {
   ShipmentDetail, 
   CreateShipmentPayload,
   CreateShipmentResponse,
-  ShipmentDetailsResponse
+  ShipmentDetailsResponse,
+  ExtractShipmentFromDocumentsResponse
 } from '../models/shipment.model';
 
 // Payload interfaces for container operations
@@ -95,6 +96,14 @@ export class ShipmentService {
 
   createShipment(payload: CreateShipmentPayload): Observable<CreateShipmentResponse> {
     return this.http.post<CreateShipmentResponse>(`${this.apiUrl}/create`, payload);
+  }
+
+  /**
+   * Extract shipment data from uploaded documents (e.g. PI, PO) for autopopulating the form.
+   * POST /shipment/extract-documents with FormData containing document1 and document2 files.
+   */
+  extractShipmentFromDocuments(formData: FormData): Observable<ExtractShipmentFromDocumentsResponse> {
+    return this.http.post<ExtractShipmentFromDocumentsResponse>(`${this.apiUrl}/extract-documents`, formData);
   }
 
   updateShipment(id: string, shipment: Partial<ShipmentDetail>): Observable<ShipmentDetail> {
