@@ -1,0 +1,105 @@
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
+import { Observable, BehaviorSubject, tap } from 'rxjs';
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+}
+
+export interface AuthResponse {
+  message: string;
+  token: string;
+  user: User;
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+  private http = inject(HttpClient);
+  private router = inject(Router);
+
+  private currentUserSubject = new BehaviorSubject<User | null>(null);
+  public currentUser$ = this.currentUserSubject.asObservable();
+
+  private tokenKey = 'shiplogic_auth_token';
+  private userKey = 'shiplogic_user';
+
+  constructor() {
+    // Check for existing token and user on initialization
+    const token = this.getToken();
+    const user = this.getStoredUser();
+    if (token && user) {
+      this.currentUserSubject.next(user);
+    }
+  }
+
+  login(credentials: LoginCredentials): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>('auth/login', credentials).pipe(
+      tap(response => {
+        // Store token in localStorage
+        this.setToken(response.token);
+        // Store user data in localStorage
+        this.setUser(response.user);
+        // Update current user subject
+        this.currentUserSubject.next(response.user);
+      })
+    );
+  }
+
+  logout(): void {
+    this.removeToken();
+    this.removeUser();
+    this.currentUserSubject.next(null);
+    this.router.navigate(['/auth/login']);
+  }
+
+  isAuthenticated(): boolean {
+    return !!this.getToken();
+  }
+
+  getToken(): string | null {
+    return localStorage.getItem(this.tokenKey);
+  }
+
+  private setToken(token: string): void {
+    localStorage.setItem(this.tokenKey, token);
+  }
+
+  private removeToken(): void {
+    localStorage.removeItem(this.tokenKey);
+  }
+
+  private setUser(user: User): void {
+    localStorage.setItem(this.userKey, JSON.stringify(user));
+  }
+
+  private getStoredUser(): User | null {
+    const userJson = localStorage.getItem(this.userKey);
+    if (userJson) {
+      try {
+        return JSON.parse(userJson);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  private removeUser(): void {
+    localStorage.removeItem(this.userKey);
+  }
+
+  getCurrentUser(): User | null {
+    return this.currentUserSubject.value;
+  }
+}

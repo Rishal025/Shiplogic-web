@@ -1,0 +1,38 @@
+<div class="stepper-container custom-scrollbar">
+  <div class="stepper-wrapper">
+    @for (step of steps; track i; let i = $index; let last = $last) {
+    <div class="step" 
+         [class.active]="currentStep === i"
+         [class.completed]="currentStep > i || step.completed"
+         [class.pending]="currentStep < i && !step.completed"
+         (click)="onStepClick(i)">
+      
+      <!-- Connector Line -->
+      @if (!last) {
+        <div class="connector"></div>
+      }
+
+      <!-- Step Indicator -->
+      <div class="step-indicator">
+        <div class="indicator-ring">
+          <div class="indicator-core">
+            @if (currentStep > i || step.completed) {
+                <i class="pi pi-check"></i>
+            } @else {
+                <span>{{ i + 1 }}</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Step Content -->
+      <div class="step-content">
+        <span class="step-label">{{ step.label }}</span>
+        @if (step.subLabel) {
+            <span class="step-sublabel">{{ step.subLabel }}</span>
+        }
+      </div>
+    </div>
+    }
+  </div>
+</div>

@@ -1,0 +1,158 @@
+<div class="flex flex-col h-full gap-4 md:gap-6">
+  <!-- Header Section - Stacked on mobile, side-by-side on md+ -->
+  <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0">
+    <div>
+      <h1 class="font-bold text-xl md:text-2xl text-slate-900 tracking-tight">Shipments</h1>
+      <p class="text-slate-500 text-xs md:text-sm">Monitor and manage your active logistics fleet</p>
+    </div>
+    <div class="w-full sm:w-auto">
+      <button appButton routerLink="/shipments/create" class="w-full sm:w-auto shadow-sm" aria-label="Create new shipment">
+        <i class="pi pi-plus-circle mr-2" aria-hidden="true"></i>
+        <span>Create Shipment</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Table Container -->
+  <div class="grow min-h-0 border border-slate-200 rounded-xl md:rounded-2xl bg-white shadow-sm flex flex-col overflow-hidden">
+    <!-- Scrollable Body -->
+    <div class="grow overflow-auto relative custom-scrollbar" role="region" aria-label="Shipments table" tabindex="0">
+      <table class="w-full border-separate border-spacing-0" role="table">
+        <thead class="sticky top-0 z-10 bg-slate-50">
+          <tr role="row">
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">S No.</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Year</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Shipment No.</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Order Date</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Supplier</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Item</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">PI No.</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Split</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Total Amount</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Status</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-center font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Action</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          @if (loading()) {
+            @for (i of [1,2,3,4,5]; track i) {
+              <tr class="animate-pulse">
+                <td class="p-4"><p-skeleton width="2rem" height="1rem" styleClass="bg-slate-200"></p-skeleton></td>
+                <td class="p-4"><p-skeleton width="3rem" height="1rem" styleClass="bg-slate-200"></p-skeleton></td>
+                <td class="p-4"><p-skeleton width="6rem" height="1rem" styleClass="bg-slate-200"></p-skeleton></td>
+                <td class="p-4"><p-skeleton width="5rem" height="1rem" styleClass="bg-slate-200"></p-skeleton></td>
+                <td class="p-4"><p-skeleton width="8rem" height="1rem" styleClass="bg-slate-200"></p-skeleton></td>
+                <td class="p-4"><p-skeleton width="10rem" height="1rem" styleClass="bg-slate-200"></p-skeleton></td>
+                <td class="p-4"><p-skeleton width="4rem" height="1rem" styleClass="bg-slate-200"></p-skeleton></td>
+                <td class="p-4"><p-skeleton width="2rem" height="1rem" styleClass="bg-slate-200 mx-auto"></p-skeleton></td>
+                <td class="p-4"><p-skeleton width="5rem" height="1rem" styleClass="bg-slate-200"></p-skeleton></td>
+                <td class="p-4"><p-skeleton width="4rem" height="1.25rem" styleClass="bg-slate-200 rounded"></p-skeleton></td>
+                <td class="p-4">
+                  <div class="flex justify-center gap-2">
+                    <p-skeleton width="3rem" height="2rem" styleClass="bg-slate-200 rounded-lg"></p-skeleton>
+                    <p-skeleton shape="circle" size="2rem" styleClass="bg-slate-200"></p-skeleton>
+                  </div>
+                </td>
+              </tr>
+            }
+          } @else {
+            @for (shipment of shipments(); track shipment._id; let i = $index) {
+          <tr class="hover:bg-slate-50/50 transition-colors group cursor-default" role="row">
+            <td class="p-4 text-xs text-slate-500 font-medium">{{(currentPage() - 1) * pageSize() + i + 1}}</td>
+            <td class="p-4 text-xs text-slate-600">{{shipment.year}}</td>
+            <td class="p-4 text-xs font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{{shipment.shipmentNo}}</td>
+            <td class="p-4 text-xs text-slate-600">{{shipment.orderDate | date:'dd/MM/yyyy'}}</td>
+            <td class="p-4 text-xs text-slate-600 truncate max-w-[200px]" [title]="shipment.supplier">{{shipment.supplier}}</td>
+            <td class="p-4 text-xs text-slate-600 truncate max-w-[250px]" [title]="shipment.item">{{shipment.item}}</td>
+            <td class="p-4 text-xs text-slate-600">{{shipment.piNo}}</td>
+            <td class="p-4 text-xs text-slate-600 text-center">{{shipment.split}}</td>
+            <td class="p-4 text-xs text-slate-600 font-semibold">{{shipment.totalAmount | currency:'USD':'symbol':'1.0-0'}}</td>
+            <td class="p-4 text-xs">
+              <span 
+                [class]="'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ' + 
+                         (getSeverity(shipment.status || '') === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 
+                          getSeverity(shipment.status || '') === 'info' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                          getSeverity(shipment.status || '') === 'warn' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                          getSeverity(shipment.status || '') === 'danger' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                          'bg-slate-50 text-slate-700 border-slate-100')">
+                {{shipment.status}}
+              </span>
+            </td>
+            <td class="p-4 text-xs text-center">
+              <div class="flex items-center justify-center gap-2">
+                <button 
+                  [routerLink]="['/shipments/track', shipment._id]"
+                  class="inline-flex items-center justify-center h-8 px-3 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all text-[10px] font-bold uppercase tracking-wider border border-blue-100"
+                  [attr.aria-label]="'Track ' + shipment.shipmentNo">
+                  <i class="pi pi-directions mr-1.5"></i>
+                  <span>Track</span>
+                </button>
+                <button 
+                  class="inline-flex items-center justify-center w-8 h-8 rounded-full text-slate-400 hover:text-blue-600 hover:bg-white hover:shadow-sm border border-transparent hover:border-slate-100 transition-all"
+                  [attr.aria-label]="'More actions for ' + shipment.shipmentNo">
+                  <i class="pi pi-ellipsis-v" aria-hidden="true"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          }
+ @empty {
+          <tr role="row">
+            <td colspan="11" class="p-20 text-center">
+              <div class="flex flex-col items-center gap-4">
+                <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center">
+                  <i class="pi pi-inbox text-2xl text-slate-300"></i>
+                </div>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-900">No shipments found</h3>
+                  <p class="text-xs text-slate-500 mt-1">Try adjusting your filters or search terms</p>
+                </div>
+              </div>
+            </td>
+          </tr>
+          }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginator Footer - Responsive flex -->
+    <footer class="shrink-0 p-4 border-t border-slate-200 bg-slate-50/30 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center sm:text-left">
+        Showing <span class="text-slate-900 mx-1">{{(currentPage() - 1) * pageSize() + 1}} – {{Math.min(currentPage() * pageSize(), totalRecords())}}</span> of <span class="text-slate-900 mx-1">{{totalRecords()}}</span> Shipments
+      </div>
+      
+      <nav class="flex items-center gap-1.5" aria-label="Pagination">
+        <button 
+          (click)="onPageChange(currentPage() - 1)" 
+          [disabled]="currentPage() === 1"
+          aria-label="Previous page"
+          class="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs">
+          <i class="pi pi-chevron-left text-[9px]" aria-hidden="true"></i>
+        </button>
+
+        <div class="flex items-center gap-1">
+          @for (page of [].constructor(totalPages()); track i; let i = $index) {
+          <button 
+            (click)="onPageChange(i + 1)"
+            [attr.aria-current]="currentPage() === i + 1 ? 'page' : null"
+            [class]="currentPage() === i + 1 
+                ? 'w-8 h-8 rounded-lg bg-[#0F172A] text-white text-[11px] font-bold shadow-lg shadow-slate-200' 
+                : 'w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-600 text-[11px] font-bold hover:border-blue-400 hover:text-blue-600 transition-all shadow-xs'"
+          >
+            {{i + 1}}
+          </button>
+          }
+        </div>
+
+        <button 
+          (click)="onPageChange(currentPage() + 1)" 
+          [disabled]="currentPage() === totalPages()"
+          aria-label="Next page"
+          class="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-600 hover:border-blue-400 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs">
+          <i class="pi pi-chevron-right text-[9px]" aria-hidden="true"></i>
+        </button>
+      </nav>
+    </footer>
+  </div>
+</div>

@@ -1,0 +1,9 @@
+@reference "tailwindcss";
+
+:host ::ng-deep {
+    /* Component specific styling only */
+    
+    .financial-total-box {
+        @apply flex flex-col gap-1.5 p-4 bg-blue-50/50 rounded-xl border border-blue-100;
+    }
+}

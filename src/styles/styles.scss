@@ -1,0 +1,175 @@
+@use 'variables';
+@use 'mixins';
+@use 'tokens';
+@use 'typography';
+
+@import 'primeicons/primeicons.css';
+
+/* Global UI Components - Shiplogic Design System */
+
+/* 1. Base Input Overrides (PrimeNG) 
+   Apply global styling to all form controls across the whole app.
+*/
+.p-inputtext,
+.p-inputnumber-input,
+.p-textarea,
+.p-datepicker-input,
+.p-select {
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important; /* slate-200 */
+    border-radius: 12px !important; /* rounded-xl */
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: #0f172a !important; /* slate-900 */
+    padding: 0.625rem 0.875rem !important;
+    transition: all 0.2s ease-in-out !important;
+
+    &::placeholder {
+        color: #94a3b8 !important; /* slate-400 */
+        font-weight: 400 !important;
+    }
+
+    /* Standard Interactive States */
+    &:hover:not(:disabled) {
+        border-color: #cbd5e1 !important; /* slate-300 */
+    }
+
+    &:focus,
+    &.p-focus {
+        border-color: #3b82f6 !important; /* blue-500 */
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
+        outline: none !important;
+    }
+
+    &:disabled {
+        background-color: #f8fafc !important; /* slate-50 */
+        color: #94a3b8 !important;
+        cursor: not-allowed;
+    }
+}
+
+/* 2. Specific Component Fixes */
+
+/* Select (Dropdown) */
+.p-select {
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 !important; /* Remove root padding to let label handle it */
+    overflow: hidden;
+
+    .p-select-label {
+        padding: 0.625rem 0.875rem !important;
+        border: none !important;
+        background: transparent !important;
+        color: inherit !important;
+        font-weight: inherit !important;
+        
+        &.p-placeholder {
+            color: #94a3b8 !important;
+            font-weight: 400 !important;
+        }
+    }
+
+    .p-select-dropdown {
+        color: #64748b !important;
+        margin-right: 0.5rem !important;
+    }
+}
+
+/* DatePicker Trigger Icon */
+.p-datepicker {
+    width: 100% !important;
+    
+    .p-datepicker-trigger {
+        background: transparent !important;
+        border: none !important;
+        border-left: 1px solid #e2e8f0 !important;
+        color: #64748b !important;
+        border-radius: 0 12px 12px 0 !important;
+        padding: 0 0.75rem !important;
+        
+        &:hover {
+            color: #1e293b !important;
+            background: #f8fafc !important;
+        }
+    }
+}
+
+/* 3. Helper Classes for Forms */
+
+/* Field Label Styling */
+.sl-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b; /* slate-500 */
+    text-transform: uppercase;
+    letter-spacing: 0.05em; /* tracking-wider */
+    margin-bottom: 0.375rem; /* gap-1.5 */
+    display: block;
+}
+
+/* Form Section Card */
+.sl-card {
+    background-color: #ffffff;
+    border-radius: 1rem; /* rounded-2xl */
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+
+    .sl-card-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #f1f5f9;
+        background-color: rgba(248, 250, 252, 0.5); /* slate-50/50 */
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+
+        h2 {
+            font-weight: 700;
+            color: #0f172a;
+        }
+    }
+
+    .sl-card-body {
+        padding: 1.5rem;
+    }
+}
+
+/* Global Animations */
+@keyframes ripple-animation {
+  from { transform: scale(0); opacity: 1; }
+  to { transform: scale(4); opacity: 0; }
+}
+
+.animate-ripple {
+  animation: ripple-animation 0.6s linear;
+}
+
+.page-transition-wrapper {
+  animation: page-fade-in 0.4s ease-out;
+}
+
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Global Overlays Fix */
+.p-select-overlay,
+.p-datepicker-panel {
+    background-color: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+    border-radius: 12px !important;
+    margin-top: 4px !important;
+    z-index: 10000 !important;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+  &:hover { background: #94a3b8; }
+}

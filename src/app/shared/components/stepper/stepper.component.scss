@@ -1,0 +1,89 @@
+@reference "tailwindcss";
+
+.stepper-container {
+    @apply w-full overflow-x-auto pb-4 pt-2 px-2;
+    -webkit-overflow-scrolling: touch;
+}
+
+.stepper-wrapper {
+    @apply flex items-start justify-between min-w-max lg:min-w-0 w-full gap-4;
+}
+
+.step {
+    @apply flex flex-col items-center gap-3 relative cursor-pointer transition-all duration-300;
+    flex: 1;
+    min-width: 140px;
+
+    &:hover .indicator-ring {
+        @apply scale-110 shadow-md;
+    }
+}
+
+/* Connector Line */
+.connector {
+    @apply absolute top-5 left-[50%] w-full h-[2px] bg-slate-100 -z-10;
+    transition: background-color 0.3s ease;
+}
+
+.step.completed .connector {
+    @apply bg-emerald-500;
+}
+
+/* Step Indicator Design */
+.step-indicator {
+    @apply relative flex items-center justify-center h-10 w-10;
+}
+
+.indicator-ring {
+    @apply w-full h-full rounded-full border-2 border-slate-200 bg-white flex items-center justify-center transition-all duration-300;
+}
+
+.indicator-core {
+    @apply flex items-center justify-center text-sm font-bold;
+}
+
+/* States */
+.step.pending {
+    .indicator-ring {
+        @apply border-slate-200 bg-slate-50 text-slate-400;
+    }
+    .step-label { @apply text-slate-400; }
+}
+
+.step.active {
+    .indicator-ring {
+        @apply border-blue-600 bg-blue-50 text-blue-600 ring-4 ring-blue-50;
+    }
+    .step-label { @apply text-blue-900 font-bold; }
+    .indicator-core { @apply scale-110; }
+}
+
+.step.completed {
+    .indicator-ring {
+        @apply border-emerald-500 bg-emerald-500 text-white;
+    }
+    .step-label { @apply text-slate-900; }
+    .step-sublabel { @apply text-emerald-600 font-medium; }
+}
+
+/* Content Styling */
+.step-content {
+    @apply flex flex-col items-center text-center px-2;
+}
+
+.step-label {
+    @apply text-[12px] font-semibold text-slate-600 tracking-tight transition-colors duration-300;
+    white-space: nowrap;
+}
+
+.step-sublabel {
+    @apply text-[10px] text-slate-400 uppercase font-bold tracking-widest mt-1;
+    white-space: nowrap;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+    .step {
+        min-width: 120px;
+    }
+}

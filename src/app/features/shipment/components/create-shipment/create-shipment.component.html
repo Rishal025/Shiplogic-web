@@ -1,0 +1,330 @@
+<p-toast />
+<div class="page-transition-wrapper flex flex-col gap-6 px-4 md:px-12 lg:px-24">
+  <!-- Top Navigation/Header -->
+  <header class="flex justify-between items-center shrink-0">
+    <div class="flex items-center gap-4">
+      <button routerLink="/dashboard" class="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center bg-white text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
+          <i class="pi pi-arrow-left"></i>
+      </button>
+      <div>
+        <h1 class="font-bold text-2xl text-slate-900 tracking-tight">Create New Shipment</h1>
+        <p class="text-slate-500 text-sm">Fill in all required fields to register a new logistics record</p>
+      </div>
+    </div>
+    <div class="flex gap-3">
+      <button 
+        (click)="onSubmit()" 
+        appButton 
+        class="shadow-sm"
+        [disabled]="submitting() || shipmentForm.invalid">
+        <i [class]="submitting() ? 'pi pi-spin pi-spinner mr-2' : 'pi pi-save mr-2'"></i>
+        <span>{{ submitting() ? 'Saving...' : 'Save Shipment' }}</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Form Content -->
+  <form [formGroup]="shipmentForm" class="pb-20">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      
+      <!-- Left Column -->
+      <div class="flex flex-col gap-8">
+        
+        <!-- Shipment Info Group -->
+        <section class="sl-card">
+          <div class="sl-card-header">
+            <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+              <i class="pi pi-info-circle"></i>
+            </div>
+            <h2>Shipment Info</h2>
+          </div>
+          <div class="sl-card-body grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="flex flex-col">
+              <label class="sl-label">PI No.</label>
+              <input pInputText formControlName="piNo" placeholder="Proforma Invoice #" class="w-full" />
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">PI Date</label>
+              <p-datepicker formControlName="piDate" [showIcon]="true" iconDisplay="button" placeholder="Select PI Date" styleClass="w-full" inputStyleClass="w-full" appendTo="body"></p-datepicker>
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">PO No.</label>
+              <input pInputText formControlName="fpoNo" placeholder="Purchase Order #" class="w-full" />
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">PO Date</label>
+              <p-datepicker formControlName="purchaseDate" [showIcon]="true" iconDisplay="button" placeholder="Select Date" styleClass="w-full" inputStyleClass="w-full" appendTo="body"></p-datepicker>
+            </div>
+            <!-- Port row -->
+            <div class="flex flex-col">
+              <label class="sl-label">Port of Loading</label>
+              <input pInputText formControlName="portOfLoading" placeholder="Enter port of loading" class="w-full" />
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">Port of Discharge</label>
+              <input pInputText formControlName="portOfDischarge" placeholder="Enter port of discharge" class="w-full" />
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">Inco Terms</label>
+              <p-select 
+                [options]="incoTerms"
+                formControlName="incoTerms" 
+                placeholder="Select Inco Terms" 
+                [showClear]="true" 
+                styleClass="w-full" 
+                appendTo="body">
+              </p-select>
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">Item *</label>
+              <p-select 
+                [options]="items()"
+                formControlName="item" 
+                optionLabel="description"
+                optionValue="_id"
+                placeholder="Select Item" 
+                [showClear]="true" 
+                [virtualScroll]="true"
+                [virtualScrollItemSize]="38"
+                [filter]="true"
+                filterBy="description,itemCode"
+                styleClass="w-full" 
+                appendTo="body">
+                <ng-template let-item pTemplate="item">
+                  <div class="flex flex-col">
+                    <span class="font-semibold text-sm">{{item.description}}</span>
+                    <span class="text-xs text-slate-500">{{item.itemCode}} • {{item.packing}}</span>
+                  </div>
+                </ng-template>
+              </p-select>
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">Commodity</label>
+              <p-select 
+                [options]="commodities"
+                formControlName="commodity" 
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select Commodity" 
+                [showClear]="true" 
+                styleClass="w-full" 
+                appendTo="body">
+              </p-select>
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">Brand</label>
+              <input pInputText formControlName="brandName" placeholder="Enter brand name" class="w-full" />
+            </div>
+            <div class="flex flex-col md:col-span-2">
+              <label class="sl-label">Item Description</label>
+              <textarea pInputTextarea formControlName="itemDescription" rows="3" placeholder="Detailed description..." class="w-full"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <!-- Supplier Details -->
+        <section class="sl-card">
+          <div class="sl-card-header">
+            <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+              <i class="pi pi-users"></i>
+            </div>
+            <h2>Supplier Details</h2>
+          </div>
+          <div class="sl-card-body grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="flex flex-col">
+              <label class="sl-label">Supplier</label>
+              <p-select 
+                [options]="suppliers()"
+                formControlName="supplier" 
+                optionLabel="name"
+                optionValue="_id"
+                placeholder="Select Supplier" 
+                [showClear]="true" 
+                [virtualScroll]="true"
+                [virtualScrollItemSize]="38"
+                [filter]="true"
+                filterBy="name,supplierCode,country"
+                styleClass="w-full" 
+                appendTo="body">
+                <ng-template let-supplier pTemplate="item">
+                  <div class="flex flex-col">
+                    <span class="font-semibold text-sm">{{supplier.name}}</span>
+                    <span class="text-xs text-slate-500">{{supplier.supplierCode}} • {{supplier.country}}</span>
+                  </div>
+                </ng-template>
+              </p-select>
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">Country of Origin</label>
+              <input pInputText formControlName="countryOfOrigin" placeholder="Enter Country" class="w-full" />
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Right Column -->
+      <div class="flex flex-col gap-8">
+
+        <!-- Quantity of Packaging -->
+        <section class="sl-card">
+          <div class="sl-card-header">
+            <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+              <i class="pi pi-truck"></i>
+            </div>
+            <h2>Quantity of Packaging</h2>
+          </div>
+          <div class="sl-card-body grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="flex flex-col">
+              <label class="sl-label">Packaging</label>
+              <input pInputText formControlName="packagingType" placeholder="Auto-filled from item" class="w-full" />
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">Container Size</label>
+              <p-select
+                [options]="containerSizes"
+                formControlName="containerSize"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select 20' or 40'"
+                [showClear]="true"
+                styleClass="w-full"
+                appendTo="body">
+              </p-select>
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">Total Quantity (MT)</label>
+              <p-inputNumber formControlName="plannedContainers" mode="decimal" [min]="0" placeholder="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">FCL</label>
+              <p-inputNumber formControlName="fcl" mode="decimal" [min]="0" placeholder="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">Pallet</label>
+              <p-inputNumber formControlName="pallet" mode="decimal" [min]="0" placeholder="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">Bags</label>
+              <p-inputNumber formControlName="bags" mode="decimal" [min]="0" placeholder="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+            </div>
+          </div>
+        </section>
+
+        <!-- Price Group -->
+        <section class="sl-card h-fit">
+          <div class="sl-card-header">
+            <div class="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
+              <i class="pi pi-dollar"></i>
+            </div>
+            <h2>Price</h2>
+          </div>
+          <div class="sl-card-body flex flex-col gap-6">
+            <div class="flex flex-col">
+                <label class="sl-label">Buying Unit (UOM)</label>
+                <p-select 
+                  [options]="buyingUnits" 
+                  formControlName="buyingUnit" 
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Select Buying Unit" 
+                  [showClear]="true" 
+                  styleClass="w-full" 
+                  appendTo="body">
+                </p-select>
+              </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div class="flex flex-col">
+                <label class="sl-label">No. of Shipments</label>
+                <p-inputNumber formControlName="noOfShipments" mode="decimal" [min]="0" placeholder="0.00" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+              </div>
+              <div class="flex flex-col">
+                <label class="sl-label">FC per Unit</label>
+                <p-inputNumber formControlName="fcPerUnit" mode="currency" currency="USD" locale="en-US" placeholder="$0.00" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="financial-total-box">
+                <label class="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Total USD (Auto)</label>
+                <div class="text-xl font-black text-blue-900">{{ (shipmentForm.get('totalUSD')?.value || 0) | currency:'USD' }}</div>
+              </div>
+              <div class="financial-total-box">
+                <label class="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Total AED (Auto)</label>
+                <div class="text-xl font-black text-emerald-900">{{ (shipmentForm.get('totalAED')?.value || 0) | number:'1.2-2' }} AED</div>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div class="flex flex-col">
+                <label class="sl-label">Payment Terms</label>
+                <p-select 
+                  [options]="paymentTerms" 
+                  formControlName="paymentTerms" 
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Select Terms" 
+                  [showClear]="true" 
+                  styleClass="w-full" 
+                  appendTo="body">
+                </p-select>
+              </div>
+              <div class="flex flex-col">
+                <label class="sl-label">Advance Amount</label>
+                <p-inputNumber formControlName="advanceAmount" mode="currency" currency="USD" locale="en-US" placeholder="$0.00" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+              </div>
+            </div>
+
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- Shipment Papers -->
+    <section class="sl-card mt-2">
+      <div class="sl-card-header">
+        <div class="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center text-violet-600">
+          <i class="pi pi-paperclip"></i>
+        </div>
+        <h2>Shipment Papers</h2>
+      </div>
+      <div class="sl-card-body flex flex-col gap-4">
+
+        <!-- Drop zone -->
+        <label class="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-slate-200 rounded-xl p-8 bg-slate-50/50 hover:bg-slate-50 hover:border-violet-300 transition-colors cursor-pointer group">
+          <div class="w-12 h-12 rounded-full bg-violet-50 group-hover:bg-violet-100 flex items-center justify-center transition-colors">
+            <i class="pi pi-cloud-upload text-xl text-violet-500"></i>
+          </div>
+          <div class="text-center">
+            <p class="text-sm font-bold text-slate-700">Click to upload</p>
+            <p class="text-xs text-slate-400 mt-0.5">PDF, DOC, DOCX, JPG, PNG — multiple files allowed</p>
+          </div>
+          <input type="file" multiple class="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" (change)="onFilesSelected($event)" />
+        </label>
+
+        <!-- File list -->
+        @if (uploadedFiles().length > 0) {
+          <div class="flex flex-col gap-2">
+            @for (file of uploadedFiles(); track $index; let fi = $index) {
+              <div class="flex items-center justify-between px-4 py-2.5 bg-white border border-slate-100 rounded-lg shadow-sm">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
+                    <i class="pi pi-file text-violet-500 text-sm"></i>
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-xs font-semibold text-slate-700 truncate">{{ file.name }}</p>
+                    <p class="text-[10px] text-slate-400">{{ (file.size / 1024 / 1024).toFixed(2) }} MB</p>
+                  </div>
+                </div>
+                <button type="button" (click)="removeFile(fi)" class="ml-4 shrink-0 text-slate-300 hover:text-red-400 transition-colors">
+                  <i class="pi pi-times-circle text-base"></i>
+                </button>
+              </div>
+            }
+          </div>
+        }
+
+      </div>
+    </section>
+
+  </form>
+</div>

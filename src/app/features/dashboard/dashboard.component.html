@@ -1,0 +1,13 @@
+<div class="grid grid-cols-1 gap-6 page-transition-wrapper">
+    <!-- Deferring the heavy table component to prioritize initial page load -->
+    @defer (on idle) {
+        <app-shipment-list class="block" />
+    } @placeholder {
+        <!-- Skeleton or loading state to prevent layout shift -->
+        <div class="h-[600px] w-full bg-slate-50 animate-pulse rounded-2xl border border-slate-200"></div>
+    } @loading (after 100ms; minimum 500ms) {
+        <div class="h-[600px] w-full flex items-center justify-center bg-white rounded-2xl border border-slate-200">
+            <i class="pi pi-spin pi-spinner text-slate-300 text-2xl"></i>
+        </div>
+    }
+</div>

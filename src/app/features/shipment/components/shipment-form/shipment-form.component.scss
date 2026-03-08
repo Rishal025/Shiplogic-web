@@ -1,0 +1,120 @@
+@reference "tailwindcss";
+
+:host {
+    display: block;
+    
+    ::ng-deep {
+        .financial-total-box {
+            @apply flex flex-col gap-1.5 p-4 bg-blue-50/50 rounded-xl border border-blue-100;
+        }
+
+        /* High-Density Table Styling */
+        .custom-tracker-table {
+            .p-datatable-header { @apply hidden; }
+            
+            .p-datatable-thead > tr > th {
+                @apply bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-500 py-3 px-4 border-b border-slate-200 whitespace-nowrap;
+            }
+
+            .p-datatable-tbody > tr > td {
+                @apply py-1 px-2 border-b border-slate-100 transition-colors whitespace-nowrap;
+                
+                &:first-child { @apply px-4; }
+            }
+
+            /* Excel-like Inputs */
+            .table-input {
+                input {
+                    @apply w-full border-none bg-transparent py-2 px-2 text-xs font-bold text-slate-900 text-center;
+                    @apply focus:ring-1 focus:ring-blue-400 focus:bg-white focus:shadow-inner rounded;
+                    min-width: 60px;
+                }
+            }
+
+            .table-input-text {
+                @apply border-none bg-transparent py-2 px-2 text-xs font-medium text-slate-600;
+                @apply focus:ring-1 focus:ring-blue-400 focus:bg-white focus:shadow-inner rounded;
+                min-width: 120px;
+            }
+
+            .cell-dates {
+                @apply flex gap-1 items-center;
+                .date-mini {
+                    @apply border-none bg-transparent py-1 px-1 text-[10px] font-bold text-slate-700 w-20;
+                    @apply focus:ring-1 focus:ring-blue-400 focus:bg-white rounded;
+                }
+            }
+
+            /* Responsive tweaks for the table wrapper */
+            .p-datatable-wrapper {
+                @apply rounded-xl border border-slate-100;
+            }
+
+            /* Buttons */
+            .action-btn-save {
+                @apply w-8 h-8 flex items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white transition-all;
+                i { @apply text-xs; }
+            }
+
+            .action-btn-delete {
+                @apply w-8 h-8 flex items-center justify-center rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-500 hover:text-white transition-all;
+                i { @apply text-xs; }
+            }
+        }
+
+        /* Tablet/Mobile Specific Adjustments */
+        @media (max-width: 768px) {
+            .custom-tracker-table {
+                .p-datatable-thead > tr > th { @apply py-2 px-3; }
+                .p-datatable-tbody > tr > td { @apply py-2 px-2; }
+                
+                .table-input input, .table-input-text {
+                    @apply py-2.5; /* Larger touch target */
+                }
+            }
+
+            .sl-card-header {
+                @apply flex-col items-start gap-3;
+                button { @apply w-full; }
+            }
+            
+            .date-mini { @apply w-24; }
+        }
+
+        .actual-table {
+            .p-datatable-thead > tr > th { @apply bg-emerald-50/30 text-emerald-800; }
+        }
+
+        /* Confirmation Dialog Aesthetics */
+        .p-confirm-dialog {
+            @apply max-w-[90vw] sm:max-w-md;
+            .p-dialog-header {
+                @apply bg-slate-50 border-b border-slate-100 py-4;
+                .p-dialog-title { @apply text-base font-bold text-slate-900 uppercase tracking-tight; }
+            }
+            .p-dialog-content {
+                @apply py-8 px-6 text-slate-600 font-medium leading-relaxed;
+                i { @apply text-blue-600 mr-4 text-2xl; }
+            }
+            .p-dialog-footer {
+                @apply bg-slate-50/50 border-t border-slate-100 py-3 px-4 gap-3 flex flex-col sm:flex-row justify-end;
+                button { 
+                    @apply rounded-xl font-bold text-xs uppercase tracking-wider px-6! py-2.5! w-full sm:w-auto; 
+                    margin: 0 !important;
+                }
+            }
+        }
+
+        .p-toast {
+            @apply max-w-[90vw] right-4! top-4!;
+            .p-toast-message {
+                @apply rounded-2xl shadow-2xl border-0 overflow-hidden mb-3;
+                &.p-toast-message-success { @apply bg-emerald-50 text-emerald-800 border-l-4 border-emerald-500; }
+                &.p-toast-message-info { @apply bg-blue-50 text-blue-800 border-l-4 border-blue-500; }
+                .p-toast-message-icon { @apply text-lg; }
+                .p-toast-summary { @apply font-black text-sm uppercase tracking-wider; }
+                .p-toast-detail { @apply text-xs font-medium opacity-80; }
+            }
+        }
+    }
+}
