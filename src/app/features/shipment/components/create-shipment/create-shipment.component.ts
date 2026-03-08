@@ -351,6 +351,8 @@ export class CreateShipmentComponent implements OnInit {
       }
 
       this.shipmentForm.patchValue(patch, { emitEvent: false });
+      // Ensure form validity is recalculated so Save Shipment enables when required fields are set
+      this.shipmentForm.updateValueAndValidity({ emitEvent: true });
     } catch {
       // If anything fails, just skip autopopulate; user can fill manually
     }
@@ -405,9 +407,15 @@ export class CreateShipmentComponent implements OnInit {
     this.submitting.set(true);
     const formValue = this.shipmentForm.getRawValue();
 
+    // poNumber is required by API (used for shipment number); use PO No. (fpoNo), else PI No., else generated default
+    const poNumberValue =
+      (formValue.fpoNo && String(formValue.fpoNo).trim()) ||
+      (formValue.piNo && String(formValue.piNo).trim()) ||
+      'PO-' + (formValue.purchaseDate ? new Date(formValue.purchaseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+
     // Map form values to API payload structure
     const payload: CreateShipmentPayload = {
-      poNumber: '',
+      poNumber: poNumberValue,
       year: new Date().getFullYear().toString(),
       orderDate: formValue.purchaseDate ? new Date(formValue.purchaseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0], // YYYY-MM-DD
       supplierId: formValue.supplier,
