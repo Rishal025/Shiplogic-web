@@ -337,7 +337,11 @@ export class CreateShipmentComponent implements OnInit {
       const name = typeof rawName === 'string' ? rawName.trim() : '';
       if (code || name) {
         const supplier = this.findSupplierByCodeOrName(code, name);
-        if (supplier) patch['supplier'] = supplier._id;
+        if (supplier) {
+          patch['supplier'] = supplier._id;
+          // Set Country of Origin from supplier when setting supplier programmatically (valueChanges won't fire with emitEvent: false)
+          patch['countryOfOrigin'] = supplier.country ?? '';
+        }
       }
 
       // Resolve item: match by itemCode (case-insensitive) first, then by description (case-insensitive / contains)
