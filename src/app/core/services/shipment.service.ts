@@ -9,7 +9,8 @@ import {
   CreateShipmentPayload,
   CreateShipmentResponse,
   ShipmentDetailsResponse,
-  ExtractShipmentFromDocumentsResponse
+  ExtractShipmentFromDocumentsResponse,
+  ExtractBillNoResponse
 } from '../models/shipment.model';
 
 // Payload interfaces for container operations
@@ -26,6 +27,7 @@ export interface PlannedContainer {
 export interface CreatePlannedContainersPayload {
   shipmentId: string;
   plannedContainers: PlannedContainer[];
+  noOfShipments?: number;
 }
 
 export interface ActualContainer {
@@ -104,6 +106,14 @@ export class ShipmentService {
    */
   extractShipmentFromDocuments(formData: FormData): Observable<ExtractShipmentFromDocumentsResponse> {
     return this.http.post<ExtractShipmentFromDocumentsResponse>(`${this.apiUrl}/extract-documents`, formData);
+  }
+
+  /**
+   * Extract bill number from a single document (PDF or image, 1 page).
+   * POST /shipment/extract-bill-no with FormData containing file.
+   */
+  extractBillNoFromDocument(formData: FormData): Observable<ExtractBillNoResponse> {
+    return this.http.post<ExtractBillNoResponse>(`${this.apiUrl}/extract-bill-no`, formData);
   }
 
   updateShipment(id: string, shipment: Partial<ShipmentDetail>): Observable<ShipmentDetail> {

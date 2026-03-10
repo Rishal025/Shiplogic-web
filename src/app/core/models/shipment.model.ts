@@ -80,6 +80,23 @@ export interface CreateShipmentResponse {
 }
 
 /**
+ * Shipment calculations from extraction API (Python shipment_calculations).
+ * Used to show FCL, pallets, bags and price-matching warning.
+ */
+export interface ShipmentCalculations {
+  fcl?: number;
+  bags?: number;
+  container_size?: string;
+  bags_per_container?: number;
+  pallets?: number;
+  is_price_matching?: boolean;
+  lpo_price_per_mt?: number;
+  pi_price_per_mt?: number;
+  mt_variation?: number;
+  diff_percent?: number;
+}
+
+/**
  * Response from document extraction API (POST /shipment/extract-documents).
  * Used to autopopulate shipment form from uploaded PI/PO documents.
  * Keys match Create New Shipment form controls; supplier/item are resolved from supplierCode/itemCode.
@@ -120,11 +137,27 @@ export interface ExtractedShipmentData {
   // Dates
   expectedETD?: string;
   expectedETA?: string;
+  /** From Python shipment_calculations; used for FCL/pallet/bags and price-mismatch warning. */
+  shipmentCalculations?: ShipmentCalculations;
 }
 
 export interface ExtractShipmentFromDocumentsResponse {
   message?: string;
   data?: ExtractedShipmentData;
+}
+
+/** Response from bill-no extraction API (POST /shipment/extract-bill-no). */
+export interface ExtractBillNoResponse {
+  bill_no: string;
+  metadata?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    total_tokens?: number;
+    cost_incurred?: number;
+    cost_currency?: string;
+    latency_ms?: number;
+    model?: string;
+  };
 }
 
 // Shipment Details API Response (GET /shipment/:id)
@@ -138,6 +171,9 @@ export interface ShipmentInfo {
   _id: string;
   shipmentNo: string;
   orderDate: string;
+  orderNumber?: string;
+  poNumber?: string;
+  fpoNo?: string;
   supplier: string;
   item: string;
   riceName?: string;
@@ -155,6 +191,7 @@ export interface ShipmentInfo {
   plannedETD?: string;
   plannedETA?: string;
   containerSize?: number;
+  noOfShipments?: number;
 }
 
 // Step 1: Planned Split
@@ -185,6 +222,7 @@ export interface ActualContainer {
   // Step 2: Actual Split
   qtyMT?: number;
   bags?: number;
+  pallet?: number;
   FCL?: number;
   weekWiseShipment?: string;
   buyingUnit?: string;

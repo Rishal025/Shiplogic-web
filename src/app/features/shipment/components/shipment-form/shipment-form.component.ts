@@ -1,6 +1,6 @@
 import { Component, OnDestroy, computed, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormArray } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormArray, FormControl } from '@angular/forms';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -122,6 +122,9 @@ export class ShipmentFormComponent implements OnDestroy {
   get actualSplits(): FormArray {
     return this.shipmentForm.get('actualSplits') as FormArray;
   }
+  get noOfShipmentsFormControl(): FormControl<number | null> {
+    return this.shipmentForm.get('noOfShipments') as FormControl<number | null>;
+  }
   get documentationSplits(): FormArray {
     return this.shipmentForm.get('documentationSplits') as FormArray;
   }
@@ -159,6 +162,7 @@ export class ShipmentFormComponent implements OnDestroy {
       advanceAmount: [null],
       expectedETD: [null],
       expectedETA: [null],
+      noOfShipments: [null as number | null],
       plannedSplits: this.fb.array([]),
       actualSplits: this.fb.array([]),
       documentationSplits: this.fb.array([]),
@@ -166,12 +170,6 @@ export class ShipmentFormComponent implements OnDestroy {
       clearancePaidSplits: this.fb.array([]),
       clearanceFinalSplits: this.fb.array([]),
       grnSplits: this.fb.array([]),
-    });
-
-    form.get('plannedContainers')?.valueChanges.subscribe((count: number | null) => {
-      if (!this.isPlannedLocked() && count != null) {
-        this.syncPlannedSplits(count);
-      }
     });
 
     form.valueChanges.subscribe((val) => {
@@ -201,10 +199,70 @@ export class ShipmentFormComponent implements OnDestroy {
     }
   }
 
-  private createPlannedGroup(): FormGroup {
+  /** Distribute totalQtyMT across n rows (equal split, sum never exceeds total). */
+  private distributeQtyMT(totalQtyMT: number, n: number): number[] {
+    if (n <= 0) return [];
+    const perRow = totalQtyMT / n;
+    const rows: number[] = [];
+    let sum = 0;
+    for (let i = 0; i < n - 1; i++) {
+      const v = Math.floor(perRow * 100) / 100;
+      rows.push(v);
+      sum += v;
+    }
+    rows.push(Math.round((totalQtyMT - sum) * 100) / 100);
+    return rows;
+  }
+
+  /** Sync planned rows from "No of Shipments" and set each row qtyMT = totalQtyMT / no. */
+  syncPlannedSplitsByNoOfShipments(no: number, totalQtyMT: number): void {
+    if (no <= 0 || totalQtyMT <= 0) return;
+    const containerSize = this.shipmentForm.get('containerSize')?.value;
+    this.plannedSplits.clear();
+    const qtyPerRow = this.distributeQtyMT(totalQtyMT, no);
+    for (let i = 0; i < no; i++) {
+      this.plannedSplits.push(
+        this.fb.group({
+          size: [containerSize, Validators.required],
+          qtyMT: [qtyPerRow[i], Validators.required],
+          weekWiseShipment: ['', Validators.required],
+          FCL: [null, Validators.required],
+          etd: [null, Validators.required],
+          eta: [null, Validators.required],
+        })
+      );
+    }
+    this.shipmentForm.get('noOfShipments')?.setValue(no, { emitEvent: false });
+  }
+
+  addPlannedRow(): void {
+    const totalQtyMT = this.shipmentData()?.shipment?.plannedQtyMT ?? 0;
+    const containerSize = this.shipmentForm.get('containerSize')?.value;
+    this.plannedSplits.push(this.createPlannedGroup());
+    const n = this.plannedSplits.length;
+    const qtyPerRow = this.distributeQtyMT(totalQtyMT, n);
+    this.plannedSplits.controls.forEach((c, i) => {
+      c.get('qtyMT')?.setValue(qtyPerRow[i], { emitEvent: false });
+    });
+    this.shipmentForm.get('noOfShipments')?.setValue(n, { emitEvent: false });
+  }
+
+  removePlannedRow(index: number): void {
+    if (this.plannedSplits.length <= 1) return;
+    const totalQtyMT = this.shipmentData()?.shipment?.plannedQtyMT ?? 0;
+    this.plannedSplits.removeAt(index);
+    const n = this.plannedSplits.length;
+    const qtyPerRow = this.distributeQtyMT(totalQtyMT, n);
+    this.plannedSplits.controls.forEach((c, i) => {
+      c.get('qtyMT')?.setValue(qtyPerRow[i], { emitEvent: false });
+    });
+    this.shipmentForm.get('noOfShipments')?.setValue(n, { emitEvent: false });
+  }
+
+  private createPlannedGroup(qtyMT?: number): FormGroup {
     return this.fb.group({
       size: [this.shipmentForm.get('containerSize')?.value, Validators.required],
-      qtyMT: [null, Validators.required],
+      qtyMT: [qtyMT ?? null, Validators.required],
       weekWiseShipment: ['', Validators.required],
       FCL: [null, Validators.required],
       etd: [null, Validators.required],
@@ -238,7 +296,8 @@ export class ShipmentFormComponent implements OnDestroy {
       });
     }
 
-    // Step 1 fields
+    // Step 1 fields and noOfShipments (for step 2 Scheduled)
+    const noOfShipmentsValue = (data.shipment as { noOfShipments?: number }).noOfShipments ?? (data.planned?.length ?? 0);
     this.shipmentForm.patchValue(
       {
         shipmentNo: data.shipment.shipmentNo,
@@ -246,6 +305,7 @@ export class ShipmentFormComponent implements OnDestroy {
         supplier: data.shipment.supplier,
         item: data.shipment.item,
         plannedContainers: data.shipment.assumedContainerCount,
+        noOfShipments: noOfShipmentsValue || null,
         incoTerms: data.shipment.incoterms,
         buyingUnit: data.shipment.buyunit,
         fcPerUnit: data.shipment.fcPerUnit,
@@ -255,10 +315,6 @@ export class ShipmentFormComponent implements OnDestroy {
       },
       { emitEvent: false }
     );
-
-    if (this.plannedSplits.length === 0 && data.shipment.assumedContainerCount > 0) {
-      this.syncPlannedSplits(data.shipment.assumedContainerCount);
-    }
 
     // Build actual + linked step arrays
     if (data.planned && data.planned.length > 0) {
@@ -270,14 +326,28 @@ export class ShipmentFormComponent implements OnDestroy {
         this.actualSplits.push(
           this.fb.group({
             containerId: [plannedContainer.containerId],
-            qtyMT: [actualData?.qtyMT ?? null, Validators.required],
+            FCL: [plannedContainer.FCL ?? null],
+            size: [plannedContainer.size ?? data.shipment.containerSize ?? null],
+            qtyMT: [
+              actualData?.qtyMT ?? plannedContainer.qtyMT ?? null,
+              Validators.required,
+            ],
             bags: [actualData?.bags ?? null, Validators.required],
+            pallet: [actualData?.pallet ?? null],
             updatedETD: [
-              actualData?.updatedETD ? new Date(actualData.updatedETD) : null,
+              actualData?.updatedETD
+                ? new Date(actualData.updatedETD)
+                : plannedContainer.etd
+                  ? new Date(plannedContainer.etd)
+                  : null,
               Validators.required,
             ],
             updatedETA: [
-              actualData?.updatedETA ? new Date(actualData.updatedETA) : null,
+              actualData?.updatedETA
+                ? new Date(actualData.updatedETA)
+                : plannedContainer.eta
+                  ? new Date(plannedContainer.eta)
+                  : null,
               Validators.required,
             ],
             BLNo: [actualData?.BLNo || '', Validators.required],
@@ -369,10 +439,31 @@ export class ShipmentFormComponent implements OnDestroy {
   }
 
   // --- Child Event Handlers ---
+  onConfirmNoOfShipments(no: number): void {
+    const totalQtyMT = this.shipmentData()?.shipment?.plannedQtyMT ?? 0;
+    if (no > 0 && totalQtyMT > 0) {
+      this.syncPlannedSplitsByNoOfShipments(no, totalQtyMT);
+    }
+  }
+
   onAddActual(): void {
     const max = this.shipmentForm.get('plannedContainers')?.value || 0;
     if (this.actualSplits.length < max) {
       this.actualSplits.push(this.createGroup('actual'));
+      const idx = this.actualSplits.length - 1;
+      const planned = this.plannedSplits.at(idx);
+      if (planned) {
+        this.actualSplits.at(idx).patchValue(
+          {
+            FCL: planned.get('FCL')?.value,
+            size: planned.get('size')?.value,
+            qtyMT: planned.get('qtyMT')?.value,
+            updatedETD: planned.get('etd')?.value,
+            updatedETA: planned.get('eta')?.value,
+          },
+          { emitEvent: false }
+        );
+      }
       this.documentationSplits.push(this.createGroup('doc'));
       this.arrivalTimeSplits.push(this.createGroup('arrival'));
       this.clearancePaidSplits.push(this.createGroup('paid'));
@@ -395,8 +486,11 @@ export class ShipmentFormComponent implements OnDestroy {
       case 'actual':
         return this.fb.group({
           containerId: [null],
+          FCL: [null],
+          size: [null],
           qtyMT: [null, Validators.required],
           bags: [null, Validators.required],
+          pallet: [null],
           updatedETD: [null, Validators.required],
           updatedETA: [null, Validators.required],
           BLNo: ['', Validators.required],

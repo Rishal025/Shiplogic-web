@@ -54,6 +54,8 @@ export class CreateShipmentComponent implements OnInit {
   document1File = signal<File | null>(null);
   document2File = signal<File | null>(null);
   extracting = signal(false);
+  /** Set after extract & autopopulate when response includes shipment_calculations; used for price-mismatch warning. */
+  extractionPriceMismatch = signal<{ isPriceMatching: boolean; diffPercent?: number } | null>(null);
 
   // Document preview modal
   showPreviewModal = signal(false);
@@ -264,6 +266,13 @@ export class CreateShipmentComponent implements OnInit {
     if (!visible) this.closeDocumentPreview();
   }
 
+  /** Label for price-mismatch diff_percent (e.g. "0.51%" or "—"). */
+  get priceMismatchDiffLabel(): string {
+    const m = this.extractionPriceMismatch();
+    if (m?.diffPercent == null) return '—';
+    return `${m.diffPercent.toFixed(2)}%`;
+  }
+
   onExtractAndAutopopulate(): void {
     const file1 = this.document1File();
     const file2 = this.document2File();
@@ -274,6 +283,7 @@ export class CreateShipmentComponent implements OnInit {
     formData.append('document2', file2, file2.name);
 
     this.extracting.set(true);
+    this.extractionPriceMismatch.set(null);
     this.shipmentService.extractShipmentFromDocuments(formData).subscribe({
       next: (response) => {
         this.extracting.set(false);
@@ -357,6 +367,16 @@ export class CreateShipmentComponent implements OnInit {
       this.shipmentForm.patchValue(patch, { emitEvent: false });
       // Ensure form validity is recalculated so Save Shipment enables when required fields are set
       this.shipmentForm.updateValueAndValidity({ emitEvent: true });
+
+      const sc = data.shipmentCalculations;
+      if (sc) {
+        this.extractionPriceMismatch.set({
+          isPriceMatching: sc.is_price_matching === true,
+          diffPercent: sc.diff_percent
+        });
+      } else {
+        this.extractionPriceMismatch.set(null);
+      }
     } catch {
       // If anything fails, just skip autopopulate; user can fill manually
     }

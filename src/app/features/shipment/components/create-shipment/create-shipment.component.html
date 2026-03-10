@@ -95,20 +95,20 @@
             </div>
 
             <div class="flex flex-col">
-              <label class="sl-label">PI No.</label>
-              <input pInputText formControlName="piNo" placeholder="Proforma Invoice #" class="w-full" />
-            </div>
-            <div class="flex flex-col">
-              <label class="sl-label">PI Date</label>
-              <p-datepicker formControlName="piDate" [showIcon]="true" iconDisplay="button" placeholder="Select PI Date" styleClass="w-full" inputStyleClass="w-full" appendTo="body"></p-datepicker>
-            </div>
-            <div class="flex flex-col">
               <label class="sl-label">PO No.</label>
               <input pInputText formControlName="fpoNo" placeholder="Purchase Order #" class="w-full" />
             </div>
             <div class="flex flex-col">
               <label class="sl-label">PO Date</label>
               <p-datepicker formControlName="purchaseDate" [showIcon]="true" iconDisplay="button" placeholder="Select Date" styleClass="w-full" inputStyleClass="w-full" appendTo="body"></p-datepicker>
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">PI No.</label>
+              <input pInputText formControlName="piNo" placeholder="Proforma Invoice #" class="w-full" />
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">PI Date</label>
+              <p-datepicker formControlName="piDate" [showIcon]="true" iconDisplay="button" placeholder="Select PI Date" styleClass="w-full" inputStyleClass="w-full" appendTo="body"></p-datepicker>
             </div>
             <!-- Port row -->
             <div class="flex flex-col">
@@ -125,6 +125,19 @@
                 [options]="incoTerms"
                 formControlName="incoTerms" 
                 placeholder="Select Inco Terms" 
+                [showClear]="true" 
+                styleClass="w-full" 
+                appendTo="body">
+              </p-select>
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">Commodity</label>
+              <p-select 
+                [options]="commodities"
+                formControlName="commodity" 
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Select Commodity" 
                 [showClear]="true" 
                 styleClass="w-full" 
                 appendTo="body">
@@ -151,19 +164,6 @@
                     <span class="text-xs text-slate-500">{{item.itemCode}} • {{item.packing}}</span>
                   </div>
                 </ng-template>
-              </p-select>
-            </div>
-            <div class="flex flex-col">
-              <label class="sl-label">Commodity</label>
-              <p-select 
-                [options]="commodities"
-                formControlName="commodity" 
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Select Commodity" 
-                [showClear]="true" 
-                styleClass="w-full" 
-                appendTo="body">
               </p-select>
             </div>
             <div class="flex flex-col">
@@ -230,6 +230,17 @@
             <h2>Quantity of Packaging</h2>
           </div>
           <div class="sl-card-body grid grid-cols-1 md:grid-cols-2 gap-5">
+            @if (extractionPriceMismatch() && !extractionPriceMismatch()?.isPriceMatching) {
+              <div class="md:col-span-2 flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
+                <i class="pi pi-exclamation-triangle text-amber-600 text-xl shrink-0 mt-0.5"></i>
+                <div class="flex flex-col gap-1">
+                  <span class="font-semibold text-amber-800">Quantity / calculation mismatch</span>
+                  <p class="text-sm text-amber-700">
+                    There is a mismatch between Total quantity (MT) and the calculated bags. Difference: {{ priceMismatchDiffLabel }}. Please verify the values in this section.
+                  </p>
+                </div>
+              </div>
+            }
             <div class="flex flex-col">
               <label class="sl-label">Packaging</label>
               <input pInputText formControlName="packagingType" placeholder="Auto-filled from item" class="w-full" />

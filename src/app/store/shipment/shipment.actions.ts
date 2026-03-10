@@ -43,7 +43,7 @@ export const populateFormState = createAction(
 // --- Submit Planned ---
 export const submitPlannedContainers = createAction(
   '[Shipment Form] Submit Planned',
-  props<{ shipmentId: string; containers: any[]; plannedQtyMT: number }>()
+  props<{ shipmentId: string; containers: any[]; plannedQtyMT: number; noOfShipments?: number }>()
 );
 export const submitPlannedSuccess = createAction('[Shipment Form] Submit Planned Success');
 export const submitPlannedFailure = createAction(
