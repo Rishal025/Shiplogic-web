@@ -17,7 +17,7 @@
             }
 
             .p-datatable-tbody > tr > td {
-                @apply py-1 px-2 border-b border-slate-100 transition-colors whitespace-nowrap;
+                @apply py-2 px-3 border-b border-slate-100 transition-colors whitespace-nowrap align-middle;
                 
                 &:first-child { @apply px-4; }
             }
@@ -83,6 +83,18 @@
 
         .actual-table {
             .p-datatable-thead > tr > th { @apply bg-emerald-50/30 text-emerald-800; }
+
+            /* Equal-width columns so inputs align with Scheduled table */
+            th.actual-col-shipment, td.actual-col-shipment { width: 120px; min-width: 120px; }
+            th.actual-col-num, td.actual-col-num { width: 90px; min-width: 90px; }
+            th.actual-col-bl, td.actual-col-bl { width: 200px; min-width: 200px; }
+            th.actual-col-date, td.actual-col-date { width: 115px; min-width: 115px; }
+            th.actual-col-action, td.actual-col-action { width: 100px; min-width: 100px; }
+
+            .actual-col-num .table-input input,
+            .actual-col-num .p-inputnumber { width: 100%; min-width: 0; }
+            .actual-col-bl .table-input-text { min-width: 0; }
+            .actual-col-date .date-mini { width: 100%; min-width: 80px; }
         }
 
         /* Confirmation Dialog Aesthetics */
@@ -102,6 +114,23 @@
                     @apply rounded-xl font-bold text-xs uppercase tracking-wider px-6! py-2.5! w-full sm:w-auto; 
                     margin: 0 !important;
                 }
+            }
+        }
+
+        /* No of Shipments input: same height and border radius as Confirm button */
+        .no-of-shipments-input-wrap {
+            .p-inputnumber, .p-inputnumber input {
+                height: 2.25rem !important;
+                min-height: 2.25rem !important;
+                border-radius: 0.5rem !important;
+            }
+            .p-inputnumber input {
+                font-size: 0.875rem;
+                font-weight: 700;
+                background-color: rgb(30 41 59);
+                border: 1px solid rgb(71 85 105);
+                color: white;
+                padding: 0 0.5rem;
             }
         }
 

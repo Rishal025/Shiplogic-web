@@ -123,8 +123,13 @@
         <app-shipment-split
           [plannedSplits]="plannedSplits"
           [actualSplits]="actualSplits"
+          [noOfShipmentsControl]="noOfShipmentsFormControl"
+          [totalQtyMT]="shipmentData()?.shipment?.plannedQtyMT ?? 0"
           (addActual)="onAddActual()"
           (removeActual)="onRemoveActual($event)"
+          (confirmNoOfShipments)="onConfirmNoOfShipments($event)"
+          (addPlannedRow)="addPlannedRow()"
+          (removePlannedRow)="removePlannedRow($event)"
         ></app-shipment-split>
       }
 

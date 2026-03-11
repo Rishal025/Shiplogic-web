@@ -1,6 +1,7 @@
-import { Component, Input, Output, EventEmitter, inject, effect, signal } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject, effect, signal, computed, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormArray } from '@angular/forms';
+import { DomSanitizer } from '@angular/platform-browser';
 import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ConfirmationService } from 'primeng/api';
@@ -10,7 +11,9 @@ import { DatePickerModule } from 'primeng/datepicker';
 import { SelectModule } from 'primeng/select';
 import { AccordionModule } from 'primeng/accordion';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { DialogModule } from 'primeng/dialog';
 import {
+  selectShipmentData,
   selectSubmittedActualIndices,
   selectSubmittedStep3Indices,
   selectSubmittingRowIndex,
@@ -29,6 +32,7 @@ import * as ShipmentActions from '../../../../../../store/shipment/shipment.acti
     SelectModule,
     AccordionModule,
     ConfirmDialogModule,
+    DialogModule,
   ],
   providers: [ConfirmationService],
   templateUrl: './shipment-documentation.component.html',
@@ -37,32 +41,112 @@ export class ShipmentDocumentationComponent {
   @Input({ required: true }) formArray!: FormArray;
   @Output() navigateToSplit = new EventEmitter<void>();
 
+  @ViewChild('baFileInput') baFileInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('approvedFileInput') approvedFileInputRef?: ElementRef<HTMLInputElement>;
+
+  /** Set right before programmatic .click() so (change) knows which row. */
+  private pendingFileRow: number | null = null;
+  private pendingFileKind: 'bankAdvance' | 'approved' | null = null;
+
   private store = inject(Store);
   private confirmationService = inject(ConfirmationService);
+  private sanitizer = inject(DomSanitizer);
 
-  readonly shipmentFiles = signal<Record<number, File[]>>({});
+  readonly shipmentData = toSignal(this.store.select(selectShipmentData));
 
-  onFilesSelected(event: Event, containerIndex: number): void {
+  // Document preview modal (same as create shipment)
+  showPreviewModal = signal(false);
+  previewUrl = signal<string | null>(null);
+  previewTitle = signal('');
+  previewIsImage = signal(false);
+  previewSafeUrl = computed(() => {
+    const url = this.previewUrl();
+    if (!url || this.previewIsImage()) return null;
+    return this.sanitizer.bypassSecurityTrustResourceUrl(url);
+  });
+
+  // Local-only file selections for bank advance documents (to be wired to S3 later)
+  readonly bankAdvanceFile = signal<Record<number, File | null>>({});
+  readonly bankAdvanceApprovedFile = signal<Record<number, File | null>>({});
+
+  onFilesSelected(
+    event: Event,
+    containerIndex: number,
+    kind: 'bankAdvance' | 'approved'
+  ): void {
     const input = event.target as HTMLInputElement;
-    if (!input.files) return;
-    const newFiles = Array.from(input.files);
-    this.shipmentFiles.update(current => ({
+    const file = input.files?.[0] ?? null;
+    if (!file) return;
+
+    const targetSignal =
+      kind === 'bankAdvance' ? this.bankAdvanceFile : this.bankAdvanceApprovedFile;
+
+    targetSignal.update((current) => ({
       ...current,
-      [containerIndex]: [...(current[containerIndex] || []), ...newFiles],
+      [containerIndex]: file,
     }));
+
     input.value = '';
   }
 
-  removeShipmentFile(containerIndex: number, fileIndex: number): void {
-    this.shipmentFiles.update(current => {
-      const files = [...(current[containerIndex] || [])];
-      files.splice(fileIndex, 1);
-      return { ...current, [containerIndex]: files };
-    });
+  /** Called from button click - synchronously triggers the file input so the system dialog opens. */
+  clickFileInput(index: number, kind: 'bankAdvance' | 'approved'): void {
+    if (this.isRowSubmitted(index)) return;
+    this.pendingFileRow = index;
+    this.pendingFileKind = kind;
+    const el = kind === 'bankAdvance' ? this.baFileInputRef?.nativeElement : this.approvedFileInputRef?.nativeElement;
+    if (el) el.click();
   }
 
-  getShipmentFiles(containerIndex: number): File[] {
-    return this.shipmentFiles()[containerIndex] || [];
+  onFileInputChange(event: Event, kind: 'bankAdvance' | 'approved'): void {
+    const row = this.pendingFileRow;
+    if (row !== null && this.pendingFileKind === kind) this.onFilesSelected(event, row, kind);
+    this.pendingFileRow = null;
+    this.pendingFileKind = null;
+  }
+
+  getFile(containerIndex: number, kind: 'bankAdvance' | 'approved'): File | null {
+    const source =
+      kind === 'bankAdvance' ? this.bankAdvanceFile() : this.bankAdvanceApprovedFile();
+    return source[containerIndex] ?? null;
+  }
+
+  clearFile(containerIndex: number, kind: 'bankAdvance' | 'approved'): void {
+    const targetSignal =
+      kind === 'bankAdvance' ? this.bankAdvanceFile : this.bankAdvanceApprovedFile;
+
+    targetSignal.update((current) => ({
+      ...current,
+      [containerIndex]: null,
+    }));
+  }
+
+  openDocumentPreview(file: File, title: string): void {
+    const url = URL.createObjectURL(file);
+    this.previewUrl.set(url);
+    this.previewTitle.set(title);
+    this.previewIsImage.set(file.type.startsWith('image/'));
+    this.showPreviewModal.set(true);
+  }
+
+  closeDocumentPreview(): void {
+    const url = this.previewUrl();
+    if (url) URL.revokeObjectURL(url);
+    this.previewUrl.set(null);
+    this.previewTitle.set('');
+    this.showPreviewModal.set(false);
+  }
+
+  onPreviewVisibleChange(visible: boolean): void {
+    if (!visible) this.closeDocumentPreview();
+  }
+
+  /** Accordion header: "Shipment No: {shipmentNo}-{index+1}" when shipment exists, else "Shipment No: -". */
+  getShipmentNoLabel(index: number): string {
+    if (this.formArray?.controls[index] == null) return '–';
+    const base = this.shipmentData()?.shipment?.shipmentNo;
+    const num = base?.trim() ? `${base}-${index + 1}` : '–';
+    return num;
   }
 
   readonly receiverOptions = [
@@ -123,10 +207,10 @@ export class ShipmentDocumentationComponent {
               DHL: formValue['DHL'] || '',
               expectedDocDate: toDate(formValue['expectedDocDate']),
               receiver: formValue['receiver'] || '',
-              bankAdvanceAmount: formValue['bankAdvanceAmount'] ?? null,
+              bankAdvanceAmountDocumentUrl: '', // S3 integration later
+              bankAdvanceApprovedDocumentUrl: '', // S3 integration later
               bankAdvanceSubmittedOn: toDate(formValue['bankAdvanceSubmittedOn']),
               docToBeReleasedOn: toDate(formValue['docToBeReleasedOn']),
-              documentCollectedOn: toDate(formValue['documentCollectedOn']),
             },
           })
         );

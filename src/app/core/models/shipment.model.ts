@@ -79,6 +79,87 @@ export interface CreateShipmentResponse {
   };
 }
 
+/**
+ * Shipment calculations from extraction API (Python shipment_calculations).
+ * Used to show FCL, pallets, bags and price-matching warning.
+ */
+export interface ShipmentCalculations {
+  fcl?: number;
+  bags?: number;
+  container_size?: string;
+  bags_per_container?: number;
+  pallets?: number;
+  is_price_matching?: boolean;
+  lpo_price_per_mt?: number;
+  pi_price_per_mt?: number;
+  mt_variation?: number;
+  diff_percent?: number;
+}
+
+/**
+ * Response from document extraction API (POST /shipment/extract-documents).
+ * Used to autopopulate shipment form from uploaded PI/PO documents.
+ * Keys match Create New Shipment form controls; supplier/item are resolved from supplierCode/itemCode.
+ */
+export interface ExtractedShipmentData {
+  // Shipment info
+  piNo?: string;
+  piDate?: string;
+  fpoNo?: string;
+  purchaseDate?: string;
+  incoTerms?: string;
+  portOfLoading?: string;
+  portOfDischarge?: string;
+  commodity?: string;
+  brandName?: string;
+  itemDescription?: string;
+  // Supplier (frontend resolves to supplier _id via supplierCode or supplierName)
+  supplierCode?: string;
+  supplierName?: string;
+  countryOfOrigin?: string;
+  // Item (frontend resolves to item _id via itemCode or itemDescription)
+  itemCode?: string;
+  // Quantity & packaging
+  packagingType?: string;
+  containerSize?: string;
+  plannedContainers?: number;
+  fcl?: number;
+  pallet?: number;
+  bags?: number;
+  noOfShipments?: number;
+  // Price & payment
+  buyingUnit?: string;
+  fcPerUnit?: number;
+  totalUSD?: number;
+  totalAED?: number;
+  paymentTerms?: string;
+  advanceAmount?: number;
+  // Dates
+  expectedETD?: string;
+  expectedETA?: string;
+  /** From Python shipment_calculations; used for FCL/pallet/bags and price-mismatch warning. */
+  shipmentCalculations?: ShipmentCalculations;
+}
+
+export interface ExtractShipmentFromDocumentsResponse {
+  message?: string;
+  data?: ExtractedShipmentData;
+}
+
+/** Response from bill-no extraction API (POST /shipment/extract-bill-no). */
+export interface ExtractBillNoResponse {
+  bill_no: string;
+  metadata?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    total_tokens?: number;
+    cost_incurred?: number;
+    cost_currency?: string;
+    latency_ms?: number;
+    model?: string;
+  };
+}
+
 // Shipment Details API Response (GET /shipment/:id)
 export interface ShipmentDetailsResponse {
   shipment: ShipmentInfo;
@@ -90,6 +171,9 @@ export interface ShipmentInfo {
   _id: string;
   shipmentNo: string;
   orderDate: string;
+  orderNumber?: string;
+  poNumber?: string;
+  fpoNo?: string;
   supplier: string;
   item: string;
   riceName?: string;
@@ -107,6 +191,7 @@ export interface ShipmentInfo {
   plannedETD?: string;
   plannedETA?: string;
   containerSize?: number;
+  noOfShipments?: number;
 }
 
 // Step 1: Planned Split
@@ -124,10 +209,15 @@ export interface PlannedContainer {
 }
 
 export interface DeliverySchedule {
-  date: string;
-  noOfFCL: number;
-  time: string;
-  location: string;
+  deliveryDate?: string;
+  deliveryNo?: string;
+  noOfFCL?: number;
+  time?: string;
+  location?: string;
+}
+
+export interface WarehouseSchedule extends DeliverySchedule {
+  grn?: string;
 }
 
 // Steps 2-7: Actual Container Data
@@ -137,6 +227,7 @@ export interface ActualContainer {
   // Step 2: Actual Split
   qtyMT?: number;
   bags?: number;
+  pallet?: number;
   FCL?: number;
   weekWiseShipment?: string;
   buyingUnit?: string;
@@ -150,21 +241,33 @@ export interface ActualContainer {
   expectedDocDate?: string;
   receiver?: string;
   // Step 3: Documentation — FAS
-  bankAdvanceAmount?: number;
+  bankAdvanceAmountDocumentUrl?: string;
+  bankAdvanceApprovedDocumentUrl?: string;
   bankAdvanceSubmittedOn?: string;
   docToBeReleasedOn?: string;
-  // Step 3: Documentation — Logistics
+  // Step 3: Documentation — Logistics (legacy)
   documentCollectedOn?: string;
-  // Step 4: Arrival Time
-  clearExpectedOn?: string;
-  clearingStatus?: string;
-  shipmentArrivedOn?: string;
-  // Step 4: Arrival — Delivery Schedule
+  // Legacy
+  bankAdvanceAmount?: number;
+  // Step 4: Shipment Clearing Tracker
+  deliveryOrderDocumentUrl?: string;
+  deliveryOrderDate?: string;
+  tokenDocumentUrl?: string;
+  tokenDate?: string;
+  transportArrangedDocumentUrl?: string;
+  transportArrangedDate?: string;
+  customsClearanceDocumentUrl?: string;
+  customsClearanceDate?: string;
+  municipalityClearanceDocumentUrl?: string;
+  municipalityClearanceDate?: string;
   deliverySchedules?: DeliverySchedule[];
-  // Step 4: Arrival — Warehouse
+  warehouseSchedules?: WarehouseSchedule[];
+  // Step 4 legacy
+  clearExpectedOn?: string;
+  shipmentArrivedOn?: string;
+  // Step 4: Arrival — Warehouse (legacy single fields)
   warehouseReceivedOn?: string;
   warehouseGrnNo?: string;
-  // Step 4: Arrival — Quality Inspection
   qualityInspectionReportDate?: string;
   // Step 5: Clearance Paid
   paid_amount?: number;

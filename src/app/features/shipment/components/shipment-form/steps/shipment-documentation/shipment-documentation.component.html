@@ -6,7 +6,9 @@
       </div>
       <div class="flex flex-col items-center gap-1">
         <span class="text-[11px] font-black text-slate-900 uppercase tracking-widest">No Containers Available</span>
-        <p class="text-[10px] text-slate-500 max-w-[200px] mx-auto">Arrivals must be recorded in the <b>Shipment Split</b> step first.</p>
+        <p class="text-[10px] text-slate-500 max-w-[260px] mx-auto">
+          In <b>Step 2 – Shipment Tracker</b>, enter <b>No of Shipments</b>, click <b>Confirm</b>, fill the Scheduled table, then click <b>Lock Baseline</b> to save. Containers will appear here after that.
+        </p>
       </div>
       <button (click)="navigateToSplit.emit()"
         class="mt-2 text-[9px] font-bold text-blue-600 hover:text-blue-700 uppercase underline decoration-2 underline-offset-4">
@@ -25,7 +27,9 @@
               <span class="w-6 h-6 rounded-full bg-slate-800 text-white text-[10px] font-black flex items-center justify-center">
                 {{ i + 1 }}
               </span>
-              <span class="text-xs font-bold text-slate-700">Shipment #{{ i + 1 }}</span>
+              <span class="text-xs font-bold text-slate-700">
+                Shipment No: {{ getShipmentNoLabel(i) }}
+              </span>
             </div>
             @if (isRowSubmitted(i)) {
               <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full">
@@ -51,14 +55,20 @@
               <div class="grid grid-cols-2 gap-x-5 gap-y-4">
                 <div class="flex flex-col gap-1.5">
                   <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">B/L No. <span class="text-red-400">*</span></label>
-                  <input pInputText formControlName="BLNo" class="table-input-text w-full" placeholder="OSL-12345..." />
+                  <input
+                    pInputText
+                    formControlName="BLNo"
+                    class="table-input-text w-full"
+                    placeholder="OSL-12345..."
+                    [readonly]="true"
+                  />
                 </div>
                 <div class="flex flex-col gap-1.5">
                   <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Courier Track #</label>
                   <input pInputText formControlName="DHL" class="table-input-text w-full" placeholder="969783..." />
                 </div>
                 <div class="flex flex-col gap-1.5">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Expected Date of Document</label>
+                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Expected Date of Document Arrival</label>
                   <p-datepicker formControlName="expectedDocDate" appendTo="body"
                     inputStyleClass="table-input" placeholder="Select date"
                     styleClass="w-full" panelStyleClass="w-72" />
@@ -78,86 +88,125 @@
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">b. FAS</span>
                 <div class="flex-1 h-px bg-slate-100"></div>
               </div>
-              <div class="grid grid-cols-2 gap-x-5 gap-y-4">
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bank Advance Amount</label>
-                  <p-inputnumber formControlName="bankAdvanceAmount" styleClass="w-full"
-                    inputStyleClass="table-input" placeholder="0.00" mode="decimal" [minFractionDigits]="2" />
-                </div>
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bank Advance Submitted on</label>
-                  <p-datepicker formControlName="bankAdvanceSubmittedOn" appendTo="body"
-                    inputStyleClass="table-input" placeholder="Select date"
-                    styleClass="w-full" panelStyleClass="w-72" />
-                </div>
-                <div class="flex flex-col gap-1.5 col-span-2">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Document to be Released on</label>
-                  <p-datepicker formControlName="docToBeReleasedOn" appendTo="body"
-                    inputStyleClass="table-input" placeholder="Select date"
-                    styleClass="max-w-[50%]" panelStyleClass="w-72" />
-                </div>
-              </div>
-            </div>
-
-            <!-- ── c. Logistics ── -->
-            <div>
-              <div class="flex items-center gap-2 mb-3">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">c. Logistics</span>
-                <div class="flex-1 h-px bg-slate-100"></div>
-              </div>
-              <div class="grid grid-cols-2 gap-x-5 gap-y-4">
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Document Collected on</label>
-                  <p-datepicker formControlName="documentCollectedOn" appendTo="body"
-                    inputStyleClass="table-input" placeholder="Select date"
-                    styleClass="w-full" panelStyleClass="w-72" />
-                </div>
-              </div>
-            </div>
-
-            <!-- ── d. Documents ── -->
-            <div>
-              <div class="flex items-center gap-2 mb-3">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">d. Documents</span>
-                <div class="flex-1 h-px bg-slate-100"></div>
-              </div>
-
-              <!-- Drop zone -->
-              <label class="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl p-5 bg-slate-50/50 hover:bg-slate-50 hover:border-violet-300 transition-colors cursor-pointer group">
-                <div class="w-9 h-9 rounded-full bg-violet-50 group-hover:bg-violet-100 flex items-center justify-center transition-colors">
-                  <i class="pi pi-cloud-upload text-sm text-violet-500"></i>
-                </div>
-                <div class="text-center">
-                  <p class="text-[11px] font-bold text-slate-600">Click to upload shipment papers</p>
-                  <p class="text-[10px] text-slate-400 mt-0.5">PDF, DOC, DOCX, JPG, PNG — multiple files allowed</p>
-                </div>
-                <input type="file" multiple class="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  (change)="onFilesSelected($event, i)" [disabled]="isRowSubmitted(i)" />
-              </label>
-
-              <!-- File list -->
-              @if (getShipmentFiles(i).length > 0) {
-                <div class="flex flex-col gap-1.5 mt-3">
-                  @for (file of getShipmentFiles(i); track $index; let fi = $index) {
-                    <div class="flex items-center justify-between px-3 py-2 bg-white border border-slate-100 rounded-lg">
-                      <div class="flex items-center gap-2.5 min-w-0">
-                        <div class="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
-                          <i class="pi pi-file text-violet-500 text-xs"></i>
-                        </div>
-                        <div class="min-w-0">
-                          <p class="text-[11px] font-semibold text-slate-700 truncate">{{ file.name }}</p>
-                          <p class="text-[10px] text-slate-400">{{ (file.size / 1024 / 1024).toFixed(2) }} MB</p>
-                        </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Left: Bank Advance Amount Document, then date below -->
+                <div class="flex flex-col gap-3">
+                  <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Bank Advance Amount Document
+                  </span>
+                  <div
+                    class="relative flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl p-5 bg-slate-50/50 hover:bg-slate-50 hover:border-blue-300 transition-colors group min-h-[120px]"
+                  >
+                    @if (getFile(i, 'bankAdvance')) {
+                      <button
+                        type="button"
+                        class="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-white/90 border border-slate-200 flex items-center justify-center cursor-pointer text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
+                        (click)="openDocumentPreview(getFile(i, 'bankAdvance')!, 'Bank Advance Amount Document')"
+                        title="Preview document"
+                      >
+                        <i class="pi pi-eye text-sm"></i>
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      (click)="clickFileInput(i, 'bankAdvance')"
+                      [disabled]="isRowSubmitted(i)"
+                      class="flex flex-col items-center justify-center gap-2 w-full min-h-[80px] cursor-pointer border-0 bg-transparent p-0 text-left disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <div
+                        class="w-10 h-10 rounded-full bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center transition-colors shrink-0"
+                      >
+                        <i class="pi pi-file-pdf text-lg text-blue-500"></i>
                       </div>
-                      @if (!isRowSubmitted(i)) {
-                        <button type="button" (click)="removeShipmentFile(i, fi)" class="ml-3 shrink-0 text-slate-300 hover:text-red-400 transition-colors">
-                          <i class="pi pi-times-circle text-sm"></i>
-                        </button>
-                      }
-                    </div>
+                      <span class="text-xs font-semibold text-slate-600 truncate max-w-full px-2">
+                        {{ getFile(i, 'bankAdvance')?.name ?? 'Click to upload' }}
+                      </span>
+                    </button>
+                  </div>
+                  @if (getFile(i, 'bankAdvance')) {
+                    <button
+                      type="button"
+                      (click)="clearFile(i, 'bankAdvance')"
+                      class="text-xs text-slate-400 hover:text-red-500 transition-colors self-start"
+                      [disabled]="isRowSubmitted(i)"
+                    >
+                      <i class="pi pi-times mr-1"></i>Remove
+                    </button>
                   }
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      Bank Advance Submitted on
+                    </label>
+                    <p-datepicker
+                      formControlName="bankAdvanceSubmittedOn"
+                      appendTo="body"
+                      inputStyleClass="table-input"
+                      placeholder="Select date"
+                      styleClass="w-full"
+                      panelStyleClass="w-72"
+                    />
+                  </div>
                 </div>
-              }
+
+                <!-- Right: Bank Advance Approved Submitted Document, then date below -->
+                <div class="flex flex-col gap-3">
+                  <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    Bank Advance Approved Submitted Document
+                  </span>
+                  <div
+                    class="relative flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl p-5 bg-slate-50/50 hover:bg-slate-50 hover:border-blue-300 transition-colors group min-h-[120px]"
+                  >
+                    @if (getFile(i, 'approved')) {
+                      <button
+                        type="button"
+                        class="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-white/90 border border-slate-200 flex items-center justify-center cursor-pointer text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
+                        (click)="openDocumentPreview(getFile(i, 'approved')!, 'Bank Advance Approved Submitted Document')"
+                        title="Preview document"
+                      >
+                        <i class="pi pi-eye text-sm"></i>
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      (click)="clickFileInput(i, 'approved')"
+                      [disabled]="isRowSubmitted(i)"
+                      class="flex flex-col items-center justify-center gap-2 w-full min-h-[80px] cursor-pointer border-0 bg-transparent p-0 text-left disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <div
+                        class="w-10 h-10 rounded-full bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center transition-colors shrink-0"
+                      >
+                        <i class="pi pi-file text-lg text-blue-500"></i>
+                      </div>
+                      <span class="text-xs font-semibold text-slate-600 truncate max-w-full px-2">
+                        {{ getFile(i, 'approved')?.name ?? 'Click to upload' }}
+                      </span>
+                    </button>
+                  </div>
+                  @if (getFile(i, 'approved')) {
+                    <button
+                      type="button"
+                      (click)="clearFile(i, 'approved')"
+                      class="text-xs text-slate-400 hover:text-red-500 transition-colors self-start"
+                      [disabled]="isRowSubmitted(i)"
+                    >
+                      <i class="pi pi-times mr-1"></i>Remove
+                    </button>
+                  }
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      Bank Advance Approved Submitted Document Date
+                    </label>
+                    <p-datepicker
+                      formControlName="docToBeReleasedOn"
+                      appendTo="body"
+                      inputStyleClass="table-input"
+                      placeholder="Select date"
+                      styleClass="w-full"
+                      panelStyleClass="w-72"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- ── Submit / Submitted ── -->
@@ -193,3 +242,43 @@
 }
 
 <p-confirmDialog breakpoints="{'960px': '75vw', '640px': '90vw'}" [closable]="false"></p-confirmDialog>
+
+<!-- Single hidden file inputs - button click triggers .click() synchronously, (change) uses pending row/kind -->
+<input
+  #baFileInput
+  type="file"
+  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+  class="!hidden"
+  (change)="onFileInputChange($event, 'bankAdvance')"
+/>
+<input
+  #approvedFileInput
+  type="file"
+  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+  class="!hidden"
+  (change)="onFileInputChange($event, 'approved')"
+/>
+
+<!-- Document preview modal (same as create shipment) -->
+<p-dialog
+  [header]="previewTitle()"
+  [visible]="showPreviewModal()"
+  (visibleChange)="onPreviewVisibleChange($event)"
+  [modal]="true"
+  [dismissableMask]="true"
+  [style]="{ width: '90vw', maxWidth: '900px' }"
+  [contentStyle]="{ overflow: 'auto', padding: '0' }"
+  [draggable]="false"
+  [resizable]="true"
+  styleClass="document-preview-dialog"
+  appendTo="body">
+  <div class="document-preview-content flex items-center justify-center min-h-[70vh] bg-slate-100 p-4">
+    @if (previewUrl(); as url) {
+      @if (previewIsImage()) {
+        <img [src]="url" [alt]="previewTitle()" class="max-w-full max-h-[80vh] object-contain rounded shadow-lg" />
+      } @else {
+        <iframe [src]="previewSafeUrl()" class="w-full h-[80vh] min-h-[500px] rounded border-0 bg-white shadow-lg" title="Document preview"></iframe>
+      }
+    }
+  </div>
+</p-dialog>

@@ -8,7 +8,9 @@ import {
   ShipmentDetail, 
   CreateShipmentPayload,
   CreateShipmentResponse,
-  ShipmentDetailsResponse
+  ShipmentDetailsResponse,
+  ExtractShipmentFromDocumentsResponse,
+  ExtractBillNoResponse
 } from '../models/shipment.model';
 
 // Payload interfaces for container operations
@@ -25,6 +27,7 @@ export interface PlannedContainer {
 export interface CreatePlannedContainersPayload {
   shipmentId: string;
   plannedContainers: PlannedContainer[];
+  noOfShipments?: number;
 }
 
 export interface ActualContainer {
@@ -39,17 +42,44 @@ export interface ActualContainer {
   BLNo: string;
 }
 
-// Step 3: Documentation/Payment
+// Step 3: Documentation (Document Tracker)
 export interface DocumentationPaymentPayload {
-  DHL: string;
-  docArrivalNotes: string;
   BLNo: string;
+  DHL: string;
+  expectedDocDate: string;
+  receiver: string;
+  bankAdvanceAmountDocumentUrl: string;
+  bankAdvanceApprovedDocumentUrl: string;
+  bankAdvanceSubmittedOn: string;
+  docToBeReleasedOn: string;
 }
 
-// Step 4: Logistics/Arrival Time
+// Step 4: Logistics / Shipment Clearing Tracker
+export interface DeliveryScheduleItem {
+  deliveryDate: string;
+  deliveryNo: string;
+  noOfFCL: number | null;
+  time: string;
+  location: string;
+}
+
+export interface WarehouseScheduleItem extends DeliveryScheduleItem {
+  grn: string;
+}
+
 export interface LogisticsPayload {
-  shipmentArrivedOn: string;  // ISO date string
-  clearExpectedOn: string;    // ISO date string
+  deliveryOrderDocumentUrl: string;
+  deliveryOrderDate: string;
+  tokenDocumentUrl: string;
+  tokenDate: string;
+  transportArrangedDocumentUrl: string;
+  transportArrangedDate: string;
+  customsClearanceDocumentUrl: string;
+  customsClearanceDate: string;
+  municipalityClearanceDocumentUrl: string;
+  municipalityClearanceDate: string;
+  deliverySchedules: DeliveryScheduleItem[];
+  warehouseSchedules: WarehouseScheduleItem[];
 }
 
 // Step 5: Clearance Payment
@@ -95,6 +125,22 @@ export class ShipmentService {
 
   createShipment(payload: CreateShipmentPayload): Observable<CreateShipmentResponse> {
     return this.http.post<CreateShipmentResponse>(`${this.apiUrl}/create`, payload);
+  }
+
+  /**
+   * Extract shipment data from uploaded documents (e.g. PI, PO) for autopopulating the form.
+   * POST /shipment/extract-documents with FormData containing document1 and document2 files.
+   */
+  extractShipmentFromDocuments(formData: FormData): Observable<ExtractShipmentFromDocumentsResponse> {
+    return this.http.post<ExtractShipmentFromDocumentsResponse>(`${this.apiUrl}/extract-documents`, formData);
+  }
+
+  /**
+   * Extract bill number from a single document (PDF or image, 1 page).
+   * POST /shipment/extract-bill-no with FormData containing file.
+   */
+  extractBillNoFromDocument(formData: FormData): Observable<ExtractBillNoResponse> {
+    return this.http.post<ExtractBillNoResponse>(`${this.apiUrl}/extract-bill-no`, formData);
   }
 
   updateShipment(id: string, shipment: Partial<ShipmentDetail>): Observable<ShipmentDetail> {

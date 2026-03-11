@@ -4,31 +4,26 @@
       <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
         <i class="pi pi-clock text-xl"></i>
       </div>
-      <span class="text-[11px] font-black text-slate-900 uppercase tracking-widest">Waiting for Arrival Data</span>
-      <p class="text-[10px] text-slate-500 max-w-[200px] mx-auto">Link records in Step 2 to manage timings here.</p>
+      <span class="text-[11px] font-black text-slate-900 uppercase tracking-widest">Waiting for Data</span>
+      <p class="text-[10px] text-slate-500 max-w-[200px] mx-auto">Complete Step 2 and Step 3 to manage Shipment Clearing here.</p>
     </div>
   </div>
 } @else {
   <p-accordion [multiple]="true" styleClass="flex flex-col gap-3">
     @for (group of formArray.controls; track $index; let i = $index) {
       <p-accordion-panel [value]="'arr-' + i" styleClass="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-
         <p-accordion-header styleClass="bg-white hover:bg-slate-50 px-4 py-3">
           <div class="flex items-center justify-between w-full pr-2">
             <div class="flex items-center gap-2.5">
-              <span class="w-6 h-6 rounded-full bg-slate-800 text-white text-[10px] font-black flex items-center justify-center">
-                {{ i + 1 }}
-              </span>
-              <span class="text-xs font-bold text-slate-700">Shipment #{{ i + 1 }}</span>
+              <span class="w-6 h-6 rounded-full bg-slate-800 text-white text-[10px] font-black flex items-center justify-center">{{ i + 1 }}</span>
+              <span class="text-xs font-bold text-slate-700">Shipment No: {{ getShipmentNoLabel(i) }}</span>
             </div>
             @if (isRowSubmitted(i)) {
               <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full">
                 <i class="pi pi-check-circle text-[10px]"></i> Submitted
               </span>
             } @else if (!isPrecedingSubmitted(i)) {
-              <span class="text-[9px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                Awaiting Clearance
-              </span>
+              <span class="text-[9px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Awaiting Step 3</span>
             }
           </div>
         </p-accordion-header>
@@ -36,212 +31,153 @@
         <p-accordion-content styleClass="bg-white">
           <div [formGroup]="$any(group)" class="px-5 pb-5 pt-1 flex flex-col gap-6">
 
-            <!-- ── a. Logistics ── -->
-            <div>
-              <div class="flex items-center gap-2 mb-3">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">a. Logistics</span>
-                <div class="flex-1 h-px bg-slate-100"></div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-x-5 gap-y-4 mb-4">
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shipment Arrived on <span class="text-red-400">*</span></label>
-                  <p-datepicker formControlName="shipmentArrivedOn" appendTo="body"
-                    inputStyleClass="table-input" placeholder="Select date"
-                    styleClass="w-full" panelStyleClass="w-72" />
-                </div>
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Customs Document Clearance on</label>
-                  <p-datepicker formControlName="clearExpectedOn" appendTo="body"
-                    inputStyleClass="table-input" placeholder="Select date"
-                    styleClass="w-full" panelStyleClass="w-72" />
-                </div>
-                <div class="flex flex-col gap-1.5 col-span-2">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Customs Clearing Status</label>
-                  <p-select formControlName="clearingStatus" [options]="clearingStatusOptions"
-                    optionLabel="label" optionValue="value"
-                    placeholder="Select status" styleClass="w-full" appendTo="body" [showClear]="true" />
-                </div>
-              </div>
-
-              <!-- Delivery Schedule sub-table -->
-              <div class="border border-slate-100 rounded-lg overflow-hidden">
-                <div class="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-100">
-                  <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Delivery Schedule</span>
-                  @if (!isRowSubmitted(i)) {
-                    <button type="button"
-                      (click)="addDeliverySchedule(group, i)"
-                      class="flex items-center gap-1 text-[9px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition-colors">
-                      <i class="pi pi-plus text-[9px]"></i> Add Row
+            <!-- Document upload + date pairs (5 items) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              @for (doc of step4DocConfig; track doc.kind) {
+                <div class="flex flex-col gap-3">
+                  <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{{ doc.label }}</span>
+                  <div class="relative flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl p-5 bg-slate-50/50 hover:bg-slate-50 hover:border-blue-300 transition-colors group min-h-[100px]">
+                    @if (getFile(i, doc.kind)) {
+                      <button type="button" class="absolute top-2 right-2 z-10 w-8 h-8 rounded-lg bg-white/90 border border-slate-200 flex items-center justify-center cursor-pointer text-slate-500 hover:text-blue-600 hover:bg-blue-50 shadow-sm"
+                        (click)="openDocumentPreview(getFile(i, doc.kind)!, doc.label)" title="Preview">
+                        <i class="pi pi-eye text-sm"></i>
+                      </button>
+                    }
+                    <button type="button" (click)="clickFileInput(i, doc.kind)" [disabled]="isRowSubmitted(i)"
+                      class="flex flex-col items-center justify-center gap-2 w-full min-h-[70px] cursor-pointer border-0 bg-transparent p-0 text-left disabled:cursor-not-allowed disabled:opacity-60">
+                      <div class="w-10 h-10 rounded-full bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center shrink-0">
+                        <i class="pi pi-file-pdf text-lg text-blue-500"></i>
+                      </div>
+                      <span class="text-xs font-semibold text-slate-600 truncate max-w-full px-2">{{ getFile(i, doc.kind)?.name ?? 'Click to upload' }}</span>
                     </button>
-                  }
-                </div>
-
-                @if (getDeliverySchedules(group).controls.length === 0) {
-                  <div class="py-4 text-center text-[10px] text-slate-400">
-                    No delivery schedules — click <b>Add Row</b> to create one.
                   </div>
-                } @else {
-                  <!-- Header -->
-                  <div class="flex gap-2 px-3 py-1.5 bg-slate-50/60 border-b border-slate-100">
-                    <span class="flex-none w-36 text-[9px] font-black text-slate-400 uppercase tracking-wider">Date</span>
-                    <span class="flex-none w-20 text-[9px] font-black text-slate-400 uppercase tracking-wider">FCL</span>
-                    <span class="flex-none w-24 text-[9px] font-black text-slate-400 uppercase tracking-wider">Time</span>
-                    <span class="flex-1 min-w-0 text-[9px] font-black text-slate-400 uppercase tracking-wider">Location</span>
-                    <span class="flex-none w-7"></span>
+                  @if (getFile(i, doc.kind)) {
+                    <button type="button" (click)="clearFile(i, doc.kind)" [disabled]="isRowSubmitted(i)"
+                      class="text-xs text-slate-400 hover:text-red-500 transition-colors self-start"><i class="pi pi-times mr-1"></i>Remove</button>
+                  }
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{{ doc.label }} Date</label>
+                    <p-datepicker [formControlName]="doc.dateControl" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" panelStyleClass="w-72" />
                   </div>
-                  <!-- Rows -->
-                  @for (dsGroup of getDeliverySchedules(group).controls; track $index; let di = $index) {
-                    <div [formGroup]="$any(dsGroup)"
-                      class="flex gap-2 px-3 py-2 items-center border-b border-slate-50 last:border-b-0 hover:bg-slate-50/40 transition-colors">
-                      <!-- Date -->
-                      <div class="flex-none w-36 overflow-hidden">
-                        <p-datepicker formControlName="date" appendTo="body"
-                          inputStyleClass="table-input w-full" placeholder="Date"
-                          styleClass="w-full" panelStyleClass="w-72" />
-                      </div>
-                      <!-- FCL -->
-                      <div class="flex-none w-20 overflow-hidden">
-                        <p-inputnumber formControlName="noOfFCL" styleClass="w-full"
-                          inputStyleClass="table-input w-full" placeholder="0" [useGrouping]="false" />
-                      </div>
-                      <!-- Time -->
-                      <div class="flex-none w-24 overflow-hidden">
-                        <input pInputText formControlName="time"
-                          class="table-input-text w-full" placeholder="10:00" />
-                      </div>
-                      <!-- Location -->
-                      <div class="flex-1 min-w-0">
-                        <input pInputText formControlName="location"
-                          class="table-input-text w-full" placeholder="Warehouse A..." />
-                      </div>
-                      <!-- Delete -->
-                      <div class="flex-none w-7 flex items-center justify-center">
-                        @if (!isRowSubmitted(i)) {
-                          <button type="button"
-                            (click)="removeDeliverySchedule(group, di)"
-                            class="text-slate-300 hover:text-red-400 transition-colors">
-                            <i class="pi pi-trash text-[11px]"></i>
-                          </button>
-                        }
-                      </div>
-                    </div>
-                  }
-                }
-              </div>
-            </div>
-
-            <!-- ── b. Warehouse ── -->
-            <div>
-              <div class="flex items-center gap-2 mb-3">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">b. Warehouse</span>
-                <div class="flex-1 h-px bg-slate-100"></div>
-              </div>
-              <div class="grid grid-cols-2 gap-x-5 gap-y-4">
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Received on</label>
-                  <p-datepicker formControlName="receivedOn" appendTo="body"
-                    inputStyleClass="table-input" placeholder="Select date"
-                    styleClass="w-full" panelStyleClass="w-72" />
-                </div>
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">GRN No</label>
-                  <input pInputText formControlName="grnNo" class="table-input-text w-full" placeholder="GRN-..." />
-                </div>
-              </div>
-            </div>
-
-            <!-- ── c. Quality Inspection ── -->
-            <div>
-              <div class="flex items-center gap-2 mb-3">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">c. Quality Inspection</span>
-                <div class="flex-1 h-px bg-slate-100"></div>
-              </div>
-              <div class="grid grid-cols-2 gap-x-5 gap-y-4">
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quality Inspection Report Date</label>
-                  <p-datepicker formControlName="qualityInspectionReportDate" appendTo="body"
-                    inputStyleClass="table-input" placeholder="Select date"
-                    styleClass="w-full" panelStyleClass="w-72" />
-                </div>
-              </div>
-            </div>
-
-            <!-- ── d. Documents ── -->
-            <div>
-              <div class="flex items-center gap-2 mb-3">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">d. Documents</span>
-                <div class="flex-1 h-px bg-slate-100"></div>
-              </div>
-
-              <!-- Drop zone -->
-              <label class="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl p-5 bg-slate-50/50 hover:bg-slate-50 hover:border-violet-300 transition-colors cursor-pointer group">
-                <div class="w-9 h-9 rounded-full bg-violet-50 group-hover:bg-violet-100 flex items-center justify-center transition-colors">
-                  <i class="pi pi-cloud-upload text-sm text-violet-500"></i>
-                </div>
-                <div class="text-center">
-                  <p class="text-[11px] font-bold text-slate-600">Click to upload shipment papers</p>
-                  <p class="text-[10px] text-slate-400 mt-0.5">PDF, DOC, DOCX, JPG, PNG — multiple files allowed</p>
-                </div>
-                <input type="file" multiple class="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                  (change)="onFilesSelected($event, i)" [disabled]="isRowSubmitted(i)" />
-              </label>
-
-              <!-- File list -->
-              @if (getShipmentFiles(i).length > 0) {
-                <div class="flex flex-col gap-1.5 mt-3">
-                  @for (file of getShipmentFiles(i); track $index; let fi = $index) {
-                    <div class="flex items-center justify-between px-3 py-2 bg-white border border-slate-100 rounded-lg">
-                      <div class="flex items-center gap-2.5 min-w-0">
-                        <div class="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
-                          <i class="pi pi-file text-violet-500 text-xs"></i>
-                        </div>
-                        <div class="min-w-0">
-                          <p class="text-[11px] font-semibold text-slate-700 truncate">{{ file.name }}</p>
-                          <p class="text-[10px] text-slate-400">{{ (file.size / 1024 / 1024).toFixed(2) }} MB</p>
-                        </div>
-                      </div>
-                      @if (!isRowSubmitted(i)) {
-                        <button type="button" (click)="removeShipmentFile(i, fi)" class="ml-3 shrink-0 text-slate-300 hover:text-red-400 transition-colors">
-                          <i class="pi pi-times-circle text-sm"></i>
-                        </button>
-                      }
-                    </div>
-                  }
                 </div>
               }
             </div>
 
-            <!-- ── Submit / Submitted ── -->
+            <!-- Delivery Schedule -->
+            <div class="border border-slate-100 rounded-lg overflow-hidden">
+              <div class="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-100">
+                <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Delivery Schedule</span>
+                @if (!isRowSubmitted(i)) {
+                  <button type="button" (click)="addDeliverySchedule(group, i)" class="flex items-center gap-1 text-[9px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded">
+                    <i class="pi pi-plus text-[9px]"></i> Add Row
+                  </button>
+                }
+              </div>
+              @if (getDeliverySchedules(group).controls.length === 0) {
+                <div class="py-4 text-center text-[10px] text-slate-400">No delivery schedules — click <b>Add Row</b> to create one.</div>
+              } @else {
+                <div class="flex gap-2 px-3 py-1.5 bg-slate-50/60 border-b border-slate-100">
+                  <span class="flex-none w-32 text-[9px] font-black text-slate-400 uppercase tracking-wider">Delivery Date</span>
+                  <span class="flex-none w-28 text-[9px] font-black text-slate-400 uppercase tracking-wider">Delivery No</span>
+                  <span class="flex-none w-20 text-[9px] font-black text-slate-400 uppercase tracking-wider">FCL</span>
+                  <span class="flex-none w-24 text-[9px] font-black text-slate-400 uppercase tracking-wider">Time</span>
+                  <span class="flex-1 min-w-0 text-[9px] font-black text-slate-400 uppercase tracking-wider">Location</span>
+                  <span class="flex-none w-7"></span>
+                </div>
+                @for (dsGroup of getDeliverySchedules(group).controls; track $index; let di = $index) {
+                  <div [formGroup]="$any(dsGroup)" class="flex gap-2 px-3 py-2 items-center border-b border-slate-50 last:border-b-0 hover:bg-slate-50/40">
+                    <div class="flex-none w-32"><p-datepicker formControlName="deliveryDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Date" styleClass="w-full" panelStyleClass="w-72" /></div>
+                    <div class="flex-none w-28"><input pInputText formControlName="deliveryNo" class="table-input-text w-full" placeholder="No" /></div>
+                    <div class="flex-none w-20"><p-inputnumber formControlName="noOfFCL" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0" [useGrouping]="false" /></div>
+                    <div class="flex-none w-24"><input pInputText formControlName="time" class="table-input-text w-full" placeholder="10:00" /></div>
+                    <div class="flex-1 min-w-0"><input pInputText formControlName="location" class="table-input-text w-full" placeholder="Location" /></div>
+                    @if (!isRowSubmitted(i)) {
+                      <div class="flex-none w-7"><button type="button" (click)="removeDeliverySchedule(group, di)" class="text-slate-300 hover:text-red-400"><i class="pi pi-trash text-[11px]"></i></button></div>
+                    }
+                  </div>
+                }
+              }
+            </div>
+
+            <!-- Warehouse (same columns + GRN) -->
+            <div class="border border-slate-100 rounded-lg overflow-hidden">
+              <div class="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-100">
+                <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Warehouse</span>
+                @if (!isRowSubmitted(i)) {
+                  <button type="button" (click)="addWarehouseSchedule(group, i)" class="flex items-center gap-1 text-[9px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded">
+                    <i class="pi pi-plus text-[9px]"></i> Add Row
+                  </button>
+                }
+              </div>
+              @if (getWarehouseSchedules(group).controls.length === 0) {
+                <div class="py-4 text-center text-[10px] text-slate-400">No warehouse rows — click <b>Add Row</b> to create one.</div>
+              } @else {
+                <div class="flex gap-2 px-3 py-1.5 bg-slate-50/60 border-b border-slate-100">
+                  <span class="flex-none w-32 text-[9px] font-black text-slate-400 uppercase tracking-wider">Delivery Date</span>
+                  <span class="flex-none w-28 text-[9px] font-black text-slate-400 uppercase tracking-wider">Delivery No</span>
+                  <span class="flex-none w-20 text-[9px] font-black text-slate-400 uppercase tracking-wider">FCL</span>
+                  <span class="flex-none w-24 text-[9px] font-black text-slate-400 uppercase tracking-wider">Time</span>
+                  <span class="flex-1 min-w-0 text-[9px] font-black text-slate-400 uppercase tracking-wider">Location</span>
+                  <span class="flex-none w-24 text-[9px] font-black text-slate-400 uppercase tracking-wider">GRN</span>
+                  <span class="flex-none w-7"></span>
+                </div>
+                @for (wsGroup of getWarehouseSchedules(group).controls; track $index; let wi = $index) {
+                  <div [formGroup]="$any(wsGroup)" class="flex gap-2 px-3 py-2 items-center border-b border-slate-50 last:border-b-0 hover:bg-slate-50/40">
+                    <div class="flex-none w-32"><p-datepicker formControlName="deliveryDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Date" styleClass="w-full" panelStyleClass="w-72" /></div>
+                    <div class="flex-none w-28"><input pInputText formControlName="deliveryNo" class="table-input-text w-full" placeholder="No" /></div>
+                    <div class="flex-none w-20"><p-inputnumber formControlName="noOfFCL" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0" [useGrouping]="false" /></div>
+                    <div class="flex-none w-24"><input pInputText formControlName="time" class="table-input-text w-full" placeholder="10:00" /></div>
+                    <div class="flex-1 min-w-0"><input pInputText formControlName="location" class="table-input-text w-full" placeholder="Location" /></div>
+                    <div class="flex-none w-24"><input pInputText formControlName="grn" class="table-input-text w-full" placeholder="GRN" /></div>
+                    @if (!isRowSubmitted(i)) {
+                      <div class="flex-none w-7"><button type="button" (click)="removeWarehouseSchedule(group, wi)" class="text-slate-300 hover:text-red-400"><i class="pi pi-trash text-[11px]"></i></button></div>
+                    }
+                  </div>
+                }
+              }
+            </div>
+
+            <!-- Submit -->
             <div class="pt-3 border-t border-slate-100 flex justify-end">
               @if (!isRowSubmitted(i)) {
-                <button
-                  (click)="confirmSubmit(i)"
-                  [disabled]="group.invalid || !isPrecedingSubmitted(i) || submittingRowIndex() === i"
-                  class="action-btn-save flex items-center gap-1.5 px-4"
-                  [title]="!isPrecedingSubmitted(i) ? 'Documentation must be submitted first' : ''"
-                >
+                <button (click)="confirmSubmit(i)" [disabled]="group.invalid || !isPrecedingSubmitted(i) || submittingRowIndex() === i"
+                  class="action-btn-save flex items-center gap-1.5 px-4" [title]="!isPrecedingSubmitted(i) ? 'Step 3 must be submitted first' : ''">
                   @if (submittingRowIndex() === i) {
                     <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
                     <span class="text-[10px]">Submitting...</span>
                   } @else {
                     <i class="pi pi-check" aria-hidden="true"></i>
-                    <span class="text-[10px]">Submit Arrival</span>
+                    <span class="text-[10px]">Submit Shipment Clearing</span>
                   }
                 </button>
               } @else {
-                <span class="text-[10px] font-black text-blue-600 flex items-center gap-1.5">
-                  <i class="pi pi-check-circle"></i> Arrival Submitted
-                </span>
+                <span class="text-[10px] font-black text-blue-600 flex items-center gap-1.5"><i class="pi pi-check-circle"></i> Submitted</span>
               }
             </div>
-
           </div>
         </p-accordion-content>
-
       </p-accordion-panel>
     }
   </p-accordion>
 }
 
 <p-confirmDialog breakpoints="{'960px': '75vw', '640px': '90vw'}" [closable]="false"></p-confirmDialog>
+
+<input #deliveryOrderInput type="file" class="!hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" (change)="onFileInputChange($event, 'deliveryOrder')" />
+<input #tokenInput type="file" class="!hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" (change)="onFileInputChange($event, 'token')" />
+<input #transportArrangedInput type="file" class="!hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" (change)="onFileInputChange($event, 'transportArranged')" />
+<input #customsClearanceInput type="file" class="!hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" (change)="onFileInputChange($event, 'customsClearance')" />
+<input #municipalityClearanceInput type="file" class="!hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" (change)="onFileInputChange($event, 'municipalityClearance')" />
+
+<p-dialog [header]="previewTitle()" [visible]="showPreviewModal()" (visibleChange)="onPreviewVisibleChange($event)" [modal]="true" [dismissableMask]="true"
+  [style]="{ width: '90vw', maxWidth: '900px' }" [contentStyle]="{ overflow: 'auto', padding: '0' }" [draggable]="false" [resizable]="true" appendTo="body">
+  <div class="document-preview-content flex items-center justify-center min-h-[70vh] bg-slate-100 p-4">
+    @if (previewUrl(); as url) {
+      @if (previewIsImage()) {
+        <img [src]="url" [alt]="previewTitle()" class="max-w-full max-h-[80vh] object-contain rounded shadow-lg" />
+      } @else {
+        <iframe [src]="previewSafeUrl()" class="w-full h-[80vh] min-h-[500px] rounded border-0 bg-white shadow-lg" title="Document preview"></iframe>
+      }
+    }
+  </div>
+</p-dialog>
