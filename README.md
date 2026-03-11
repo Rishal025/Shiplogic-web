@@ -1,59 +1,92 @@
-# ShiplogicWeb
+# Shipment Tracker – Frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.1.4.
+Angular web application for the Shipment Tracker: create shipments, manage planned/actual containers, documentation, clearing, and GRN.
 
-## Development server
+## Tech Stack
 
-To start a local development server, run:
+- **Angular** 21
+- **PrimeNG** 21 (UI components)
+- **Tailwind CSS** 4
+- **NgRx** (Store, Effects, Router Store)
+- **RxJS** 7.8
+- **TypeScript** 5.9
 
-```bash
-ng serve
-```
+## Prerequisites
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+- Node.js 18+ (recommended: 20+)
+- npm 10.x (or use the project’s `packageManager`)
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## Setup
 
 ```bash
-ng generate --help
+npm install
 ```
 
-## Building
-
-To build the project run:
+## Development
 
 ```bash
-ng build
+npm start
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Runs the app at **http://localhost:4200**. The app uses `environment.apiUrl` (see **Environment** below) for API calls.
 
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+## Build
 
 ```bash
-ng test
+npm run build
 ```
 
-## Running end-to-end tests
+Production build output is in `dist/`.
 
-For end-to-end (e2e) testing, run:
+## Environment
+
+- **`src/environments/environment.ts`** – development (default `apiUrl: 'http://localhost:5000/api/v1'`)
+- **`src/environments/environment.prod.ts`** – production (set your backend URL)
+
+Ensure the backend is running and reachable at the configured `apiUrl`.
+
+## Project Structure (high level)
+
+- **`src/app/core/`** – models, services, interceptors (e.g. API base URL)
+- **`src/app/features/shipment/`** – shipment feature:
+  - **Create Shipment** – new shipment form; document upload + extract & autopopulate from PI/PO
+  - **Shipment Form** – multi-step form (Planned → Actual → Document Tracker → Shipment Clearing → Clearance Paid → Clearance Final → GRN)
+- **`src/app/store/shipment/`** – NgRx state, actions, effects, selectors for shipment
+- **`src/app/shared/`** – shared directives/components
+- **`src/environments/`** – `apiUrl` and other env config
+
+## Main Features
+
+- **Auth** – login; role-based access (Purchase, FAS, Logistic, Admin)
+- **Create Shipment** – form with optional PI/PO upload and “Extract & autopopulate” (calls backend extraction API)
+- **Shipment list & detail** – list shipments, open shipment and go through steps
+- **Step 2 – Shipment Tracker** – planned containers, actual containers (with BL No extraction from document)
+- **Step 3 – Document Tracker** – B/L No, Courier Track #, document dates, Bank Advance documents (upload + preview)
+- **Step 4 – Shipment Clearing Tracker** – delivery order/token/transport/customs/municipality docs + dates, delivery schedule, warehouse rows
+- **Steps 5–7** – clearance payment, clearance final, GRN
+
+## API Integration
+
+All HTTP calls go through `ShipmentService` and an HTTP interceptor that prefixes relative URLs with `environment.apiUrl`. Endpoints used include:
+
+- `GET/POST /shipment` – list, create
+- `GET /shipment/:id` – detail
+- `POST /shipment/extract-documents` – extract from PI/PO (Create Shipment)
+- `POST /shipment/extract-bill-no` – extract BL No from document
+- `POST /shipment/container/planned` – planned containers
+- `PATCH /shipment/container/actual/:id` – actual container
+- `PATCH /shipment/container/payment/:id` – Step 3 documentation
+- `PATCH /shipment/container/logistic/:id` – Step 4 logistics/clearing
+- Plus clearance payment, clearance, GRN endpoints
+
+## Tests
 
 ```bash
-ng e2e
+npm test
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+(Uses Vitest as per project config.)
 
-## Additional Resources
+## License
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Private / internal use.
