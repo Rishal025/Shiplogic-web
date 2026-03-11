@@ -209,10 +209,15 @@ export interface PlannedContainer {
 }
 
 export interface DeliverySchedule {
-  date: string;
-  noOfFCL: number;
-  time: string;
-  location: string;
+  deliveryDate?: string;
+  deliveryNo?: string;
+  noOfFCL?: number;
+  time?: string;
+  location?: string;
+}
+
+export interface WarehouseSchedule extends DeliverySchedule {
+  grn?: string;
 }
 
 // Steps 2-7: Actual Container Data
@@ -236,21 +241,33 @@ export interface ActualContainer {
   expectedDocDate?: string;
   receiver?: string;
   // Step 3: Documentation — FAS
-  bankAdvanceAmount?: number;
+  bankAdvanceAmountDocumentUrl?: string;
+  bankAdvanceApprovedDocumentUrl?: string;
   bankAdvanceSubmittedOn?: string;
   docToBeReleasedOn?: string;
-  // Step 3: Documentation — Logistics
+  // Step 3: Documentation — Logistics (legacy)
   documentCollectedOn?: string;
-  // Step 4: Arrival Time
-  clearExpectedOn?: string;
-  clearingStatus?: string;
-  shipmentArrivedOn?: string;
-  // Step 4: Arrival — Delivery Schedule
+  // Legacy
+  bankAdvanceAmount?: number;
+  // Step 4: Shipment Clearing Tracker
+  deliveryOrderDocumentUrl?: string;
+  deliveryOrderDate?: string;
+  tokenDocumentUrl?: string;
+  tokenDate?: string;
+  transportArrangedDocumentUrl?: string;
+  transportArrangedDate?: string;
+  customsClearanceDocumentUrl?: string;
+  customsClearanceDate?: string;
+  municipalityClearanceDocumentUrl?: string;
+  municipalityClearanceDate?: string;
   deliverySchedules?: DeliverySchedule[];
-  // Step 4: Arrival — Warehouse
+  warehouseSchedules?: WarehouseSchedule[];
+  // Step 4 legacy
+  clearExpectedOn?: string;
+  shipmentArrivedOn?: string;
+  // Step 4: Arrival — Warehouse (legacy single fields)
   warehouseReceivedOn?: string;
   warehouseGrnNo?: string;
-  // Step 4: Arrival — Quality Inspection
   qualityInspectionReportDate?: string;
   // Step 5: Clearance Paid
   paid_amount?: number;

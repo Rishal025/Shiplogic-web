@@ -361,39 +361,42 @@ export class ShipmentFormComponent implements OnDestroy {
             DHL: [actualData?.DHL || ''],
             expectedDocDate: [actualData?.expectedDocDate ? new Date(actualData.expectedDocDate) : null],
             receiver: [actualData?.receiver || ''],
-            bankAdvanceAmount: [actualData?.bankAdvanceAmount ?? null],
             bankAdvanceSubmittedOn: [actualData?.bankAdvanceSubmittedOn ? new Date(actualData.bankAdvanceSubmittedOn) : null],
             docToBeReleasedOn: [actualData?.docToBeReleasedOn ? new Date(actualData.docToBeReleasedOn) : null],
-            documentCollectedOn: [actualData?.documentCollectedOn ? new Date(actualData.documentCollectedOn) : null],
           })
         );
 
         this.arrivalTimeSplits.push(
           this.fb.group({
             containerId: [plannedContainer.containerId],
-            shipmentArrivedOn: [
-              actualData?.shipmentArrivedOn ? new Date(actualData.shipmentArrivedOn) : null,
-              Validators.required,
-            ],
-            clearExpectedOn: [
-              actualData?.clearExpectedOn ? new Date(actualData.clearExpectedOn) : null,
-            ],
-            clearingStatus: [actualData?.clearingStatus || null],
+            deliveryOrderDate: [actualData?.deliveryOrderDate ? new Date(actualData.deliveryOrderDate) : null],
+            tokenDate: [actualData?.tokenDate ? new Date(actualData.tokenDate) : null],
+            transportArrangedDate: [actualData?.transportArrangedDate ? new Date(actualData.transportArrangedDate) : null],
+            customsClearanceDate: [actualData?.customsClearanceDate ? new Date(actualData.customsClearanceDate) : null],
+            municipalityClearanceDate: [actualData?.municipalityClearanceDate ? new Date(actualData.municipalityClearanceDate) : null],
             deliverySchedules: this.fb.array(
-              (actualData?.deliverySchedules || []).map((ds) =>
+              (actualData?.deliverySchedules || []).map((ds: any) =>
                 this.fb.group({
-                  date: [ds.date ? new Date(ds.date) : null],
+                  deliveryDate: [ds.deliveryDate ? new Date(ds.deliveryDate) : null],
+                  deliveryNo: [ds.deliveryNo || ''],
                   noOfFCL: [ds.noOfFCL ?? null],
                   time: [ds.time || ''],
                   location: [ds.location || ''],
                 })
               )
             ),
-            receivedOn: [actualData?.warehouseReceivedOn ? new Date(actualData.warehouseReceivedOn) : null],
-            grnNo: [actualData?.warehouseGrnNo || ''],
-            qualityInspectionReportDate: [
-              actualData?.qualityInspectionReportDate ? new Date(actualData.qualityInspectionReportDate) : null,
-            ],
+            warehouseSchedules: this.fb.array(
+              (actualData?.warehouseSchedules || []).map((ws: any) =>
+                this.fb.group({
+                  deliveryDate: [ws.deliveryDate ? new Date(ws.deliveryDate) : null],
+                  deliveryNo: [ws.deliveryNo || ''],
+                  noOfFCL: [ws.noOfFCL ?? null],
+                  time: [ws.time || ''],
+                  location: [ws.location || ''],
+                  grn: [ws.grn || ''],
+                })
+              )
+            ),
           })
         );
 
@@ -502,21 +505,19 @@ export class ShipmentFormComponent implements OnDestroy {
           DHL: [''],
           expectedDocDate: [null],
           receiver: [''],
-          bankAdvanceAmount: [null],
           bankAdvanceSubmittedOn: [null],
           docToBeReleasedOn: [null],
-          documentCollectedOn: [null],
         });
       case 'arrival':
         return this.fb.group({
           containerId: [null],
-          shipmentArrivedOn: [null, Validators.required],
-          clearExpectedOn: [null],
-          clearingStatus: [null],
+          deliveryOrderDate: [null],
+          tokenDate: [null],
+          transportArrangedDate: [null],
+          customsClearanceDate: [null],
+          municipalityClearanceDate: [null],
           deliverySchedules: this.fb.array([]),
-          receivedOn: [null],
-          grnNo: [''],
-          qualityInspectionReportDate: [null],
+          warehouseSchedules: this.fb.array([]),
         });
       case 'paid':
         return this.fb.group({

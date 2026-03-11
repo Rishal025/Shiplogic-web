@@ -207,10 +207,10 @@ export class ShipmentDocumentationComponent {
               DHL: formValue['DHL'] || '',
               expectedDocDate: toDate(formValue['expectedDocDate']),
               receiver: formValue['receiver'] || '',
-              bankAdvanceAmount: formValue['bankAdvanceAmount'] ?? null,
+              bankAdvanceAmountDocumentUrl: '', // S3 integration later
+              bankAdvanceApprovedDocumentUrl: '', // S3 integration later
               bankAdvanceSubmittedOn: toDate(formValue['bankAdvanceSubmittedOn']),
               docToBeReleasedOn: toDate(formValue['docToBeReleasedOn']),
-              documentCollectedOn: toDate(formValue['documentCollectedOn']),
             },
           })
         );

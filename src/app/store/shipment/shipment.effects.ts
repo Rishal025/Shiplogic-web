@@ -35,7 +35,7 @@ export class ShipmentEffects {
               const actualData = actual.find((a) => a.containerId === container.containerId);
               if (actualData?.BLNo) submittedActualIndices.push(index);
               if (actualData?.DHL) submittedStep3Indices.push(index);
-              if (actualData?.shipmentArrivedOn) submittedStep4Indices.push(index);
+              if (actualData?.deliveryOrderDate || actualData?.deliveryOrderDocumentUrl || (actualData as any)?.shipmentArrivedOn) submittedStep4Indices.push(index);
               if (actualData?.paid_amount) submittedStep5Indices.push(index);
               if (actualData?.clearance?.clearedOn) submittedStep6Indices.push(index);
               if (actualData?.grn?.grnNo) submittedStep7Indices.push(index);
