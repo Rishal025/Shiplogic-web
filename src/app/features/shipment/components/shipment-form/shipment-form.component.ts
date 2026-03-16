@@ -98,13 +98,6 @@ export class ShipmentFormComponent implements OnDestroy {
       if (data) this.populateFormWithData(data);
     });
 
-    // Disable planned splits when locked
-    effect(() => {
-      if (this.isPlannedLocked()) {
-        this.plannedSplits.disable({ emitEvent: false });
-      }
-    });
-
     // Load shipment on route param
     this.route.params.subscribe((params) => {
       const id = params['id'];

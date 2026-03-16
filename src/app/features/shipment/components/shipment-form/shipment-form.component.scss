@@ -81,6 +81,17 @@
             .date-mini { @apply w-24; }
         }
 
+        .planned-table {
+            th.planned-col-date, td.planned-col-date {
+                min-width: 10.5rem; /* keep ETD/ETA usable on smaller screens */
+            }
+
+            .planned-col-date .table-input {
+                width: 100%;
+                min-width: 9.5rem;
+            }
+        }
+
         .actual-table {
             .p-datatable-thead > tr > th { @apply bg-emerald-50/30 text-emerald-800; }
 

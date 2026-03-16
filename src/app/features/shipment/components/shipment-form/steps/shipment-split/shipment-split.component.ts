@@ -91,13 +91,6 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
       });
     });
 
-    // Disable planned splits when locked
-    effect(() => {
-      if (this.isPlannedLocked() && this.plannedSplits) {
-        this.plannedSplits.disable({ emitEvent: false });
-      }
-    });
-
     // Reset confirmed state when planned rows are cleared (e.g. new shipment loaded)
     effect(() => {
       const len = this.plannedSplits?.length ?? 0;

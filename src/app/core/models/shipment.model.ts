@@ -25,7 +25,7 @@ export interface CreateShipmentPayload {
   year: string;                  // Year (not shown in UI)
   orderDate: string;             // Order Date (YYYY-MM-DD)
   supplierId: string;            // Supplier ID from dropdown
-  itemId: string;                // Item ID from dropdown
+  itemId?: string;               // Item ID from dropdown (optional)
   plannedQtyMT: string;          // Planned Quantity MT
   estimatedContainerCount: string; // Planned Containers
   estimatedContainerSize: string;  // Container Size
@@ -51,7 +51,7 @@ export interface CreateShipmentResponse {
     poNumber: string;
     year: number;
     supplierId: string;
-    itemId: string;
+    itemId?: string;
     shipmentNo: string;
     plannedQtyMT: number;
     piNo: string;

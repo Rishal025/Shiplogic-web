@@ -144,29 +144,6 @@
               </p-select>
             </div>
             <div class="flex flex-col">
-              <label class="sl-label">Item *</label>
-              <p-select 
-                [options]="items()"
-                formControlName="item" 
-                optionLabel="description"
-                optionValue="_id"
-                placeholder="Select Item" 
-                [showClear]="true" 
-                [virtualScroll]="true"
-                [virtualScrollItemSize]="38"
-                [filter]="true"
-                filterBy="description,itemCode"
-                styleClass="w-full" 
-                appendTo="body">
-                <ng-template let-item pTemplate="item">
-                  <div class="flex flex-col">
-                    <span class="font-semibold text-sm">{{item.description}}</span>
-                    <span class="text-xs text-slate-500">{{item.itemCode}} • {{item.packing}}</span>
-                  </div>
-                </ng-template>
-              </p-select>
-            </div>
-            <div class="flex flex-col">
               <label class="sl-label">Brand</label>
               <input pInputText formControlName="brandName" placeholder="Enter brand name" class="w-full" />
             </div>

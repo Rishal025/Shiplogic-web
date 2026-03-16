@@ -17,7 +17,6 @@ import { DialogModule } from 'primeng/dialog';
 
 import { PrimaryButtonDirective } from '../../../../shared/directives/button.directive';
 import { ShipmentService } from '../../../../core/services/shipment.service';
-import { Item } from '../../../../core/models/item.model';
 import { Supplier } from '../../../../core/models/supplier.model';
 import { CreateShipmentPayload, ExtractedShipmentData } from '../../../../core/models/shipment.model';
 
@@ -46,7 +45,6 @@ export class CreateShipmentComponent implements OnInit {
   shipmentForm!: FormGroup;
 
   // Dropdown data from resolver (pre-loaded)
-  items = signal<Item[]>([]);
   suppliers = signal<Supplier[]>([]);
   submitting = signal(false);
 
@@ -132,7 +130,6 @@ export class CreateShipmentComponent implements OnInit {
     // Get pre-loaded data from route resolver
     const formData = this.route.snapshot.data['formData'];
     if (formData) {
-      this.items.set(formData.items || []);
       this.suppliers.set(formData.suppliers || []);
     }
   }
@@ -148,7 +145,6 @@ export class CreateShipmentComponent implements OnInit {
       incoTerms: [null],
       portOfLoading: [''],
       portOfDischarge: [''],
-      item: [null, Validators.required],
       brandName: [''],
       itemDescription: [''],
 
@@ -191,20 +187,6 @@ export class CreateShipmentComponent implements OnInit {
   }
 
   private setupAutoFill(): void {
-    // Auto-fill item description, brand name, and packaging type when item is selected
-    this.shipmentForm.get('item')?.valueChanges.subscribe((itemId) => {
-      if (itemId) {
-        const selectedItem = this.items().find(item => item._id === itemId);
-        if (selectedItem) {
-          this.shipmentForm.patchValue({
-            itemDescription: selectedItem.description,
-            brandName: selectedItem.riceName || '',
-            packagingType: selectedItem.packing || ''
-          }, { emitEvent: false });
-        }
-      }
-    });
-
     // Auto-fill country of origin when supplier is selected
     this.shipmentForm.get('supplier')?.valueChanges.subscribe((supplierId) => {
       if (supplierId) {
@@ -354,16 +336,6 @@ export class CreateShipmentComponent implements OnInit {
         }
       }
 
-      // Resolve item: match by itemCode (case-insensitive) first, then by description (case-insensitive / contains)
-      const rawItemCode = d['itemCode'];
-      const rawDesc = d['itemDescription'];
-      const itemCode = typeof rawItemCode === 'string' ? rawItemCode.trim() : '';
-      const itemDesc = typeof rawDesc === 'string' ? rawDesc.trim() : '';
-      if (itemCode || itemDesc) {
-        const item = this.findItemByCodeOrDescription(itemCode, itemDesc);
-        if (item) patch['item'] = item._id;
-      }
-
       this.shipmentForm.patchValue(patch, { emitEvent: false });
       // Ensure form validity is recalculated so Save Shipment enables when required fields are set
       this.shipmentForm.updateValueAndValidity({ emitEvent: true });
@@ -403,21 +375,6 @@ export class CreateShipmentComponent implements OnInit {
     });
   }
 
-  private findItemByCodeOrDescription(code: string, desc: string): Item | undefined {
-    const list = this.items();
-    if (!list.length) return undefined;
-    const codeLower = code.toLowerCase().replace(/[\s\-_]+/g, '');
-    const descLower = desc.toLowerCase();
-    return list.find(i => {
-      const iCode = i.itemCode?.toLowerCase().replace(/[\s\-_]+/g, '') ?? '';
-      if (codeLower && iCode && iCode === codeLower) return true;
-      if (descLower && i.description?.toLowerCase() === descLower) return true;
-      if (descLower && i.description?.toLowerCase().includes(descLower)) return true;
-      if (descLower && descLower.includes(i.description?.toLowerCase() ?? '')) return true;
-      return false;
-    });
-  }
-
   onSubmit(): void {
     if (this.shipmentForm.invalid) {
       this.messageService.add({
@@ -443,7 +400,6 @@ export class CreateShipmentComponent implements OnInit {
       year: new Date().getFullYear().toString(),
       orderDate: formValue.purchaseDate ? new Date(formValue.purchaseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0], // YYYY-MM-DD
       supplierId: formValue.supplier,
-      itemId: formValue.item,
       plannedQtyMT: formValue.plannedContainers?.toString() || '0',
       estimatedContainerCount: formValue.noOfShipments?.toString() || '0',
       estimatedContainerSize: formValue.containerSize || '',

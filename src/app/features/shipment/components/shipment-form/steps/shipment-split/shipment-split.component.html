@@ -86,16 +86,16 @@
           </span>
         }
       </div>
-      <p-table [value]="plannedSplits.controls" styleClass="p-datatable-sm custom-tracker-table">
+      <p-table [value]="plannedSplits.controls" styleClass="p-datatable-sm custom-tracker-table planned-table">
         <ng-template pTemplate="header">
           <tr>
             <th scope="col" style="width: 140px">SHIPMENT NO</th>
-            <th scope="col" style="width: 100px">FCL</th>
-            <th scope="col" style="width: 100px">Size</th>
-            <th scope="col" style="width: 120px">Qty MT</th>
-            <th scope="col" style="width: 150px">ETD</th>
-            <th scope="col" style="width: 150px">ETA</th>
-            <th scope="col" style="width: 180px">Week</th>
+            <th scope="col" style="width: 90px">FCL</th>
+            <th scope="col" style="width: 90px">Size</th>
+            <th scope="col" style="width: 110px">Qty MT</th>
+            <th scope="col" class="planned-col-date" style="width: 170px">ETD</th>
+            <th scope="col" class="planned-col-date" style="width: 170px">ETA</th>
+            <th scope="col" style="width: 160px">Week</th>
             @if (!isPlannedLocked()) {
               <th scope="col" style="width: 110px" class="text-center">Action</th>
             }
@@ -111,24 +111,24 @@
             </td>
             <td>
               <p-inputNumber formControlName="size" styleClass="w-full"
-                inputStyleClass="table-input bg-slate-100 font-bold opacity-80"
-                ariaLabel="Container Size" placeholder="Size" [readonly]="true"
+                inputStyleClass="table-input"
+                ariaLabel="Container Size" placeholder="Size"
               ></p-inputNumber>
             </td>
             <td>
               <p-inputNumber formControlName="qtyMT" styleClass="w-full"
-                inputStyleClass="table-input bg-slate-50"
-                ariaLabel="Quantity in MT" placeholder="0.00" [readonly]="true"
+                inputStyleClass="table-input"
+                ariaLabel="Quantity in MT" placeholder="0.00"
               ></p-inputNumber>
             </td>
-            <td>
+            <td class="planned-col-date">
               <p-datepicker formControlName="etd" appendTo="body"
-                inputStyleClass="date-mini" ariaLabel="Scheduled ETD" placeholder="ETD"
+                inputStyleClass="table-input" ariaLabel="Scheduled ETD" placeholder="ETD"
               ></p-datepicker>
             </td>
-            <td>
+            <td class="planned-col-date">
               <p-datepicker formControlName="eta" appendTo="body"
-                inputStyleClass="date-mini" ariaLabel="Scheduled ETA" placeholder="ETA"
+                inputStyleClass="table-input" ariaLabel="Scheduled ETA" placeholder="ETA"
                 (onSelect)="onEtaSelect($any(group), $event)"
               ></p-datepicker>
             </td>
