@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, inject, effect, signal, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormArray, FormControl, FormGroup } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { debounceTime } from 'rxjs/operators';
@@ -12,6 +13,7 @@ import { DatePickerModule } from 'primeng/datepicker';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { DialogModule } from 'primeng/dialog';
 import {
   selectActiveSplitTab,
   selectIsPlannedLocked,
@@ -28,6 +30,7 @@ import { ShipmentService } from '../../../../../../core/services/shipment.servic
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     ReactiveFormsModule,
     InputNumberModule,
     InputTextModule,
@@ -35,6 +38,7 @@ import { ShipmentService } from '../../../../../../core/services/shipment.servic
     ButtonModule,
     TableModule,
     ConfirmDialogModule,
+    DialogModule,
   ],
   providers: [ConfirmationService],
   templateUrl: './shipment-split.component.html',
@@ -74,6 +78,8 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
 
   /** Row index for which bill-no extraction is in progress (show spinner). */
   readonly extractingBillNoRowIndex = signal<number | null>(null);
+  readonly showEtaCalendar = signal(false);
+  readonly etaCalendarDates = signal<Date[]>([]);
 
   /** True after user clicks Confirm (No of Shipments) so the input becomes readonly until lock. */
   readonly noOfShipmentsConfirmed = signal(false);
@@ -192,17 +198,15 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  /** Get ISO week number (1–53) from date and return "W" + number for weekWiseShipment. */
+  /** Get week-of-month (W1-W5) from date for weekWiseShipment. */
   getWeekString(date: Date): string {
     const d = new Date(date);
     d.setHours(0, 0, 0, 0);
-    const start = new Date(d.getFullYear(), 0, 1);
-    const dayNum = Math.floor((d.getTime() - start.getTime()) / 86400000);
-    const weekNum = Math.ceil((dayNum + start.getDay() + 1) / 7);
+    const weekNum = Math.ceil(d.getDate() / 7);
     return 'W' + weekNum;
   }
 
-  /** When ETA is selected, auto-fill Week (week of year). */
+  /** When ETA is selected, auto-fill Week (week of month). */
   onEtaSelect(row: FormGroup, date: Date): void {
     if (date) {
       const weekStr = this.getWeekString(date instanceof Date ? date : new Date(date));
@@ -210,9 +214,124 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  getMonthLabel(value: Date | string | null | undefined): string {
+    if (!value) return '—';
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleString('en-US', { month: 'short' });
+  }
+
+  getEtaCalendarDates(): Date[] {
+    return this.plannedSplits.controls
+      .map((group) => group.get('eta')?.value)
+      .filter((value): value is Date | string => Boolean(value))
+      .map((value) => (value instanceof Date ? value : new Date(value)))
+      .filter((date) => !Number.isNaN(date.getTime()));
+  }
+
+  openEtaCalendar(): void {
+    this.etaCalendarDates.set(this.getEtaCalendarDates());
+    this.showEtaCalendar.set(true);
+  }
+
+  closeEtaCalendar(): void {
+    this.showEtaCalendar.set(false);
+  }
+
+  getEtaCalendarDateLabels(): string[] {
+    return this.etaCalendarDates()
+      .slice()
+      .sort((left, right) => left.getTime() - right.getTime())
+      .map((date) =>
+        date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })
+      );
+  }
+
+  async shareEtaCalendarDates(): Promise<void> {
+    const labels = this.getEtaCalendarDateLabels();
+    if (!labels.length) {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'No ETA dates',
+        detail: 'Add ETA dates first to share them.',
+      });
+      return;
+    }
+
+    const shareText = ['Scheduled ETA Dates', ...labels.map((label) => `- ${label}`)].join('\n');
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Scheduled ETA Dates',
+          text: shareText,
+        });
+        return;
+      }
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareText);
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Copied',
+          detail: 'ETA dates copied to clipboard for sharing.',
+        });
+        return;
+      }
+
+      throw new Error('Sharing is not supported on this device.');
+    } catch (error) {
+      const err = error as Error & { name?: string };
+      if (err?.name === 'AbortError') {
+        return;
+      }
+
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Share unavailable',
+        detail: err?.message || 'Could not share ETA dates on this device.',
+      });
+    }
+  }
+
   getShipmentNoForRow(index: number): string {
     const base = this.shipmentData()?.shipment?.shipmentNo || '';
     return base ? `${base}-${index + 1}` : `${index + 1}`;
+  }
+
+  getActualRowDate(row: FormGroup, controlName: 'shipOnBoardDate' | 'updatedETD' | 'updatedETA'): Date | null {
+    const value = row.get(controlName)?.value;
+    if (!value) return null;
+    const date = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  getStrictMinDate(row: FormGroup, controlName: 'shipOnBoardDate' | 'updatedETD' | 'updatedETA'): Date | undefined {
+    const baseDate = this.getActualRowDate(row, controlName);
+    if (!baseDate) return undefined;
+    const minDate = new Date(baseDate);
+    minDate.setDate(minDate.getDate() + 1);
+    return minDate;
+  }
+
+  getActualDateError(group: FormGroup): string | null {
+    if (group.hasError('etdBeforeShipOnBoard')) {
+      return 'ETD must be later than Ship Onboard Date.';
+    }
+
+    if (group.hasError('etaBeforeShipOnBoard')) {
+      return 'ETA must be later than Ship Onboard Date.';
+    }
+
+    if (group.hasError('etaBeforeEtd')) {
+      return 'ETA must be on or after ETD.';
+    }
+
+    return null;
   }
 
   getPlannedTotals() {
@@ -329,9 +448,14 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
         if (!containerId) return;
 
         const payload = {
+          actualSerialNo: formValue['actualSerialNo'] || '',
+          commercialInvoiceNo: formValue['commercialInvoiceNo'] || '',
           qtyMT: formValue['qtyMT'] || 0,
           bags: formValue['bags'] || 0,
           buyingUnit: 'MT',
+          shipOnBoardDate: formValue['shipOnBoardDate']
+            ? new Date(formValue['shipOnBoardDate']).toISOString().split('T')[0]
+            : '',
           updatedETD: formValue['updatedETD']
             ? new Date(formValue['updatedETD']).toISOString().split('T')[0]
             : '',

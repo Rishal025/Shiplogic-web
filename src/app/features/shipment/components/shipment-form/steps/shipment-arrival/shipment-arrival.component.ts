@@ -1,6 +1,6 @@
 import { Component, Input, inject, effect, signal, computed, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormArray, FormBuilder, AbstractControl } from '@angular/forms';
+import { ReactiveFormsModule, FormArray, AbstractControl } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -19,14 +19,26 @@ import {
 } from '../../../../../../store/shipment/shipment.selectors';
 import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
 
-export type Step4DocKind = 'deliveryOrder' | 'token' | 'transportArranged' | 'customsClearance' | 'municipalityClearance';
+type Step5DocKind =
+  | 'arrivalNotice'
+  | 'advanceRequest'
+  | 'doReleased'
+  | 'dpApproval'
+  | 'customsClearance'
+  | 'municipality';
 
-const STEP4_DOC_CONFIG: { kind: Step4DocKind; label: string; dateControl: string }[] = [
-  { kind: 'deliveryOrder', label: 'Delivery Order', dateControl: 'deliveryOrderDate' },
-  { kind: 'token', label: 'Token', dateControl: 'tokenDate' },
-  { kind: 'transportArranged', label: 'Transport Arranged', dateControl: 'transportArrangedDate' },
-  { kind: 'customsClearance', label: 'Customs Clearance', dateControl: 'customsClearanceDate' },
-  { kind: 'municipalityClearance', label: 'Municipality Clearance', dateControl: 'municipalityClearanceDate' },
+const STEP5_DOC_CONFIG: {
+  kind: Step5DocKind;
+  label: string;
+  dateControl: string;
+  remarksControl?: string;
+}[] = [
+  { kind: 'arrivalNotice', label: 'Arrival Notice Date', dateControl: 'arrivalNoticeDate' },
+  { kind: 'advanceRequest', label: 'Advance Request Date', dateControl: 'advanceRequestDate' },
+  { kind: 'doReleased', label: 'DO Released Date', dateControl: 'doReleasedDate', remarksControl: 'doReleasedRemarks' },
+  { kind: 'dpApproval', label: 'DP Approval Date', dateControl: 'dpApprovalDate', remarksControl: 'dpApprovalRemarks' },
+  { kind: 'customsClearance', label: 'Customs Clearance Date', dateControl: 'customsClearanceDate', remarksControl: 'customsClearanceRemarks' },
+  { kind: 'municipality', label: 'Municipality Date', dateControl: 'municipalityDate', remarksControl: 'municipalityRemarks' },
 ];
 
 @Component({
@@ -48,24 +60,28 @@ const STEP4_DOC_CONFIG: { kind: Step4DocKind; label: string; dateControl: string
 export class ShipmentArrivalComponent {
   @Input({ required: true }) formArray!: FormArray;
 
-  readonly step4DocConfig = STEP4_DOC_CONFIG;
+  readonly step5DocConfig = STEP5_DOC_CONFIG;
 
-  @ViewChild('deliveryOrderInput') deliveryOrderInputRef?: ElementRef<HTMLInputElement>;
-  @ViewChild('tokenInput') tokenInputRef?: ElementRef<HTMLInputElement>;
-  @ViewChild('transportArrangedInput') transportArrangedInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('arrivalNoticeInput') arrivalNoticeInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('advanceRequestInput') advanceRequestInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('doReleasedInput') doReleasedInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('dpApprovalInput') dpApprovalInputRef?: ElementRef<HTMLInputElement>;
   @ViewChild('customsClearanceInput') customsClearanceInputRef?: ElementRef<HTMLInputElement>;
-  @ViewChild('municipalityClearanceInput') municipalityClearanceInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('municipalityInput') municipalityInputRef?: ElementRef<HTMLInputElement>;
 
   private pendingFileRow: number | null = null;
-  private pendingDocKind: Step4DocKind | null = null;
+  private pendingDocKind: Step5DocKind | null = null;
 
   readonly shipmentData = toSignal(inject(Store).select(selectShipmentData));
 
-  readonly deliveryOrderFile = signal<Record<number, File | null>>({});
-  readonly tokenFile = signal<Record<number, File | null>>({});
-  readonly transportArrangedFile = signal<Record<number, File | null>>({});
+  readonly arrivalNoticeFile = signal<Record<number, File | null>>({});
+  readonly advanceRequestFile = signal<Record<number, File | null>>({});
+  readonly doReleasedFile = signal<Record<number, File | null>>({});
+  readonly dpApprovalFile = signal<Record<number, File | null>>({});
   readonly customsClearanceFile = signal<Record<number, File | null>>({});
-  readonly municipalityClearanceFile = signal<Record<number, File | null>>({});
+  readonly municipalityFile = signal<Record<number, File | null>>({});
+
+  readonly expandedTransportation = signal<Record<number, boolean>>({});
 
   showPreviewModal = signal(false);
   previewUrl = signal<string | null>(null);
@@ -78,7 +94,6 @@ export class ShipmentArrivalComponent {
   });
 
   private store = inject(Store);
-  private fb = inject(FormBuilder);
   private confirmationService = inject(ConfirmationService);
   private sanitizer = inject(DomSanitizer);
 
@@ -100,35 +115,69 @@ export class ShipmentArrivalComponent {
     return base?.trim() ? `${base}-${index + 1}` : '–';
   }
 
-  getFileSignal(kind: Step4DocKind) {
+  isRowSubmitted(index: number): boolean {
+    return this.submittedIndices().includes(index);
+  }
+
+  isPrecedingSubmitted(index: number): boolean {
+    return this.precedingIndices().includes(index);
+  }
+
+  getTransportationRows(group: AbstractControl): FormArray {
+    return group.get('transportationBooked') as FormArray;
+  }
+
+  getVisibleTransportationRows(group: AbstractControl, index: number): AbstractControl[] {
+    const rows = this.getTransportationRows(group).controls;
+    return this.expandedTransportation()[index] ? rows : rows.slice(0, 5);
+  }
+
+  hasHiddenTransportationRows(group: AbstractControl): boolean {
+    return this.getTransportationRows(group).length > 5;
+  }
+
+  toggleTransportation(index: number): void {
+    this.expandedTransportation.update((cur) => ({ ...cur, [index]: !cur[index] }));
+  }
+
+  getFileSignal(kind: Step5DocKind) {
     switch (kind) {
-      case 'deliveryOrder': return this.deliveryOrderFile;
-      case 'token': return this.tokenFile;
-      case 'transportArranged': return this.transportArrangedFile;
-      case 'customsClearance': return this.customsClearanceFile;
-      case 'municipalityClearance': return this.municipalityClearanceFile;
+      case 'arrivalNotice':
+        return this.arrivalNoticeFile;
+      case 'advanceRequest':
+        return this.advanceRequestFile;
+      case 'doReleased':
+        return this.doReleasedFile;
+      case 'dpApproval':
+        return this.dpApprovalFile;
+      case 'customsClearance':
+        return this.customsClearanceFile;
+      case 'municipality':
+        return this.municipalityFile;
     }
   }
 
-  getFile(containerIndex: number, kind: Step4DocKind): File | null {
+  getFile(containerIndex: number, kind: Step5DocKind): File | null {
     return this.getFileSignal(kind)()?.[containerIndex] ?? null;
   }
 
-  clickFileInput(index: number, kind: Step4DocKind): void {
+  clickFileInput(index: number, kind: Step5DocKind): void {
     if (this.isRowSubmitted(index)) return;
     this.pendingFileRow = index;
     this.pendingDocKind = kind;
-    const refs: Record<Step4DocKind, ElementRef<HTMLInputElement> | undefined> = {
-      deliveryOrder: this.deliveryOrderInputRef,
-      token: this.tokenInputRef,
-      transportArranged: this.transportArrangedInputRef,
+
+    const refs: Record<Step5DocKind, ElementRef<HTMLInputElement> | undefined> = {
+      arrivalNotice: this.arrivalNoticeInputRef,
+      advanceRequest: this.advanceRequestInputRef,
+      doReleased: this.doReleasedInputRef,
+      dpApproval: this.dpApprovalInputRef,
       customsClearance: this.customsClearanceInputRef,
-      municipalityClearance: this.municipalityClearanceInputRef,
+      municipality: this.municipalityInputRef,
     };
     refs[kind]?.nativeElement?.click();
   }
 
-  onFileInputChange(event: Event, kind: Step4DocKind): void {
+  onFileInputChange(event: Event, kind: Step5DocKind): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
     const row = this.pendingFileRow;
@@ -140,7 +189,7 @@ export class ShipmentArrivalComponent {
     input.value = '';
   }
 
-  clearFile(containerIndex: number, kind: Step4DocKind): void {
+  clearFile(containerIndex: number, kind: Step5DocKind): void {
     this.getFileSignal(kind).update((cur) => ({ ...cur, [containerIndex]: null }));
   }
 
@@ -163,64 +212,13 @@ export class ShipmentArrivalComponent {
     if (!visible) this.closeDocumentPreview();
   }
 
-  isRowSubmitted(index: number): boolean {
-    return this.submittedIndices().includes(index);
-  }
-
-  isPrecedingSubmitted(index: number): boolean {
-    return this.precedingIndices().includes(index);
-  }
-
-  getDeliverySchedules(group: AbstractControl): FormArray {
-    return group.get('deliverySchedules') as FormArray;
-  }
-
-  getWarehouseSchedules(group: AbstractControl): FormArray {
-    return group.get('warehouseSchedules') as FormArray;
-  }
-
-  addDeliverySchedule(group: AbstractControl, containerIndex: number): void {
-    if (this.isRowSubmitted(containerIndex)) return;
-    this.getDeliverySchedules(group).push(
-      this.fb.group({
-        deliveryDate: [null],
-        deliveryNo: [''],
-        noOfFCL: [null],
-        time: [''],
-        location: [''],
-      })
-    );
-  }
-
-  removeDeliverySchedule(group: AbstractControl, scheduleIndex: number): void {
-    this.getDeliverySchedules(group).removeAt(scheduleIndex);
-  }
-
-  addWarehouseSchedule(group: AbstractControl, containerIndex: number): void {
-    if (this.isRowSubmitted(containerIndex)) return;
-    this.getWarehouseSchedules(group).push(
-      this.fb.group({
-        deliveryDate: [null],
-        deliveryNo: [''],
-        noOfFCL: [null],
-        time: [''],
-        location: [''],
-        grn: [''],
-      })
-    );
-  }
-
-  removeWarehouseSchedule(group: AbstractControl, scheduleIndex: number): void {
-    this.getWarehouseSchedules(group).removeAt(scheduleIndex);
-  }
-
   confirmSubmit(index: number): void {
     const row = this.formArray.at(index);
     if (row.invalid || !this.isPrecedingSubmitted(index)) return;
 
     this.confirmationService.confirm({
-      message: `Submit Shipment Clearing for Container #${index + 1}?`,
-      header: 'Submit Shipment Clearing',
+      message: `Submit Port & Customs Clearance for Shipment #${index + 1}?`,
+      header: 'Submit Clearance Tracker',
       accept: () => {
         const formValue = row.getRawValue();
         const containerId = formValue['containerId'];
@@ -228,20 +226,14 @@ export class ShipmentArrivalComponent {
 
         const toDate = (val: unknown) => (val ? new Date(val as Date).toISOString().split('T')[0] : '');
 
-        const deliverySchedules = (formValue['deliverySchedules'] || []).map((ds: any) => ({
-          deliveryDate: toDate(ds.deliveryDate),
-          deliveryNo: ds.deliveryNo || '',
-          noOfFCL: ds.noOfFCL,
-          time: ds.time || '',
-          location: ds.location || '',
-        }));
-        const warehouseSchedules = (formValue['warehouseSchedules'] || []).map((ws: any) => ({
-          deliveryDate: toDate(ws.deliveryDate),
-          deliveryNo: ws.deliveryNo || '',
-          noOfFCL: ws.noOfFCL,
-          time: ws.time || '',
-          location: ws.location || '',
-          grn: ws.grn || '',
+        const transportationBooked = (formValue['transportationBooked'] || []).map((tb: any) => ({
+          containerSerialNo: tb.containerSerialNo || '',
+          transportCompanyName: tb.transportCompanyName || '',
+          bookedDate: toDate(tb.bookedDate),
+          bookingTime: tb.bookingTime || '',
+          transportDate: toDate(tb.transportDate),
+          transportTime: tb.transportTime || '',
+          delayHours: tb.delayHours ?? null,
         }));
 
         this.store.dispatch(
@@ -249,18 +241,27 @@ export class ShipmentArrivalComponent {
             containerId,
             index,
             payload: {
-              deliveryOrderDocumentUrl: '', // S3 later
-              deliveryOrderDate: toDate(formValue['deliveryOrderDate']),
-              tokenDocumentUrl: '',
-              tokenDate: toDate(formValue['tokenDate']),
-              transportArrangedDocumentUrl: '',
-              transportArrangedDate: toDate(formValue['transportArrangedDate']),
-              customsClearanceDocumentUrl: '',
+              arrivalOn: toDate(formValue['arrivalOn']),
+              shipmentFreeRetentionDate: toDate(formValue['shipmentFreeRetentionDate']),
+              portRetentionWithPenaltyDate: toDate(formValue['portRetentionWithPenaltyDate']),
+              arrivalNoticeDate: toDate(formValue['arrivalNoticeDate']),
+              arrivalNoticeDocumentUrl: '',
+              advanceRequestDate: toDate(formValue['advanceRequestDate']),
+              advanceRequestDocumentUrl: '',
+              doReleasedDate: toDate(formValue['doReleasedDate']),
+              doReleasedDocumentUrl: '',
+              doReleasedRemarks: formValue['doReleasedRemarks'] || '',
+              dpApprovalDate: toDate(formValue['dpApprovalDate']),
+              dpApprovalDocumentUrl: '',
+              dpApprovalRemarks: formValue['dpApprovalRemarks'] || '',
               customsClearanceDate: toDate(formValue['customsClearanceDate']),
-              municipalityClearanceDocumentUrl: '',
-              municipalityClearanceDate: toDate(formValue['municipalityClearanceDate']),
-              deliverySchedules,
-              warehouseSchedules,
+              customsClearanceDocumentUrl: '',
+              customsClearanceRemarks: formValue['customsClearanceRemarks'] || '',
+              tokenReceivedDate: toDate(formValue['tokenReceivedDate']),
+              municipalityDate: toDate(formValue['municipalityDate']),
+              municipalityDocumentUrl: '',
+              municipalityRemarks: formValue['municipalityRemarks'] || '',
+              transportationBooked,
             },
           })
         );

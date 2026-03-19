@@ -5,11 +5,12 @@
          [class.active]="currentStep === i"
          [class.completed]="currentStep > i || step.completed"
          [class.pending]="currentStep < i && !step.completed"
+         [attr.title]="step.label"
          (click)="onStepClick(i)">
       
       <!-- Connector Line -->
       @if (!last) {
-        <div class="connector"></div>
+        <div class="connector" [class.filled]="currentStep > i || step.completed"></div>
       }
 
       <!-- Step Indicator -->

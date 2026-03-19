@@ -2,15 +2,16 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { 
-  Shipment, 
-  ShipmentListResponse, 
-  ShipmentDetail, 
+import {
+  Shipment,
+  ShipmentListResponse,
+  ShipmentDetail,
   CreateShipmentPayload,
   CreateShipmentResponse,
   ShipmentDetailsResponse,
   ExtractShipmentFromDocumentsResponse,
-  ExtractBillNoResponse
+  ExtractBillNoResponse,
+  DashboardSummaryResponse
 } from '../models/shipment.model';
 
 // Payload interfaces for container operations
@@ -45,13 +46,19 @@ export interface ActualContainer {
 // Step 3: Documentation (Document Tracker)
 export interface DocumentationPaymentPayload {
   BLNo: string;
-  DHL: string;
+  courierTrackNo: string;
+  courierServiceProvider: string;
   expectedDocDate: string;
   receiver: string;
-  bankAdvanceAmountDocumentUrl: string;
-  bankAdvanceApprovedDocumentUrl: string;
-  bankAdvanceSubmittedOn: string;
-  docToBeReleasedOn: string;
+  bankName: string;
+  inwardCollectionAdviceDate: string;
+  inwardCollectionAdviceDocumentUrl: string;
+  murabahaContractReleasedDate: string;
+  murabahaContractApprovedDate: string;
+  murabahaContractSubmittedDate: string;
+  murabahaContractSubmittedDocumentUrl: string;
+  documentsReleasedDate: string;
+  documentsReleasedDocumentUrl: string;
 }
 
 // Step 4: Logistics / Shipment Clearing Tracker
@@ -109,18 +116,22 @@ export interface GRNPayload {
 export class ShipmentService {
   private apiUrl = 'shipment';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
   getShipments(page: number = 1, limit: number = 20): Observable<ShipmentListResponse> {
     const params = new HttpParams()
       .set('page', page.toString())
       .set('limit', limit.toString());
-    
+
     return this.http.get<ShipmentListResponse>(this.apiUrl, { params });
   }
 
   getShipmentById(id: string): Observable<ShipmentDetailsResponse> {
     return this.http.get<ShipmentDetailsResponse>(`${this.apiUrl}/${id}`);
+  }
+
+  getDashboardSummary(): Observable<DashboardSummaryResponse> {
+    return this.http.get<DashboardSummaryResponse>(`${this.apiUrl}/dashboard`);
   }
 
   createShipment(payload: CreateShipmentPayload): Observable<CreateShipmentResponse> {
@@ -153,7 +164,7 @@ export class ShipmentService {
 
   // Row-level updates for specific steps if needed
   updateSplitRow(shipmentId: string, step: string, rowIndex: number, data: any): Observable<ShipmentDetail> {
-     return this.http.put<ShipmentDetail>(`${this.apiUrl}/${shipmentId}/steps/${step}/rows/${rowIndex}`, data);
+    return this.http.put<ShipmentDetail>(`${this.apiUrl}/${shipmentId}/steps/${step}/rows/${rowIndex}`, data);
   }
 
   /**

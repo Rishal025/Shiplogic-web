@@ -1,13 +1,271 @@
-<div class="grid grid-cols-1 gap-6 page-transition-wrapper">
-    <!-- Deferring the heavy table component to prioritize initial page load -->
-    @defer (on idle) {
-        <app-shipment-list class="block" />
-    } @placeholder {
-        <!-- Skeleton or loading state to prevent layout shift -->
-        <div class="h-[600px] w-full bg-slate-50 animate-pulse rounded-2xl border border-slate-200"></div>
-    } @loading (after 100ms; minimum 500ms) {
-        <div class="h-[600px] w-full flex items-center justify-center bg-white rounded-2xl border border-slate-200">
-            <i class="pi pi-spin pi-spinner text-slate-300 text-2xl"></i>
+<div class="page-transition-wrapper flex flex-col gap-6 md:gap-8">
+    @if (loading()) {
+        <div class="grid grid-cols-1 xl:grid-cols-[1.6fr_1fr] gap-6 animate-pulse">
+            <div class="sl-panel h-[420px]"></div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-6">
+                <div class="sl-panel h-[200px]"></div>
+                <div class="sl-panel h-[200px]"></div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 xl:col-span-2">
+                @for (card of [1,2,3,4]; track card) {
+                    <div class="sl-panel h-32"></div>
+                }
+            </div>
+            <div class="sl-panel h-[360px] xl:col-span-2"></div>
         </div>
+    } @else if (error()) {
+        <section class="sl-panel flex flex-col items-center justify-center gap-4 py-16 text-center">
+            <div class="w-14 h-14 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center">
+                <i class="pi pi-exclamation-triangle text-2xl"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-bold text-slate-900">Dashboard unavailable</h2>
+                <p class="text-sm text-slate-500">{{ error() }}</p>
+            </div>
+        </section>
+    } @else if (dashboard(); as summary) {
+        <header class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <h1 class="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Dashboard</h1>
+            </div>
+            <div class="flex flex-col gap-3 sm:flex-row">
+                <a routerLink="/shipments" class="sl-cta secondary">
+                    <i class="pi pi-table"></i>
+                    <span>Open Shipments</span>
+                </a>
+                <a routerLink="/shipments/create" class="sl-cta primary">
+                    <i class="pi pi-plus-circle"></i>
+                    <span>Create Shipment</span>
+                </a>
+            </div>
+        </header>
+
+        <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            @for (card of statCards(); track card.label) {
+                <article class="sl-kpi-card" [attr.data-tone]="card.tone">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <p class="sl-kpi-label">{{ card.label }}</p>
+                            <p class="sl-kpi-value">{{ card.value }}</p>
+                        </div>
+                        <div class="sl-kpi-icon">
+                            <i [class]="card.icon"></i>
+                        </div>
+                    </div>
+                </article>
+            }
+        </section>
+
+        <section class="grid grid-cols-1 xl:grid-cols-[1.7fr_1fr] gap-6">
+            <article class="sl-panel">
+                <div class="sl-panel-header">
+                    <div>
+                        <p class="sl-eyebrow">Shipment Trend</p>
+                        <h2>Orders added in the last 6 months</h2>
+                    </div>
+                    <p class="sl-muted">Grouped by order date or created date fallback</p>
+                </div>
+
+                <div class="trend-chart" aria-label="Monthly shipment trend">
+                    @for (entry of summary.monthlyTrend; track entry.label) {
+                        <div class="trend-column">
+                            <div class="trend-bar-wrap">
+                                <div class="trend-bar" [style.height]="getTrendHeight(entry)">
+                                    <span>{{ entry.count }}</span>
+                                </div>
+                            </div>
+                            <div class="trend-label">{{ entry.label }}</div>
+                        </div>
+                    } @empty {
+                        <div class="sl-empty w-full self-center">No trend data available.</div>
+                    }
+                </div>
+            </article>
+
+            <article class="sl-panel">
+                <div class="sl-panel-header">
+                    <div>
+                        <p class="sl-eyebrow">Payment Exposure</p>
+                        <h2>Financial summary</h2>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="sl-money-card">
+                        <span>Total Exposure</span>
+                        <strong>{{ summary.kpis.totalPaymentExposure | currency:'USD':'symbol':'1.0-0' }}</strong>
+                        <small>Outstanding shipment balance</small>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="sl-mini-stat">
+                            <span>Total Amount</span>
+                            <strong>{{ summary.paymentSummary.totalAmount | currency:'USD':'symbol':'1.0-0' }}</strong>
+                        </div>
+                        <div class="sl-mini-stat">
+                            <span>Paid Amount</span>
+                            <strong>{{ summary.paymentSummary.paidAmount | currency:'USD':'symbol':'1.0-0' }}</strong>
+                        </div>
+                        <div class="sl-mini-stat">
+                            <span>Pending</span>
+                            <strong>{{ summary.paymentSummary.pendingShipments }}</strong>
+                        </div>
+                        <div class="sl-mini-stat">
+                            <span>Partial / Paid</span>
+                            <strong>{{ summary.paymentSummary.partiallyPaidShipments }} / {{ summary.paymentSummary.paidShipments }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-6">
+            <article class="sl-panel">
+                <div class="sl-panel-header">
+                    <div>
+                        <p class="sl-eyebrow">Stage Breakdown</p>
+                        <h2>Current shipment stages</h2>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    @for (entry of summary.stageBreakdown; track entry.stage) {
+                        <div class="stage-row">
+                            <div class="stage-meta">
+                                <span class="stage-name">{{ entry.stage }}</span>
+                                <span class="stage-count">{{ entry.count }}</span>
+                            </div>
+                            <div class="stage-track">
+                                <div class="stage-fill" [style.width]="getStageWidth(entry)"></div>
+                            </div>
+                        </div>
+                    } @empty {
+                        <p class="sl-empty">No stage data available.</p>
+                    }
+                </div>
+            </article>
+
+            <article class="sl-panel">
+                <div class="sl-panel-header">
+                    <div>
+                        <p class="sl-eyebrow">Arrival and ETA</p>
+                        <h2>Operational pressure</h2>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    @for (metric of arrivalMetrics(); track metric.label) {
+                        <div class="arrival-row">
+                            <div class="arrival-meta">
+                                <span>{{ metric.label }}</span>
+                                <strong>{{ metric.value }}</strong>
+                            </div>
+                            <div class="arrival-track">
+                                <div
+                                    class="arrival-fill"
+                                    [attr.data-tone]="metric.tone"
+                                    [style.width]="getArrivalWidth(metric.value, summary.arrivalSummary)"></div>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="grid grid-cols-3 gap-3 pt-2">
+                        <div class="sl-mini-stat compact">
+                            <span>Total Containers</span>
+                            <strong>{{ summary.arrivalSummary.totalContainers }}</strong>
+                        </div>
+                        <div class="sl-mini-stat compact">
+                            <span>Cleared</span>
+                            <strong>{{ summary.arrivalSummary.clearedContainers }}</strong>
+                        </div>
+                        <div class="sl-mini-stat compact">
+                            <span>ETA Set</span>
+                            <strong>{{ summary.arrivalSummary.etaScheduledShipments }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <section class="sl-panel">
+            <div class="sl-panel-header">
+                <div>
+                    <p class="sl-eyebrow">Recent Shipments</p>
+                    <h2>Latest records with quick access</h2>
+                </div>
+                <a routerLink="/shipments" class="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">View all</a>
+            </div>
+
+            <div class="hidden md:block overflow-x-auto">
+                <table class="w-full border-separate border-spacing-0">
+                    <thead>
+                        <tr>
+                            <th class="sl-table-head">Shipment</th>
+                            <th class="sl-table-head">Supplier</th>
+                            <th class="sl-table-head">Item</th>
+                            <th class="sl-table-head">Order Date</th>
+                            <th class="sl-table-head">ETA</th>
+                            <th class="sl-table-head">Status</th>
+                            <th class="sl-table-head text-right">Amount</th>
+                            <th class="sl-table-head text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (shipment of summary.recentShipments; track shipment._id) {
+                            <tr class="border-b border-slate-100 last:border-none">
+                                <td class="sl-table-cell font-bold text-slate-900">{{ shipment.shipmentNo }}</td>
+                                <td class="sl-table-cell">{{ shipment.supplier || '-' }}</td>
+                                <td class="sl-table-cell max-w-[260px] truncate" [title]="shipment.item || ''">{{ shipment.item || '-' }}</td>
+                                <td class="sl-table-cell">{{ shipment.orderDate | date:'dd MMM yyyy' }}</td>
+                                <td class="sl-table-cell">{{ shipment.plannedETA ? (shipment.plannedETA | date:'dd MMM yyyy') : '-' }}</td>
+                                <td class="sl-table-cell">
+                                    <span class="sl-status-chip">{{ shipment.status }}</span>
+                                </td>
+                                <td class="sl-table-cell text-right font-semibold">{{ shipment.totalAmount | currency:'USD':'symbol':'1.0-0' }}</td>
+                                <td class="sl-table-cell text-right">
+                                    <a [routerLink]="['/shipments/track', shipment._id]" class="sl-inline-link">Track</a>
+                                </td>
+                            </tr>
+                        } @empty {
+                            <tr>
+                                <td colspan="8" class="sl-empty py-10">No recent shipments available.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="grid grid-cols-1 gap-3 md:hidden">
+                @for (shipment of summary.recentShipments; track shipment._id) {
+                    <article class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-black text-slate-900">{{ shipment.shipmentNo }}</h3>
+                                <p class="mt-1 text-xs text-slate-500">{{ shipment.supplier || 'Unknown supplier' }}</p>
+                            </div>
+                            <span class="sl-status-chip">{{ shipment.status }}</span>
+                        </div>
+                        <dl class="mt-4 grid grid-cols-2 gap-3 text-xs">
+                            <div>
+                                <dt class="text-slate-400 uppercase tracking-wider">Order</dt>
+                                <dd class="mt-1 font-semibold text-slate-700">{{ shipment.orderDate | date:'dd MMM yyyy' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-slate-400 uppercase tracking-wider">ETA</dt>
+                                <dd class="mt-1 font-semibold text-slate-700">{{ shipment.plannedETA ? (shipment.plannedETA | date:'dd MMM yyyy') : '-' }}</dd>
+                            </div>
+                            <div class="col-span-2">
+                                <dt class="text-slate-400 uppercase tracking-wider">Item</dt>
+                                <dd class="mt-1 font-semibold text-slate-700">{{ shipment.item || '-' }}</dd>
+                            </div>
+                        </dl>
+                        <div class="mt-4 flex items-center justify-between">
+                            <p class="text-sm font-black text-slate-900">{{ shipment.totalAmount | currency:'USD':'symbol':'1.0-0' }}</p>
+                            <a [routerLink]="['/shipments/track', shipment._id]" class="sl-inline-link">Track</a>
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
     }
 </div>

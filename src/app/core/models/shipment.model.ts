@@ -19,6 +19,65 @@ export interface ShipmentListResponse {
   shipments: Shipment[];
 }
 
+export interface DashboardKpis {
+  totalShipments: number;
+  completedShipments: number;
+  inProgressShipments: number;
+  underClearanceShipments: number;
+  totalPaymentExposure: number;
+}
+
+export interface DashboardStageBreakdown {
+  stage: string;
+  count: number;
+}
+
+export interface DashboardMonthlyTrend {
+  label: string;
+  month: number;
+  year: number;
+  count: number;
+}
+
+export interface DashboardArrivalSummary {
+  totalContainers: number;
+  arrivedContainers: number;
+  pendingArrivalContainers: number;
+  clearedContainers: number;
+  dueThisWeekShipments: number;
+  overdueShipments: number;
+  etaScheduledShipments: number;
+}
+
+export interface DashboardPaymentSummary {
+  totalAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+  pendingShipments: number;
+  partiallyPaidShipments: number;
+  paidShipments: number;
+}
+
+export interface DashboardRecentShipment {
+  _id: string;
+  shipmentNo: string;
+  orderDate: string;
+  plannedETA?: string;
+  status: string;
+  totalAmount: number;
+  supplier?: string;
+  item?: string;
+}
+
+export interface DashboardSummaryResponse {
+  kpis: DashboardKpis;
+  stageBreakdown: DashboardStageBreakdown[];
+  monthlyTrend: DashboardMonthlyTrend[];
+  arrivalSummary: DashboardArrivalSummary;
+  paymentSummary: DashboardPaymentSummary;
+  recentShipments: DashboardRecentShipment[];
+}
+
 // Create Shipment Payload
 export interface CreateShipmentPayload {
   poNumber: string;              // Shipment No.
@@ -188,6 +247,16 @@ export interface ShipmentInfo {
   fcPerUnit?: number;
   advanceAmount?: number;
   paymentTerms?: string;
+  bankName?: string;
+  barcode?: string;
+  variant?: string;
+  hsCode?: string;
+  lpoDocumentName?: string;
+  lpoDocumentUrl?: string;
+  proformaDocumentName?: string;
+  proformaDocumentUrl?: string;
+  s1QualityReportName?: string;
+  s1QualityReportUrl?: string;
   plannedETD?: string;
   plannedETA?: string;
   containerSize?: number;
@@ -225,6 +294,9 @@ export interface ActualContainer {
   containerId: string;
   size?: string;
   // Step 2: Actual Split
+  actualSerialNo?: string;
+  commercialInvoiceNo?: string;
+  shipOnBoardDate?: string;
   qtyMT?: number;
   bags?: number;
   pallet?: number;
@@ -237,10 +309,21 @@ export interface ActualContainer {
   BLNo?: string;
   // Step 3: Documentation — Purchase
   DHL?: string;
+  courierTrackNo?: string;
+  courierServiceProvider?: string;
   docArrivalNotes?: string;
   expectedDocDate?: string;
   receiver?: string;
-  // Step 3: Documentation — FAS
+  bankName?: string;
+  inwardCollectionAdviceDate?: string;
+  inwardCollectionAdviceDocumentUrl?: string;
+  murabahaContractReleasedDate?: string;
+  murabahaContractApprovedDate?: string;
+  murabahaContractSubmittedDate?: string;
+  murabahaContractSubmittedDocumentUrl?: string;
+  documentsReleasedDate?: string;
+  documentsReleasedDocumentUrl?: string;
+  // Step 3: Documentation — legacy
   bankAdvanceAmountDocumentUrl?: string;
   bankAdvanceApprovedDocumentUrl?: string;
   bankAdvanceSubmittedOn?: string;
@@ -250,16 +333,45 @@ export interface ActualContainer {
   // Legacy
   bankAdvanceAmount?: number;
   // Step 4: Shipment Clearing Tracker
+  arrivalOn?: string;
+  shipmentFreeRetentionDate?: string;
+  portRetentionWithPenaltyDate?: string;
+  arrivalNoticeDocumentUrl?: string;
+  arrivalNoticeDate?: string;
+  advanceRequestDocumentUrl?: string;
+  advanceRequestDate?: string;
+
   deliveryOrderDocumentUrl?: string;
   deliveryOrderDate?: string;
-  tokenDocumentUrl?: string;
-  tokenDate?: string;
-  transportArrangedDocumentUrl?: string;
-  transportArrangedDate?: string;
+  deliveryOrderRemarks?: string;
+
+  dpApprovalDocumentUrl?: string;
+  dpApprovalDate?: string;
+  dpApprovalRemarks?: string;
+
   customsClearanceDocumentUrl?: string;
   customsClearanceDate?: string;
+  customsClearanceRemarks?: string;
+
+  tokenDocumentUrl?: string;
+  tokenDate?: string;
+
   municipalityClearanceDocumentUrl?: string;
   municipalityClearanceDate?: string;
+  municipalityClearanceRemarks?: string;
+  
+  // New Transportation Booked Fields
+  transportCompanyName?: string;
+  transportBookedDate?: string;
+  transportBookingTime?: string;
+  transportDate?: string;
+  transportTime?: string;
+  transportDelayHours?: number;
+  transportTokenGateNo?: string;
+
+  transportArrangedDocumentUrl?: string;
+  transportArrangedDate?: string;
+
   deliverySchedules?: DeliverySchedule[];
   warehouseSchedules?: WarehouseSchedule[];
   // Step 4 legacy
@@ -269,7 +381,34 @@ export interface ActualContainer {
   warehouseReceivedOn?: string;
   warehouseGrnNo?: string;
   qualityInspectionReportDate?: string;
-  // Step 5: Clearance Paid
+  
+  // Step 5: Storage Allocation & Arrival — per physical container
+  storageSplits?: {
+    containerSerialNo?: string;
+    warehouse?: string;
+    storageAvailability?: number;
+    receivedOnDate?: string;
+    receivedOnTime?: string;
+    customsInspection?: string;
+    grn?: string;
+    batch?: string;
+    products?: string;
+    remarks?: string;
+  }[];
+
+  // Transport per physical container (from Port & Customs step)
+  transportSplits?: {
+    containerSerialNo?: string;
+    transportCompanyName?: string;
+    transportBookedDate?: string;
+    transportBookingTime?: string;
+    transportDate?: string;
+    transportTime?: string;
+    transportDelayHours?: number;
+    transportTokenGateNo?: string;
+  }[];
+
+  // Step 5 legacy: Clearance Paid
   paid_amount?: number;
   paidOn?: string;
   remarks?: string;
@@ -335,6 +474,9 @@ export interface PlannedSplit {
 
 export interface ActualSplit {
   size?: number;
+  actualSerialNo?: string;
+  commercialInvoiceNo?: string;
+  shipOnBoardDate?: Date;
   qtyMT: number;
   bags?: number;
   weekWiseShipment?: string;
@@ -345,9 +487,18 @@ export interface ActualSplit {
 }
 
 export interface DocumentationSplit {
-  DHL: string;
+  courierTrackNo?: string;
+  courierServiceProvider?: string;
   docArrivalNotes?: string;
   BLNo: string;
+  receiver?: string;
+  bankName?: string;
+  expectedDocDate?: Date;
+  inwardCollectionAdviceDate?: Date;
+  murabahaContractReleasedDate?: Date;
+  murabahaContractApprovedDate?: Date;
+  murabahaContractSubmittedDate?: Date;
+  documentsReleasedDate?: Date;
 }
 
 export interface ArrivalTimeSplit {

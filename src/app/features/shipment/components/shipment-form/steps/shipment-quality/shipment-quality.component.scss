@@ -1,0 +1,28 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.quality-section-shell {
+  overflow: visible;
+}
+
+.quality-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  touch-action: pan-x;
+}
+
+.quality-table-scroll table {
+  border-collapse: collapse;
+}
+
+:host ::ng-deep .p-accordionpanel,
+:host ::ng-deep .p-accordioncontent,
+:host ::ng-deep .p-accordioncontent-content {
+  overflow: visible;
+}

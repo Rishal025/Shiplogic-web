@@ -17,6 +17,7 @@ import { DialogModule } from 'primeng/dialog';
 
 import { PrimaryButtonDirective } from '../../../../shared/directives/button.directive';
 import { ShipmentService } from '../../../../core/services/shipment.service';
+import { Item } from '../../../../core/models/item.model';
 import { Supplier } from '../../../../core/models/supplier.model';
 import { CreateShipmentPayload, ExtractedShipmentData } from '../../../../core/models/shipment.model';
 
@@ -45,12 +46,14 @@ export class CreateShipmentComponent implements OnInit {
   shipmentForm!: FormGroup;
 
   // Dropdown data from resolver (pre-loaded)
+  items = signal<Item[]>([]);
   suppliers = signal<Supplier[]>([]);
   submitting = signal(false);
 
-  // Document extraction: document1 = Purchase order, document2 = Performa Invoice
+  // Document extraction: document1 = Purchase order, document2 = Pro-forma Invoice
   document1File = signal<File | null>(null);
   document2File = signal<File | null>(null);
+  s1QualityReportFile = signal<File | null>(null);
   extracting = signal(false);
   /** Set after extract & autopopulate when response includes shipment_calculations; used for price-mismatch warning. */
   extractionPriceMismatch = signal<{ isPriceMatching: boolean; diffPercent?: number } | null>(null);
@@ -77,14 +80,23 @@ export class CreateShipmentComponent implements OnInit {
   incoTerms = [
     { label: 'CIF', value: 'CIF' },
     { label: 'FOB', value: 'FOB' },
-    { label: 'EXWORKS', value: 'EXWORKS' }
+    { label: 'EXWORKS', value: 'EXWORKS' },
+    { label: 'C&F', value: 'C&F' }
   ];
 
   paymentTerms = [
-    { label: '100% CAD', value: '100% CAD' },
-    { label: 'Advance 100%', value: 'Advance 100%' },
-    { label: 'DA 30 days', value: 'DA 30 days' },
-    { label: '20% Advance and 80% CAD', value: '20% Advance and 80% CAD' }
+    { label: 'CAD 100%', value: 'CAD 100%' },
+    { label: 'Advance 20% BT, Balance 80% CAD', value: 'Advance 20% BT, Balance 80% CAD' },
+    { label: 'Advance 30% BT, Balance 70% CAD', value: 'Advance 30% BT, Balance 70% CAD' },
+    { label: 'Advance 10% BT, Balance 90% CAD', value: 'Advance 10% BT, Balance 90% CAD' },
+    { label: 'BT against Delivery 100%', value: 'BT against Delivery 100%' },
+    { label: 'BT against Documents 100%', value: 'BT against Documents 100%' }
+  ];
+
+  bankNames = [
+    { label: 'ADIB', value: 'ADIB' },
+    { label: 'EIB', value: 'EIB' },
+    { label: 'DIB', value: 'DIB' }
   ];
 
   containerSizes = [
@@ -130,6 +142,7 @@ export class CreateShipmentComponent implements OnInit {
     // Get pre-loaded data from route resolver
     const formData = this.route.snapshot.data['formData'];
     if (formData) {
+      this.items.set(formData.items || []);
       this.suppliers.set(formData.suppliers || []);
     }
   }
@@ -145,7 +158,11 @@ export class CreateShipmentComponent implements OnInit {
       incoTerms: [null],
       portOfLoading: [''],
       portOfDischarge: [''],
+      item: [null],
       brandName: [''],
+      barcode: [''],
+      variant: [''],
+      hsCode: [''],
       itemDescription: [''],
 
       // Supplier Details
@@ -167,9 +184,11 @@ export class CreateShipmentComponent implements OnInit {
       totalUSD: [{ value: null, disabled: true }],
       totalAED: [{ value: null, disabled: true }],
       paymentTerms: [null],
+      bankName: [null],
       advanceAmount: [null],
       expectedETD: [null],
-      expectedETA: [null]
+      expectedETA: [null],
+      s1QualityReport: [null, Validators.required]
     });
 
     // Reactive Financial Calculation (Total USD = Planned Containers * FC per Unit)
@@ -187,6 +206,28 @@ export class CreateShipmentComponent implements OnInit {
   }
 
   private setupAutoFill(): void {
+    this.shipmentForm.get('item')?.valueChanges.subscribe((itemId) => {
+      if (itemId) {
+        const selectedItem = this.items().find((item) => item._id === itemId);
+        if (selectedItem) {
+          this.shipmentForm.patchValue({
+            brandName: this.shipmentForm.get('brandName')?.value || selectedItem.riceName || '',
+            itemDescription: this.shipmentForm.get('itemDescription')?.value || selectedItem.description || '',
+            packagingType: selectedItem.packing || '',
+            barcode: selectedItem.barcode || selectedItem.itemCode || '',
+            variant: selectedItem.variant || selectedItem.riceName || '',
+            hsCode: selectedItem.hsCode || ''
+          }, { emitEvent: false });
+        }
+      } else {
+        this.shipmentForm.patchValue({
+          barcode: '',
+          variant: '',
+          hsCode: ''
+        }, { emitEvent: false });
+      }
+    });
+
     // Auto-fill country of origin when supplier is selected
     this.shipmentForm.get('supplier')?.valueChanges.subscribe((supplierId) => {
       if (supplierId) {
@@ -198,9 +239,27 @@ export class CreateShipmentComponent implements OnInit {
         }
       }
     });
+
+    this.shipmentForm.get('paymentTerms')?.valueChanges.subscribe((term) => {
+      const bankNameControl = this.shipmentForm.get('bankName');
+      if (!bankNameControl) return;
+
+      if (this.requiresBankName(term)) {
+        bankNameControl.addValidators(Validators.required);
+      } else {
+        bankNameControl.clearValidators();
+        bankNameControl.setValue(null, { emitEvent: false });
+      }
+
+      bankNameControl.updateValueAndValidity({ emitEvent: false });
+    });
   }
 
-  // Purchase order (document1) & Performa Invoice (document2) for extraction
+  requiresBankName(term: string | null | undefined): boolean {
+    return typeof term === 'string' && term.includes('CAD');
+  }
+
+  // Purchase order (document1) & Pro-forma Invoice (document2) for extraction
   onDocument1Selected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -221,6 +280,23 @@ export class CreateShipmentComponent implements OnInit {
 
   clearDocument2(): void {
     this.document2File.set(null);
+  }
+
+  onQualityReportSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] || null;
+    this.s1QualityReportFile.set(file);
+    this.shipmentForm.get('s1QualityReport')?.setValue(file, { emitEvent: false });
+    input.value = '';
+  }
+
+  removeQualityReport(): void {
+    this.s1QualityReportFile.set(null);
+    this.shipmentForm.get('s1QualityReport')?.setValue(null, { emitEvent: false });
+  }
+
+  hasAllRequiredDocuments(): boolean {
+    return !!this.document1File() && !!this.document2File() && !!this.s1QualityReportFile();
   }
 
   openDocumentPreview(file: File, title: string): void {
@@ -336,6 +412,24 @@ export class CreateShipmentComponent implements OnInit {
         }
       }
 
+      // Resolve item by itemCode or description when extraction provides it
+      const rawItemCode = d['itemCode'];
+      const rawItemDescription = d['itemDescription'];
+      const itemCode = typeof rawItemCode === 'string' ? rawItemCode.trim() : '';
+      const itemDescription = typeof rawItemDescription === 'string' ? rawItemDescription.trim() : '';
+      if (itemCode || itemDescription) {
+        const item = this.findItemByCodeOrDescription(itemCode, itemDescription);
+        if (item) {
+          patch['item'] = item._id;
+          patch['packagingType'] = patch['packagingType'] ?? item.packing ?? '';
+          patch['barcode'] = item.barcode || item.itemCode || '';
+          patch['variant'] = item.variant || item.riceName || '';
+          patch['hsCode'] = item.hsCode || '';
+          patch['brandName'] = patch['brandName'] ?? item.riceName ?? '';
+          patch['itemDescription'] = patch['itemDescription'] ?? item.description ?? '';
+        }
+      }
+
       this.shipmentForm.patchValue(patch, { emitEvent: false });
       // Ensure form validity is recalculated so Save Shipment enables when required fields are set
       this.shipmentForm.updateValueAndValidity({ emitEvent: true });
@@ -375,12 +469,31 @@ export class CreateShipmentComponent implements OnInit {
     });
   }
 
+  private findItemByCodeOrDescription(code: string, description: string): Item | undefined {
+    const list = this.items();
+    if (!list.length) return undefined;
+
+    const normalizedCode = code.toLowerCase().replace(/[\s\-_]+/g, '');
+    const normalizedDescription = description.toLowerCase();
+
+    return list.find((item) => {
+      const itemCode = item.itemCode?.toLowerCase().replace(/[\s\-_]+/g, '') ?? '';
+      const itemDescription = item.description?.toLowerCase() ?? '';
+
+      if (normalizedCode && itemCode && itemCode === normalizedCode) return true;
+      if (normalizedDescription && itemDescription === normalizedDescription) return true;
+      if (normalizedDescription && itemDescription.includes(normalizedDescription)) return true;
+      if (normalizedDescription && normalizedDescription.includes(itemDescription)) return true;
+      return false;
+    });
+  }
+
   onSubmit(): void {
-    if (this.shipmentForm.invalid) {
+    if (this.shipmentForm.invalid || !this.hasAllRequiredDocuments()) {
       this.messageService.add({
         severity: 'warn',
         summary: 'Validation Error',
-        detail: 'Please fill all required fields'
+        detail: 'Please fill all required fields and upload all 3 required documents'
       });
       return;
     }
@@ -400,6 +513,7 @@ export class CreateShipmentComponent implements OnInit {
       year: new Date().getFullYear().toString(),
       orderDate: formValue.purchaseDate ? new Date(formValue.purchaseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0], // YYYY-MM-DD
       supplierId: formValue.supplier,
+      itemId: formValue.item || undefined,
       plannedQtyMT: formValue.plannedContainers?.toString() || '0',
       estimatedContainerCount: formValue.noOfShipments?.toString() || '0',
       estimatedContainerSize: formValue.containerSize || '',

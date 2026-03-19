@@ -1,27 +1,62 @@
-<nav class="bg-white px-4 md:px-6 py-3 border-b border-slate-200">
-    <div class="flex justify-between items-center max-w-[1600px] mx-auto">
-        <div class="flex items-center gap-2">
-            <div class="w-8 h-8 md:w-10 md:h-10 bg-[#0F172A] rounded-lg flex items-center justify-center">
-              <i class="pi pi-box text-white text-sm md:text-lg"></i>
+<nav class="bg-white px-3 py-3 sm:px-4 md:px-6 border-b border-slate-200">
+    <div class="max-w-[1600px] mx-auto flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+                <div class="w-9 h-9 md:w-10 md:h-10 bg-[#0F172A] rounded-lg flex items-center justify-center shrink-0">
+                  <i class="pi pi-box text-white text-sm md:text-lg"></i>
+                </div>
+                <div class="min-w-0">
+                  <h1 class="font-bold text-base sm:text-lg md:text-xl text-slate-900 tracking-tight truncate">Royal Horizon</h1>
+                  <p class="text-[11px] text-slate-400 font-medium hidden sm:block">Shipment operations dashboard</p>
+                </div>
             </div>
-            <h1 class="font-bold text-lg md:text-xl text-slate-900 tracking-tight">Royal Horizon</h1>
+
+            <div class="flex items-center gap-2 lg:hidden">
+                <button 
+                    (click)="onLogout()"
+                    class="border border-red-200 rounded-full w-9 h-9 flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
+                    title="Logout"
+                    aria-label="Logout">
+                    <i class="pi pi-sign-out text-sm"></i>
+                </button>
+            </div>
         </div>
 
-        <div class="flex items-center gap-2 md:gap-4">
-            <div class="hidden sm:flex flex-col items-end">
-                <span class="text-xs font-bold text-slate-900 leading-none">{{ (userName$ | async) || 'User' }}</span>
-                <span class="text-[10px] text-slate-400 font-medium">{{ (userRole$ | async) || 'Role' }}</span>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:flex-1 lg:max-w-[920px] lg:justify-end">
+            <div class="sl-nav-tabs">
+                <a
+                    routerLink="/dashboard"
+                    routerLinkActive="is-active"
+                    [routerLinkActiveOptions]="{ exact: true }"
+                    class="sl-nav-tab">
+                    <i class="pi pi-chart-bar"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a
+                    routerLink="/shipments"
+                    routerLinkActive="is-active"
+                    class="sl-nav-tab">
+                    <i class="pi pi-truck"></i>
+                    <span>Shipments</span>
+                </a>
             </div>
-            <div class="border border-slate-200 rounded-full w-8 h-8 md:w-10 md:h-10 flex items-center justify-center bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer ring-2 ring-transparent hover:ring-slate-100 ring-offset-2">
-                <i class="pi pi-user text-sm md:text-base"></i>
+
+            <div class="hidden lg:flex items-center gap-3">
+                <div class="hidden sm:flex flex-col items-end">
+                    <span class="text-xs font-bold text-slate-900 leading-none">{{ (userName$ | async) || 'User' }}</span>
+                    <span class="text-[10px] text-slate-400 font-medium">{{ (userRole$ | async) || 'Role' }}</span>
+                </div>
+                <div class="border border-slate-200 rounded-full w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-600">
+                    <i class="pi pi-user text-sm md:text-base"></i>
+                </div>
+                <button 
+                    (click)="onLogout()"
+                    class="border border-red-200 rounded-full w-10 h-10 flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer ring-2 ring-transparent hover:ring-red-100 ring-offset-2"
+                    title="Logout"
+                    aria-label="Logout">
+                    <i class="pi pi-sign-out text-sm md:text-base"></i>
+                </button>
             </div>
-            <button 
-                (click)="onLogout()"
-                class="border border-red-200 rounded-full w-8 h-8 md:w-10 md:h-10 flex items-center justify-center bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer ring-2 ring-transparent hover:ring-red-100 ring-offset-2"
-                title="Logout"
-                aria-label="Logout">
-                <i class="pi pi-sign-out text-sm md:text-base"></i>
-            </button>
         </div>
     </div>
 </nav>

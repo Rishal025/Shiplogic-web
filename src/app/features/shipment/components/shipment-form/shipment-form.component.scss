@@ -4,8 +4,28 @@
     display: block;
     
     ::ng-deep {
+        .compact-stepper-shell {
+            @apply px-2 sm:px-3;
+        }
+
         .financial-total-box {
             @apply flex flex-col gap-1.5 p-4 bg-blue-50/50 rounded-xl border border-blue-100;
+        }
+
+        .stage-placeholder-card {
+            @apply flex flex-col items-start gap-4 rounded-3xl border border-dashed border-slate-200 bg-slate-50/70 p-6 sm:flex-row sm:items-center;
+
+            h3 {
+                @apply text-lg font-black tracking-tight text-slate-900;
+            }
+
+            p {
+                @apply mt-1 text-sm text-slate-500 leading-relaxed;
+            }
+        }
+
+        .stage-placeholder-icon {
+            @apply flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm border border-slate-200 text-xl;
         }
 
         /* High-Density Table Styling */
@@ -64,6 +84,23 @@
 
         /* Tablet/Mobile Specific Adjustments */
         @media (max-width: 768px) {
+            .split-toolbar {
+                @apply px-3 py-3;
+            }
+
+            .split-toolbar-primary,
+            .split-toolbar-totals {
+                @apply min-w-0;
+            }
+
+            .split-toolbar-totals {
+                @apply grid grid-cols-2 gap-4 w-full;
+            }
+
+            .split-toolbar-shipments {
+                @apply w-full;
+            }
+
             .custom-tracker-table {
                 .p-datatable-thead > tr > th { @apply py-2 px-3; }
                 .p-datatable-tbody > tr > td { @apply py-2 px-2; }
@@ -79,11 +116,99 @@
             }
             
             .date-mini { @apply w-24; }
+
+            .planned-table {
+                th.planned-col-shipment, td.planned-col-shipment {
+                    width: 140px;
+                    min-width: 140px;
+                }
+
+                th.planned-col-date, td.planned-col-date {
+                    width: 9.5rem;
+                    min-width: 9.5rem;
+                }
+            }
+
+            .actual-table {
+                th.actual-col-shipment, td.actual-col-shipment {
+                    width: 110px;
+                    min-width: 110px;
+                }
+
+                th.actual-col-serial, td.actual-col-serial {
+                    width: 112px;
+                    min-width: 112px;
+                }
+
+                th.actual-col-ci, td.actual-col-ci {
+                    width: 165px;
+                    min-width: 165px;
+                }
+            }
         }
 
         .planned-table {
+            th.planned-col-shipment, td.planned-col-shipment {
+                width: 170px;
+                min-width: 170px;
+            }
+
+            th.planned-col-small, td.planned-col-small {
+                width: 90px;
+                min-width: 90px;
+            }
+
+            th.planned-col-compact, td.planned-col-compact {
+                width: 68px;
+                min-width: 68px;
+            }
+
+            th.planned-col-qty, td.planned-col-qty {
+                width: 110px;
+                min-width: 110px;
+            }
+
             th.planned-col-date, td.planned-col-date {
                 min-width: 10.5rem; /* keep ETD/ETA usable on smaller screens */
+                width: 10.5rem;
+            }
+
+            th.planned-col-month, td.planned-col-month {
+                width: 96px;
+                min-width: 96px;
+            }
+
+            th.planned-col-week, td.planned-col-week {
+                width: 110px;
+                min-width: 110px;
+            }
+
+            th.planned-col-action, td.planned-col-action {
+                width: 96px;
+                min-width: 96px;
+            }
+
+            .planned-col-small .table-input input,
+            .planned-col-small .p-inputnumber,
+            .planned-col-compact .table-input input,
+            .planned-col-compact .p-inputnumber,
+            .planned-col-qty .table-input input,
+            .planned-col-qty .p-inputnumber,
+            .planned-col-week .table-input-text {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .planned-col-compact .p-inputnumber,
+            .planned-col-compact .p-inputnumber-input {
+                width: 100% !important;
+                min-width: 0 !important;
+            }
+
+            .planned-col-compact .p-inputnumber-input {
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+                text-align: center;
             }
 
             .planned-col-date .table-input {
@@ -96,14 +221,28 @@
             .p-datatable-thead > tr > th { @apply bg-emerald-50/30 text-emerald-800; }
 
             /* Equal-width columns so inputs align with Scheduled table */
+            th.actual-col-serial, td.actual-col-serial { width: 118px; min-width: 118px; }
             th.actual-col-shipment, td.actual-col-shipment { width: 120px; min-width: 120px; }
             th.actual-col-num, td.actual-col-num { width: 90px; min-width: 90px; }
+            th.actual-col-compact, td.actual-col-compact { width: 68px; min-width: 68px; }
+            th.actual-col-ci, td.actual-col-ci { width: 170px; min-width: 170px; }
             th.actual-col-bl, td.actual-col-bl { width: 200px; min-width: 200px; }
             th.actual-col-date, td.actual-col-date { width: 115px; min-width: 115px; }
             th.actual-col-action, td.actual-col-action { width: 100px; min-width: 100px; }
 
+            .actual-col-serial .table-input-text,
+            .actual-col-ci .table-input-text,
             .actual-col-num .table-input input,
             .actual-col-num .p-inputnumber { width: 100%; min-width: 0; }
+            .actual-col-compact .table-input input,
+            .actual-col-compact .p-inputnumber { width: 100%; min-width: 0; }
+            .actual-col-compact .p-inputnumber-input {
+                width: 100% !important;
+                min-width: 0 !important;
+                padding-left: 0.5rem !important;
+                padding-right: 0.5rem !important;
+                text-align: center;
+            }
             .actual-col-bl .table-input-text { min-width: 0; }
             .actual-col-date .date-mini { width: 100%; min-width: 80px; }
         }

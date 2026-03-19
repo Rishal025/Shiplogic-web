@@ -4,8 +4,14 @@ import { ShipmentFormComponent } from './components/shipment-form/shipment-form.
 import { NotFoundComponent } from '../not-found/not-found.component';
 import { userDataResolver } from '../../core/resolvers/user-data.resolver';
 import { shipmentFormDataResolver } from '../../core/resolvers/shipment-form-data.resolver';
+import { ShipmentListComponent } from '../dashboard/components/shipment-list/shipment-list.component';
 
 export const SHIPMENT_ROUTES: Routes = [
+    {
+        path: '',
+        component: ShipmentListComponent,
+        resolve: { user: userDataResolver }
+    },
     { 
         path: 'create', 
         component: CreateShipmentComponent,

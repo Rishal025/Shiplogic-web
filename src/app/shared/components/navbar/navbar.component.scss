@@ -1,0 +1,21 @@
+@reference "tailwindcss";
+
+:host {
+    display: block;
+}
+
+.sl-nav-tabs {
+    @apply grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5 w-full sm:w-auto;
+}
+
+.sl-nav-tab {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold uppercase tracking-[0.18em] text-slate-500 transition-all;
+}
+
+.sl-nav-tab.is-active {
+    @apply bg-white text-blue-700 shadow-sm ring-1 ring-blue-100;
+}
+
+.sl-nav-tab:not(.is-active):hover {
+    @apply text-slate-700 bg-white/70;
+}

@@ -1,0 +1,331 @@
+@if (formArray.controls.length === 0) {
+  <div class="p-16 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+    <div class="flex flex-col items-center justify-center gap-3">
+      <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+        <i class="pi pi-id-card text-xl"></i>
+      </div>
+      <span class="text-[11px] font-black text-slate-900 uppercase tracking-widest">Waiting for Shipment Data</span>
+      <p class="text-[10px] text-slate-500 max-w-[220px] mx-auto">
+        Complete the shipment tracker rows first. B/L Details will appear shipment by shipment here.
+      </p>
+    </div>
+  </div>
+} @else {
+  <p-accordion [multiple]="true" styleClass="flex flex-col gap-3">
+    @for (group of formArray.controls; track $index; let i = $index) {
+      <p-accordion-panel [value]="'bl-' + i" styleClass="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+        <p-accordion-header styleClass="bg-white hover:bg-slate-50 px-4 py-3">
+          <div class="flex items-center justify-between w-full pr-2 gap-3">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-6 h-6 rounded-full bg-slate-800 text-white text-[10px] font-black flex items-center justify-center shrink-0">
+                {{ i + 1 }}
+              </span>
+              <span class="text-xs font-bold text-slate-700 truncate">
+                Shipment No: {{ getShipmentNoLabel(i) }}
+              </span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                (click)="$event.stopPropagation(); openStatusModal(i)"
+                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-wider bg-blue-50 text-blue-600 hover:bg-blue-100"
+              >
+                <i class="pi pi-compass text-[10px]"></i>
+                Track Order
+              </button>
+              <span class="text-[9px] font-semibold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-full shrink-0">
+                B/L Details
+              </span>
+            </div>
+          </div>
+        </p-accordion-header>
+
+        <p-accordion-content styleClass="bg-white">
+          <div [formGroup]="$any(group)" class="px-5 pb-5 pt-2 flex flex-col gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">B/L No</label>
+                <input pInputText formControlName="blNo" class="table-input-text w-full" placeholder="Enter B/L No" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shipped On Board</label>
+                <p-datepicker formControlName="shippedOnBoard" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Port of Loading</label>
+                <input pInputText formControlName="portOfLoading" class="table-input-text w-full" placeholder="Port of Loading" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Port of Discharge</label>
+                <input pInputText formControlName="portOfDischarge" class="table-input-text w-full" placeholder="Port of Discharge" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">No of Containers</label>
+                <p-inputNumber formControlName="noOfContainers" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">No of Bags</label>
+                <p-inputNumber formControlName="noOfBags" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quantity by MT</label>
+                <p-inputNumber formControlName="quantityByMt" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="0" [maxFractionDigits]="2" placeholder="0.00" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shipping Line</label>
+                <input pInputText formControlName="shippingLine" class="table-input-text w-full" placeholder="Shipping Line" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Free Detention Days</label>
+                <p-inputNumber formControlName="freeDetentionDays" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Maximum Detention Days</label>
+                <p-inputNumber formControlName="maximumDetentionDays" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
+              </div>
+              <div class="flex flex-col gap-1.5 md:col-span-2 xl:col-span-1">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Freight Prepared</label>
+                <p-selectButton
+                  formControlName="freightPrepared"
+                  [options]="freightPreparedOptions"
+                  optionLabel="label"
+                  optionValue="value"
+                  styleClass="w-full">
+                </p-selectButton>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-4">
+              <div class="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  (click)="setActiveTab(i, 'cost')"
+                  class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                  [class.bg-slate-900]="getActiveTab(i) === 'cost'"
+                  [class.text-white]="getActiveTab(i) === 'cost'"
+                  [class.bg-slate-100]="getActiveTab(i) !== 'cost'"
+                  [class.text-slate-500]="getActiveTab(i) !== 'cost'"
+                >
+                  Cost Sheet Booking
+                </button>
+                <button
+                  type="button"
+                  (click)="setActiveTab(i, 'storage')"
+                  class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                  [class.bg-slate-900]="getActiveTab(i) === 'storage'"
+                  [class.text-white]="getActiveTab(i) === 'storage'"
+                  [class.bg-slate-100]="getActiveTab(i) !== 'storage'"
+                  [class.text-slate-500]="getActiveTab(i) !== 'storage'"
+                >
+                  Storage Allocations
+                </button>
+              </div>
+
+              @if (getActiveTab(i) === 'cost') {
+                <div class="rounded-2xl border border-slate-200 overflow-hidden">
+                  <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Cost Sheet Booking</span>
+                    <div class="flex items-center gap-2">
+                      <label class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0">
+                        <i class="pi pi-upload"></i>
+                        <input type="file" class="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" (change)="onBookingFileSelected($event, i)" />
+                      </label>
+                      @if (getBookingFile(i)) {
+                        <button type="button" (click)="openDocumentPreview(getBookingFile(i)!, 'Cost Sheet Attachment')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0">
+                          <i class="pi pi-eye"></i>
+                        </button>
+                        <button type="button" (click)="clearBookingFile(i)" class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 shrink-0">
+                          <i class="pi pi-trash"></i>
+                        </button>
+                      }
+                    </div>
+                  </div>
+
+                  <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.8fr)_160px_160px] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Description</span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Request Amount</span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Paid Amount</span>
+                  </div>
+
+                  <div class="flex flex-col">
+                    @for (row of getVisibleCostSheetRows(group, i); track $index; let rowIndex = $index) {
+                        <div [formGroup]="$any(row)" class="border-b last:border-b-0 border-slate-100 p-4">
+                        <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.8fr)_160px_160px] gap-3 items-start">
+                          <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
+                          <div class="flex items-center min-h-10 text-sm font-semibold text-slate-700">{{ row.get('description')?.value }}</div>
+                          <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" />
+                          <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" />
+                        </div>
+
+                        <div class="md:hidden flex flex-col gap-3">
+                          <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider">SN {{ row.get('sn')?.value }}</span>
+                          </div>
+                          <div class="grid grid-cols-1 gap-3">
+                            <div class="flex flex-col gap-1.5">
+                              <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Description</label>
+                              <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-700">
+                                {{ row.get('description')?.value }}
+                              </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                              <div class="flex flex-col gap-1.5">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Request Amount</label>
+                                <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" />
+                              </div>
+                              <div class="flex flex-col gap-1.5">
+                                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Paid Amount</label>
+                                <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                  @if (hasHiddenCostSheetRows(group, i) || expandedCostSheet()[i]) {
+                    <div class="border-t border-slate-100 px-4 py-3 flex justify-center sm:justify-start">
+                      <button
+                        type="button"
+                        (click)="toggleCostSheetRows(i)"
+                        class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50"
+                      >
+                        <i class="pi" [class.pi-angle-down]="!expandedCostSheet()[i]" [class.pi-angle-up]="expandedCostSheet()[i]"></i>
+                        {{ expandedCostSheet()[i] ? 'Show Less' : 'Show More' }}
+                      </button>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="rounded-2xl border border-slate-200 overflow-hidden">
+                  <div class="px-4 py-3 bg-slate-50 border-b border-slate-100">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Storage Allocations</span>
+                  </div>
+                  <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.2fr)_minmax(0,1fr)_160px] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Container Serial No</span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Warehouse</span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Storage Availability</span>
+                  </div>
+                  <div class="flex flex-col">
+                    @for (row of getStorageRows(group).controls; track $index) {
+                      <div [formGroup]="$any(row)" class="border-b last:border-b-0 border-slate-100 p-4">
+                        <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.2fr)_minmax(0,1fr)_160px] gap-3 items-start">
+                          <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
+                          <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container Serial No" />
+                          <p-select
+                            [options]="warehouseOptions"
+                            formControlName="warehouse"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="Select warehouse"
+                            styleClass="w-full"
+                            appendTo="body">
+                          </p-select>
+                          <p-inputNumber formControlName="storageAvailability" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
+                        </div>
+                        <div class="md:hidden flex flex-col gap-3">
+                          <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider">SN {{ row.get('sn')?.value }}</span>
+                          <div class="flex flex-col gap-1.5">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Container Serial No</label>
+                            <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container Serial No" />
+                          </div>
+                          <div class="flex flex-col gap-1.5">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Warehouse</label>
+                            <p-select
+                              [options]="warehouseOptions"
+                              formControlName="warehouse"
+                              optionLabel="label"
+                              optionValue="value"
+                              placeholder="Select warehouse"
+                              styleClass="w-full"
+                              appendTo="body">
+                            </p-select>
+                          </div>
+                          <div class="flex flex-col gap-1.5">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Storage Availability</label>
+                            <p-inputNumber formControlName="storageAvailability" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </p-accordion-content>
+      </p-accordion-panel>
+    }
+  </p-accordion>
+}
+
+<p-dialog
+  [header]="previewTitle()"
+  [visible]="showPreviewModal()"
+  (visibleChange)="onPreviewVisibleChange($event)"
+  [modal]="true"
+  [dismissableMask]="true"
+  [style]="{ width: '90vw', maxWidth: '900px' }"
+  [contentStyle]="{ overflow: 'auto', padding: '0' }"
+  [draggable]="false"
+  [resizable]="true"
+  appendTo="body">
+  <div class="document-preview-content flex items-center justify-center min-h-[70vh] bg-slate-100 p-4">
+    @if (previewUrl(); as url) {
+      @if (previewIsImage()) {
+        <img [src]="url" [alt]="previewTitle()" class="max-w-full max-h-[80vh] object-contain rounded shadow-lg" />
+      } @else {
+        <iframe [src]="previewSafeUrl()" class="w-full h-[80vh] min-h-[500px] rounded border-0 bg-white shadow-lg" title="Document preview"></iframe>
+      }
+    }
+  </div>
+</p-dialog>
+
+<p-dialog
+  [header]="'Track Order Status'"
+  [visible]="statusModalVisible()"
+  (visibleChange)="onStatusModalVisibleChange($event)"
+  [modal]="true"
+  [dismissableMask]="true"
+  [style]="{ width: '92vw', maxWidth: '520px' }"
+  [draggable]="false"
+  [resizable]="false"
+  appendTo="body">
+  @if (statusModalShipmentIndex(); as idx) {
+    <div class="flex flex-col gap-4">
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Shipment</p>
+        <p class="text-sm font-bold text-slate-800 mt-1">{{ getShipmentNoLabel(idx) }}</p>
+      </div>
+      <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+        <p class="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Current Stage</p>
+        <p class="text-sm font-bold text-emerald-700 mt-1">{{ getShipmentReachedStage(idx) }}</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        @for (stage of shipmentStages; track $index; let s = $index) {
+          <div
+            class="flex items-center justify-between rounded-lg border px-3 py-2"
+            [class.border-emerald-200]="isStageCompletedForShipment(idx, s)"
+            [class.bg-emerald-50]="isStageCompletedForShipment(idx, s)"
+            [class.border-blue-200]="isCurrentStageForShipment(idx, s)"
+            [class.bg-blue-50]="isCurrentStageForShipment(idx, s)"
+            [class.border-slate-200]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
+            [class.bg-white]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
+          >
+            <span class="text-xs font-semibold text-slate-700">{{ stage }}</span>
+            <span
+              class="text-[10px] font-black uppercase tracking-wider"
+              [class.text-emerald-600]="isStageCompletedForShipment(idx, s)"
+              [class.text-blue-600]="isCurrentStageForShipment(idx, s)"
+              [class.text-slate-400]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
+            >
+              {{ isCurrentStageForShipment(idx, s) ? 'Current' : (isStageCompletedForShipment(idx, s) ? 'Done' : 'Pending') }}
+            </span>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</p-dialog>

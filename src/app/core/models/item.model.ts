@@ -3,6 +3,9 @@ export interface Item {
   itemCode: string;
   description: string;
   riceName?: string;
+  variant?: string;
+  barcode?: string;
+  hsCode?: string;
   packing: string;
   bagWeightKg: number | null;
   unit: string;

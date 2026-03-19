@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, inject, effect, signal, computed, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormArray } from '@angular/forms';
+import { ReactiveFormsModule, FormArray, AbstractControl } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -41,12 +41,13 @@ export class ShipmentDocumentationComponent {
   @Input({ required: true }) formArray!: FormArray;
   @Output() navigateToSplit = new EventEmitter<void>();
 
-  @ViewChild('baFileInput') baFileInputRef?: ElementRef<HTMLInputElement>;
-  @ViewChild('approvedFileInput') approvedFileInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('inwardAdviceFileInput') inwardAdviceFileInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('murabahaSubmittedFileInput') murabahaSubmittedFileInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('documentsReleasedFileInput') documentsReleasedFileInputRef?: ElementRef<HTMLInputElement>;
 
   /** Set right before programmatic .click() so (change) knows which row. */
   private pendingFileRow: number | null = null;
-  private pendingFileKind: 'bankAdvance' | 'approved' | null = null;
+  private pendingFileKind: 'inwardAdvice' | 'murabahaSubmitted' | 'documentsReleased' | null = null;
 
   private store = inject(Store);
   private confirmationService = inject(ConfirmationService);
@@ -65,21 +66,25 @@ export class ShipmentDocumentationComponent {
     return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   });
 
-  // Local-only file selections for bank advance documents (to be wired to S3 later)
-  readonly bankAdvanceFile = signal<Record<number, File | null>>({});
-  readonly bankAdvanceApprovedFile = signal<Record<number, File | null>>({});
+  readonly inwardAdviceFile = signal<Record<number, File | null>>({});
+  readonly murabahaSubmittedFile = signal<Record<number, File | null>>({});
+  readonly documentsReleasedFile = signal<Record<number, File | null>>({});
 
   onFilesSelected(
     event: Event,
     containerIndex: number,
-    kind: 'bankAdvance' | 'approved'
+    kind: 'inwardAdvice' | 'murabahaSubmitted' | 'documentsReleased'
   ): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
     if (!file) return;
 
     const targetSignal =
-      kind === 'bankAdvance' ? this.bankAdvanceFile : this.bankAdvanceApprovedFile;
+      kind === 'inwardAdvice'
+        ? this.inwardAdviceFile
+        : kind === 'murabahaSubmitted'
+          ? this.murabahaSubmittedFile
+          : this.documentsReleasedFile;
 
     targetSignal.update((current) => ({
       ...current,
@@ -90,30 +95,43 @@ export class ShipmentDocumentationComponent {
   }
 
   /** Called from button click - synchronously triggers the file input so the system dialog opens. */
-  clickFileInput(index: number, kind: 'bankAdvance' | 'approved'): void {
+  clickFileInput(index: number, kind: 'inwardAdvice' | 'murabahaSubmitted' | 'documentsReleased'): void {
     if (this.isRowSubmitted(index)) return;
     this.pendingFileRow = index;
     this.pendingFileKind = kind;
-    const el = kind === 'bankAdvance' ? this.baFileInputRef?.nativeElement : this.approvedFileInputRef?.nativeElement;
+    const refs = {
+      inwardAdvice: this.inwardAdviceFileInputRef,
+      murabahaSubmitted: this.murabahaSubmittedFileInputRef,
+      documentsReleased: this.documentsReleasedFileInputRef,
+    };
+    const el = refs[kind]?.nativeElement;
     if (el) el.click();
   }
 
-  onFileInputChange(event: Event, kind: 'bankAdvance' | 'approved'): void {
+  onFileInputChange(event: Event, kind: 'inwardAdvice' | 'murabahaSubmitted' | 'documentsReleased'): void {
     const row = this.pendingFileRow;
     if (row !== null && this.pendingFileKind === kind) this.onFilesSelected(event, row, kind);
     this.pendingFileRow = null;
     this.pendingFileKind = null;
   }
 
-  getFile(containerIndex: number, kind: 'bankAdvance' | 'approved'): File | null {
+  getFile(containerIndex: number, kind: 'inwardAdvice' | 'murabahaSubmitted' | 'documentsReleased'): File | null {
     const source =
-      kind === 'bankAdvance' ? this.bankAdvanceFile() : this.bankAdvanceApprovedFile();
+      kind === 'inwardAdvice'
+        ? this.inwardAdviceFile()
+        : kind === 'murabahaSubmitted'
+          ? this.murabahaSubmittedFile()
+          : this.documentsReleasedFile();
     return source[containerIndex] ?? null;
   }
 
-  clearFile(containerIndex: number, kind: 'bankAdvance' | 'approved'): void {
+  clearFile(containerIndex: number, kind: 'inwardAdvice' | 'murabahaSubmitted' | 'documentsReleased'): void {
     const targetSignal =
-      kind === 'bankAdvance' ? this.bankAdvanceFile : this.bankAdvanceApprovedFile;
+      kind === 'inwardAdvice'
+        ? this.inwardAdviceFile
+        : kind === 'murabahaSubmitted'
+          ? this.murabahaSubmittedFile
+          : this.documentsReleasedFile;
 
     targetSignal.update((current) => ({
       ...current,
@@ -153,6 +171,11 @@ export class ShipmentDocumentationComponent {
     { label: 'Bank', value: 'Bank' },
     { label: 'Direct', value: 'Direct' },
   ];
+  readonly bankOptions = [
+    { label: 'ADIB', value: 'ADIB' },
+    { label: 'EIB', value: 'EIB' },
+    { label: 'DIB', value: 'DIB' },
+  ];
 
   readonly submittedIndices = toSignal(this.store.select(selectSubmittedStep3Indices), {
     initialValue: [],
@@ -183,6 +206,31 @@ export class ShipmentDocumentationComponent {
     return this.precedingIndices().includes(index);
   }
 
+  isBankReceiver(group: AbstractControl): boolean {
+    return group.get('receiver')?.value === 'Bank';
+  }
+
+  isBankSectionComplete(index: number, group: AbstractControl): boolean {
+    if (!this.isBankReceiver(group)) return true;
+
+    const requiredDateFields = [
+      'bankName',
+      'inwardCollectionAdviceDate',
+      'murabahaContractReleasedDate',
+      'murabahaContractApprovedDate',
+      'murabahaContractSubmittedDate',
+      'documentsReleasedDate',
+    ];
+
+    const hasMissingField = requiredDateFields.some((field) => !group.get(field)?.value);
+    const hasMissingFile =
+      !this.getFile(index, 'inwardAdvice') ||
+      !this.getFile(index, 'murabahaSubmitted') ||
+      !this.getFile(index, 'documentsReleased');
+
+    return !hasMissingField && !hasMissingFile;
+  }
+
   confirmSubmit(index: number) {
     const row = this.formArray.at(index);
     if (row.invalid || !this.isPrecedingSubmitted(index)) return;
@@ -204,13 +252,19 @@ export class ShipmentDocumentationComponent {
             index,
             payload: {
               BLNo: formValue['BLNo'] || '',
-              DHL: formValue['DHL'] || '',
+              courierTrackNo: formValue['courierTrackNo'] || '',
+              courierServiceProvider: formValue['courierServiceProvider'] || '',
               expectedDocDate: toDate(formValue['expectedDocDate']),
               receiver: formValue['receiver'] || '',
-              bankAdvanceAmountDocumentUrl: '', // S3 integration later
-              bankAdvanceApprovedDocumentUrl: '', // S3 integration later
-              bankAdvanceSubmittedOn: toDate(formValue['bankAdvanceSubmittedOn']),
-              docToBeReleasedOn: toDate(formValue['docToBeReleasedOn']),
+              bankName: formValue['bankName'] || '',
+              inwardCollectionAdviceDate: toDate(formValue['inwardCollectionAdviceDate']),
+              inwardCollectionAdviceDocumentUrl: '',
+              murabahaContractReleasedDate: toDate(formValue['murabahaContractReleasedDate']),
+              murabahaContractApprovedDate: toDate(formValue['murabahaContractApprovedDate']),
+              murabahaContractSubmittedDate: toDate(formValue['murabahaContractSubmittedDate']),
+              murabahaContractSubmittedDocumentUrl: '',
+              documentsReleasedDate: toDate(formValue['documentsReleasedDate']),
+              documentsReleasedDocumentUrl: '',
             },
           })
         );

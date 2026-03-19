@@ -1,6 +1,6 @@
-import { Component, OnDestroy, computed, effect, inject } from '@angular/core';
+import { Component, OnDestroy, computed, effect, inject } from '@angular/core'; // Trigger reload
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormArray, FormControl } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormArray, FormControl, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -17,15 +17,55 @@ import {
   selectIsPlannedLocked,
   selectShipmentData,
   selectTotalContainers,
+  selectSubmittedActualIndices,
   selectSubmittedStep3Indices,
   selectSubmittedStep4Indices,
+  selectSubmittedStep5Indices,
+  selectSubmittedStep6Indices,
+  selectSubmittedStep7Indices,
 } from '../../../../store/shipment/shipment.selectors';
 import * as ShipmentActions from '../../../../store/shipment/shipment.actions';
 
 import { ShipmentSummaryComponent } from './steps/shipment-summary/shipment-summary.component';
 import { ShipmentSplitComponent } from './steps/shipment-split/shipment-split.component';
+import { ShipmentBlDetailsComponent } from './steps/shipment-bl-details/shipment-bl-details.component';
 import { ShipmentDocumentationComponent } from './steps/shipment-documentation/shipment-documentation.component';
 import { ShipmentArrivalComponent } from './steps/shipment-arrival/shipment-arrival.component';
+import { ShipmentStorageComponent } from './steps/shipment-storage/shipment-storage.component';
+import { ShipmentQualityComponent } from './steps/shipment-quality/shipment-quality.component';
+import { ShipmentPaymentCostingComponent } from './steps/shipment-payment-costing/shipment-payment-costing.component';
+
+const COST_SHEET_DESCRIPTIONS = [
+  'Invoice Attestation - MOFAIC',
+  'DC Charges',
+  'DO Extension',
+  'Air Cargo Clearing Charge',
+  'Labour Charges',
+  'Other Charges',
+  'BOE',
+  'Custom Duty 5%',
+  'Custom Pay Service Charges',
+  'DP Charges',
+  'TLUC',
+  'THC',
+  'DP Storage Charges 01',
+  'DP Storage Charges 02',
+  'Mun Charges',
+  'Addi Gate Token',
+  'DP Gate Token',
+  'Transportation Single @rate (ALAIN)',
+  'Transportation Single @rate (AD)',
+  'Transportation Single/Couple @rate (DIC)',
+  'Transportation Single/Couple @rate (Location)',
+  'Inspection Charges 01',
+  'Inspection Charges 02',
+  'Offloading Charges 01',
+  'Offloading Charges 02',
+  'Mecrec Charges',
+  'Open & Close Fees with Sales at Customs',
+  'Other',
+  'Murabaha Profit',
+] as const;
 
 @Component({
   selector: 'app-shipment-form',
@@ -39,8 +79,12 @@ import { ShipmentArrivalComponent } from './steps/shipment-arrival/shipment-arri
     StepperComponent,
     ShipmentSummaryComponent,
     ShipmentSplitComponent,
+    ShipmentBlDetailsComponent,
     ShipmentDocumentationComponent,
     ShipmentArrivalComponent,
+    ShipmentStorageComponent,
+    ShipmentQualityComponent,
+    ShipmentPaymentCostingComponent,
   ],
   templateUrl: './shipment-form.component.html',
   styleUrls: ['./shipment-form.component.scss'],
@@ -63,10 +107,22 @@ export class ShipmentFormComponent implements OnDestroy {
   readonly totalContainers = toSignal(this.store.select(selectTotalContainers), {
     initialValue: 0,
   });
+  readonly submittedActualIndices = toSignal(this.store.select(selectSubmittedActualIndices), {
+    initialValue: [],
+  });
   readonly submittedStep3Indices = toSignal(this.store.select(selectSubmittedStep3Indices), {
     initialValue: [],
   });
   readonly submittedStep4Indices = toSignal(this.store.select(selectSubmittedStep4Indices), {
+    initialValue: [],
+  });
+  readonly submittedStep5Indices = toSignal(this.store.select(selectSubmittedStep5Indices), {
+    initialValue: [],
+  });
+  readonly submittedStep6Indices = toSignal(this.store.select(selectSubmittedStep6Indices), {
+    initialValue: [],
+  });
+  readonly submittedStep7Indices = toSignal(this.store.select(selectSubmittedStep7Indices), {
     initialValue: [],
   });
 
@@ -77,14 +133,34 @@ export class ShipmentFormComponent implements OnDestroy {
       { label: 'Shipment Entry', subLabel: 'Purchase', completed: true },
       { label: 'Shipment Tracker', subLabel: 'Purchase', completed: this.isPlannedLocked() },
       {
+        label: 'BL Details',
+        subLabel: 'Purchase',
+        completed: this.allSubmitted(total, this.submittedActualIndices()),
+      },
+      {
         label: 'Document Tracker',
         subLabel: 'FAS',
         completed: this.allSubmitted(total, this.submittedStep3Indices()),
       },
       {
-        label: 'Shipment Clearing Tracker',
+        label: 'Port and Customs Clearance Tracker',
         subLabel: 'Logistics',
         completed: this.allSubmitted(total, this.submittedStep4Indices()),
+      },
+      {
+        label: 'Storage Allocation & Arrival',
+        subLabel: 'Logistics',
+        completed: this.allSubmitted(total, this.submittedStep5Indices()),
+      },
+      {
+        label: 'Quality',
+        subLabel: 'QA',
+        completed: this.allSubmitted(total, this.submittedStep6Indices()),
+      },
+      {
+        label: 'Payment & Costing',
+        subLabel: 'FAS',
+        completed: this.allSubmitted(total, this.submittedStep7Indices()),
       },
     ];
   });
@@ -121,6 +197,9 @@ export class ShipmentFormComponent implements OnDestroy {
   get documentationSplits(): FormArray {
     return this.shipmentForm.get('documentationSplits') as FormArray;
   }
+  get blDetailsSplits(): FormArray {
+    return this.shipmentForm.get('blDetailsSplits') as FormArray;
+  }
   get arrivalTimeSplits(): FormArray {
     return this.shipmentForm.get('arrivalTimeSplits') as FormArray;
   }
@@ -132,6 +211,9 @@ export class ShipmentFormComponent implements OnDestroy {
   }
   get grnSplits(): FormArray {
     return this.shipmentForm.get('grnSplits') as FormArray;
+  }
+  get storageSplits(): FormArray {
+    return this.shipmentForm.get('storageSplits') as FormArray;
   }
 
   // --- Form Init ---
@@ -158,11 +240,13 @@ export class ShipmentFormComponent implements OnDestroy {
       noOfShipments: [null as number | null],
       plannedSplits: this.fb.array([]),
       actualSplits: this.fb.array([]),
+      blDetailsSplits: this.fb.array([]),
       documentationSplits: this.fb.array([]),
       arrivalTimeSplits: this.fb.array([]),
       clearancePaidSplits: this.fb.array([]),
       clearanceFinalSplits: this.fb.array([]),
       grnSplits: this.fb.array([]),
+      storageSplits: this.fb.array([]),
     });
 
     form.valueChanges.subscribe((val) => {
@@ -266,11 +350,13 @@ export class ShipmentFormComponent implements OnDestroy {
   // --- Populate Form from API Data ---
   private populateFormWithData(data: ShipmentDetailsResponse): void {
     this.actualSplits.clear();
+    this.blDetailsSplits.clear();
     this.documentationSplits.clear();
     this.arrivalTimeSplits.clear();
     this.clearancePaidSplits.clear();
     this.clearanceFinalSplits.clear();
     this.grnSplits.clear();
+    this.storageSplits.clear();
 
     // Planned splits
     if (data.planned && data.planned.length > 0) {
@@ -319,6 +405,9 @@ export class ShipmentFormComponent implements OnDestroy {
         this.actualSplits.push(
           this.fb.group({
             containerId: [plannedContainer.containerId],
+            actualSerialNo: [actualData?.actualSerialNo || `${this.actualSplits.length + 1}`],
+            commercialInvoiceNo: [actualData?.commercialInvoiceNo || ''],
+            shipOnBoardDate: [actualData?.shipOnBoardDate ? new Date(actualData.shipOnBoardDate) : null, Validators.required],
             FCL: [plannedContainer.FCL ?? null],
             size: [plannedContainer.size ?? data.shipment.containerSize ?? null],
             qtyMT: [
@@ -344,51 +433,76 @@ export class ShipmentFormComponent implements OnDestroy {
               Validators.required,
             ],
             BLNo: [actualData?.BLNo || '', Validators.required],
-          })
+          }, { validators: this.actualDateOrderValidator() })
         );
 
         this.documentationSplits.push(
           this.fb.group({
             containerId: [plannedContainer.containerId],
             BLNo: [actualData?.BLNo || '', Validators.required],
-            DHL: [actualData?.DHL || ''],
+            courierTrackNo: [actualData?.courierTrackNo || actualData?.DHL || ''],
+            courierServiceProvider: [actualData?.courierServiceProvider || ''],
             expectedDocDate: [actualData?.expectedDocDate ? new Date(actualData.expectedDocDate) : null],
-            receiver: [actualData?.receiver || ''],
-            bankAdvanceSubmittedOn: [actualData?.bankAdvanceSubmittedOn ? new Date(actualData.bankAdvanceSubmittedOn) : null],
-            docToBeReleasedOn: [actualData?.docToBeReleasedOn ? new Date(actualData.docToBeReleasedOn) : null],
-          })
+            receiver: [actualData?.receiver || '', Validators.required],
+            bankName: [actualData?.bankName || ''],
+            inwardCollectionAdviceDate: [actualData?.inwardCollectionAdviceDate ? new Date(actualData.inwardCollectionAdviceDate) : null],
+            murabahaContractReleasedDate: [actualData?.murabahaContractReleasedDate ? new Date(actualData.murabahaContractReleasedDate) : null],
+            murabahaContractApprovedDate: [actualData?.murabahaContractApprovedDate ? new Date(actualData.murabahaContractApprovedDate) : null],
+            murabahaContractSubmittedDate: [actualData?.murabahaContractSubmittedDate ? new Date(actualData.murabahaContractSubmittedDate) : null],
+            documentsReleasedDate: [actualData?.documentsReleasedDate ? new Date(actualData.documentsReleasedDate) : null],
+          }, { validators: this.documentationBankValidator() })
         );
+
+        this.blDetailsSplits.push(this.createBlDetailsGroup(plannedContainer, actualData, data, this.actualSplits.length - 1));
+
+        const containerCount = Math.max(1, Number(plannedContainer?.FCL ?? 1) || 1);
+        const shipmentNo = data.shipment?.shipmentNo || '';
+        const existingTransportationBooked =
+          (actualData as any)?.transportationBooked ||
+          (actualData as any)?.transportContainers ||
+          [];
 
         this.arrivalTimeSplits.push(
           this.fb.group({
             containerId: [plannedContainer.containerId],
-            deliveryOrderDate: [actualData?.deliveryOrderDate ? new Date(actualData.deliveryOrderDate) : null],
-            tokenDate: [actualData?.tokenDate ? new Date(actualData.tokenDate) : null],
-            transportArrangedDate: [actualData?.transportArrangedDate ? new Date(actualData.transportArrangedDate) : null],
+            arrivalOn: [actualData?.arrivalOn ? new Date(actualData.arrivalOn) : null],
+            shipmentFreeRetentionDate: [actualData?.shipmentFreeRetentionDate ? new Date(actualData.shipmentFreeRetentionDate) : null],
+            portRetentionWithPenaltyDate: [actualData?.portRetentionWithPenaltyDate ? new Date(actualData.portRetentionWithPenaltyDate) : null],
+            arrivalNoticeDate: [actualData?.arrivalNoticeDate ? new Date(actualData.arrivalNoticeDate) : null],
+            advanceRequestDate: [actualData?.advanceRequestDate ? new Date(actualData.advanceRequestDate) : null],
+            doReleasedDate: [
+              (actualData as any)?.doReleasedDate
+                ? new Date((actualData as any).doReleasedDate)
+                : null,
+            ],
+            doReleasedRemarks: [(actualData as any)?.doReleasedRemarks || ''],
+            dpApprovalDate: [actualData?.dpApprovalDate ? new Date(actualData.dpApprovalDate) : null],
+            dpApprovalRemarks: [actualData?.dpApprovalRemarks || ''],
             customsClearanceDate: [actualData?.customsClearanceDate ? new Date(actualData.customsClearanceDate) : null],
-            municipalityClearanceDate: [actualData?.municipalityClearanceDate ? new Date(actualData.municipalityClearanceDate) : null],
-            deliverySchedules: this.fb.array(
-              (actualData?.deliverySchedules || []).map((ds: any) =>
-                this.fb.group({
-                  deliveryDate: [ds.deliveryDate ? new Date(ds.deliveryDate) : null],
-                  deliveryNo: [ds.deliveryNo || ''],
-                  noOfFCL: [ds.noOfFCL ?? null],
-                  time: [ds.time || ''],
-                  location: [ds.location || ''],
-                })
-              )
-            ),
-            warehouseSchedules: this.fb.array(
-              (actualData?.warehouseSchedules || []).map((ws: any) =>
-                this.fb.group({
-                  deliveryDate: [ws.deliveryDate ? new Date(ws.deliveryDate) : null],
-                  deliveryNo: [ws.deliveryNo || ''],
-                  noOfFCL: [ws.noOfFCL ?? null],
-                  time: [ws.time || ''],
-                  location: [ws.location || ''],
-                  grn: [ws.grn || ''],
-                })
-              )
+            customsClearanceRemarks: [actualData?.customsClearanceRemarks || ''],
+            tokenReceivedDate: [
+              (actualData as any)?.tokenReceivedDate
+                ? new Date((actualData as any).tokenReceivedDate)
+                : actualData?.tokenDate
+                  ? new Date(actualData.tokenDate)
+                  : null,
+            ],
+            municipalityDate: [
+              (actualData as any)?.municipalityDate
+                ? new Date((actualData as any).municipalityDate)
+                : actualData?.municipalityClearanceDate
+                  ? new Date(actualData.municipalityClearanceDate)
+                  : null,
+            ],
+            municipalityRemarks: [
+              (actualData as any)?.municipalityRemarks ||
+              actualData?.municipalityClearanceRemarks ||
+              '',
+            ],
+            transportationBooked: this.createTransportationBookedRows(
+              containerCount,
+              this.actualSplits.length - 1,
+              existingTransportationBooked
             ),
           })
         );
@@ -408,26 +522,46 @@ export class ShipmentFormComponent implements OnDestroy {
         this.clearanceFinalSplits.push(
           this.fb.group({
             containerId: [plannedContainer.containerId],
-            clearedOn: [
-              actualData?.clearance?.clearedOn
-                ? new Date(actualData.clearance.clearedOn)
-                : null,
-              Validators.required,
-            ],
-            remarks: [actualData?.clearance?.remarks || '', Validators.required],
-            warehouse: [actualData?.clearance?.warehouse || '', Validators.required],
+            paymentAllocations: this.createPaymentAllocationRows((actualData as any)?.paymentAllocations),
+            paymentCostings: this.createPaymentCostingRows((actualData as any)?.paymentCostings),
           })
         );
 
         this.grnSplits.push(
           this.fb.group({
             containerId: [plannedContainer.containerId],
-            grnNo: [actualData?.grn?.grnNo || '', Validators.required],
-            grnDate: [
-              actualData?.grn?.grnDate ? new Date(actualData.grn.grnDate) : null,
-              Validators.required,
-            ],
-            statusRemarks: [actualData?.grn?.statusRemarks || '', Validators.required],
+            qualityRows: this.createQualityRows((actualData as any)?.qualityRows),
+            qualityReports: this.createQualityReportRows((actualData as any)?.qualityReports),
+          })
+        );
+        
+        // 1 storageSplits entry per planned split, with N containers inside (N = FCL)
+        const existingStorageSplits = actualData?.storageSplits || [];
+
+        const containersArray = this.fb.array(
+          Array.from({ length: containerCount }, (_, c) => {
+            const existingStorage = existingStorageSplits[c];
+            const containerLabel = `${shipmentNo}-C${c + 1}`;
+            return this.fb.group({
+              containerSerialNo: [existingStorage?.containerSerialNo || containerLabel],
+              warehouse: [existingStorage?.warehouse || ''],
+              storageAvailability: [existingStorage?.storageAvailability ?? null],
+              receivedOnDate: [existingStorage?.receivedOnDate ? new Date(existingStorage.receivedOnDate) : null],
+              receivedOnTime: [existingStorage?.receivedOnTime || ''],
+              customsInspection: [existingStorage?.customsInspection || 'Yes'],
+              grn: [existingStorage?.grn || ''],
+              batch: [existingStorage?.batch || ''],
+              products: [existingStorage?.products || ''],
+              remarks: [existingStorage?.remarks || ''],
+            });
+          })
+        );
+
+        this.storageSplits.push(
+          this.fb.group({
+            containerId: [plannedContainer.containerId],
+            noOfContainers: [containerCount],
+            containers: containersArray,
           })
         );
       });
@@ -451,37 +585,47 @@ export class ShipmentFormComponent implements OnDestroy {
       if (planned) {
         this.actualSplits.at(idx).patchValue(
           {
+            actualSerialNo: `${idx + 1}`,
             FCL: planned.get('FCL')?.value,
             size: planned.get('size')?.value,
             qtyMT: planned.get('qtyMT')?.value,
+            shipOnBoardDate: null,
             updatedETD: planned.get('etd')?.value,
             updatedETA: planned.get('eta')?.value,
           },
           { emitEvent: false }
         );
       }
+      this.blDetailsSplits.push(this.createGroup('bl'));
       this.documentationSplits.push(this.createGroup('doc'));
-      this.arrivalTimeSplits.push(this.createGroup('arrival'));
+      const plannedContainerCount = Math.max(1, Number(planned?.get('FCL')?.value ?? 1) || 1);
+      this.arrivalTimeSplits.push(this.createGroup('arrival', idx, plannedContainerCount));
       this.clearancePaidSplits.push(this.createGroup('paid'));
       this.clearanceFinalSplits.push(this.createGroup('final'));
       this.grnSplits.push(this.createGroup('grn'));
+      this.storageSplits.push(this.createGroup('storage'));
     }
   }
 
   onRemoveActual(index: number): void {
     this.actualSplits.removeAt(index);
+    this.blDetailsSplits.removeAt(index);
     this.documentationSplits.removeAt(index);
     this.arrivalTimeSplits.removeAt(index);
     this.clearancePaidSplits.removeAt(index);
     this.clearanceFinalSplits.removeAt(index);
     this.grnSplits.removeAt(index);
+    this.storageSplits.removeAt(index);
   }
 
-  private createGroup(type: string): FormGroup {
+  private createGroup(type: string, shipmentIndex = 0, containerCount = 1): FormGroup {
     switch (type) {
       case 'actual':
         return this.fb.group({
           containerId: [null],
+          actualSerialNo: [''],
+          commercialInvoiceNo: [''],
+          shipOnBoardDate: [null, Validators.required],
           FCL: [null],
           size: [null],
           qtyMT: [null, Validators.required],
@@ -490,27 +634,42 @@ export class ShipmentFormComponent implements OnDestroy {
           updatedETD: [null, Validators.required],
           updatedETA: [null, Validators.required],
           BLNo: ['', Validators.required],
-        });
+        }, { validators: this.actualDateOrderValidator() });
       case 'doc':
         return this.fb.group({
           containerId: [null],
           BLNo: ['', Validators.required],
-          DHL: [''],
+          courierTrackNo: [''],
+          courierServiceProvider: [''],
           expectedDocDate: [null],
-          receiver: [''],
-          bankAdvanceSubmittedOn: [null],
-          docToBeReleasedOn: [null],
-        });
+          receiver: ['', Validators.required],
+          bankName: [''],
+          inwardCollectionAdviceDate: [null],
+          murabahaContractReleasedDate: [null],
+          murabahaContractApprovedDate: [null],
+          murabahaContractSubmittedDate: [null],
+          documentsReleasedDate: [null],
+        }, { validators: this.documentationBankValidator() });
+      case 'bl':
+        return this.createBlDetailsGroup();
       case 'arrival':
         return this.fb.group({
           containerId: [null],
-          deliveryOrderDate: [null],
-          tokenDate: [null],
-          transportArrangedDate: [null],
+          arrivalOn: [null],
+          shipmentFreeRetentionDate: [null],
+          portRetentionWithPenaltyDate: [null],
+          arrivalNoticeDate: [null],
+          advanceRequestDate: [null],
+          doReleasedDate: [null],
+          doReleasedRemarks: [''],
+          dpApprovalDate: [null],
+          dpApprovalRemarks: [''],
           customsClearanceDate: [null],
-          municipalityClearanceDate: [null],
-          deliverySchedules: this.fb.array([]),
-          warehouseSchedules: this.fb.array([]),
+          customsClearanceRemarks: [''],
+          tokenReceivedDate: [null],
+          municipalityDate: [null],
+          municipalityRemarks: [''],
+          transportationBooked: this.createTransportationBookedRows(containerCount, shipmentIndex),
         });
       case 'paid':
         return this.fb.group({
@@ -522,20 +681,217 @@ export class ShipmentFormComponent implements OnDestroy {
       case 'final':
         return this.fb.group({
           containerId: [null],
-          clearedOn: [null, Validators.required],
-          remarks: ['', Validators.required],
-          warehouse: ['', Validators.required],
+          paymentAllocations: this.createPaymentAllocationRows(),
+          paymentCostings: this.createPaymentCostingRows(),
         });
       case 'grn':
         return this.fb.group({
           containerId: [null],
-          grnNo: ['', Validators.required],
-          grnDate: [null, Validators.required],
-          statusRemarks: ['', Validators.required],
+          qualityRows: this.createQualityRows(),
+          qualityReports: this.createQualityReportRows(),
+        });
+      case 'storage':
+        return this.fb.group({
+          containerId: [null],
+          containerSerialNo: [''],
+          warehouse: [''],
+          storageAvailability: [null],
+          receivedOnDate: [null],
+          receivedOnTime: [''],
+          customsInspection: ['Yes'],
+          grn: [''],
+          batch: [''],
+          products: [''],
+          remarks: [''],
         });
       default:
         return this.fb.group({});
     }
+  }
+
+  private createBlDetailsGroup(
+    plannedContainer?: any,
+    actualData?: any,
+    data?: ShipmentDetailsResponse,
+    shipmentIndex = 0
+  ): FormGroup {
+    const noOfContainers = Number(plannedContainer?.FCL ?? actualData?.FCL ?? 1) || 1;
+    return this.fb.group({
+      containerId: [plannedContainer?.containerId ?? null],
+      blNo: [actualData?.BLNo || ''],
+      shippedOnBoard: [null],
+      portOfLoading: [''],
+      portOfDischarge: [''],
+      noOfContainers: [noOfContainers],
+      noOfBags: [actualData?.bags ?? null],
+      quantityByMt: [actualData?.qtyMT ?? plannedContainer?.qtyMT ?? null],
+      shippingLine: [''],
+      freeDetentionDays: [null],
+      maximumDetentionDays: [null],
+      freightPrepared: ['No'],
+      costSheetBookings: this.createCostSheetBookingRows(),
+      storageAllocations: this.createStorageAllocationRows(noOfContainers, shipmentIndex),
+    });
+  }
+
+  private createCostSheetBookingRows(): FormArray {
+    return this.fb.array(
+      COST_SHEET_DESCRIPTIONS.map((description, index) =>
+        this.fb.group({
+          sn: [index + 1],
+          description: [description],
+          requestAmount: [null],
+          paidAmount: [null],
+        })
+      )
+    );
+  }
+
+  private createStorageAllocationRows(count: number, shipmentIndex: number): FormArray {
+    const rows = new FormArray<FormGroup>([]);
+    const safeCount = Math.max(1, count || 1);
+    const shipmentNo = this.shipmentData()?.shipment?.shipmentNo || 'SHIPMENT';
+    for (let i = 0; i < safeCount; i++) {
+      rows.push(
+        this.fb.group({
+          sn: [i + 1],
+          containerSerialNo: [`${shipmentNo}-${shipmentIndex + 1}-C${i + 1}`],
+          warehouse: [''],
+          storageAvailability: [''],
+        })
+      );
+    }
+    return rows;
+  }
+
+  private createTransportationBookedRows(
+    count: number,
+    shipmentIndex: number,
+    existingRows: any[] = []
+  ): FormArray {
+    const rows = new FormArray<FormGroup>([]);
+    const safeCount = Math.max(1, count || 1);
+    const shipmentNo = this.shipmentData()?.shipment?.shipmentNo || 'SHIPMENT';
+    for (let i = 0; i < safeCount; i++) {
+      const existing = existingRows[i];
+      rows.push(
+        this.fb.group({
+          sn: [i + 1],
+          containerSerialNo: [existing?.containerSerialNo || `${shipmentNo}-${shipmentIndex + 1}-C${i + 1}`],
+          transportCompanyName: [existing?.transportCompanyName || ''],
+          bookedDate: [existing?.bookedDate ? new Date(existing.bookedDate) : null],
+          bookingTime: [existing?.bookingTime || ''],
+          transportDate: [existing?.transportDate ? new Date(existing.transportDate) : null],
+          transportTime: [existing?.transportTime || ''],
+          delayHours: [existing?.delayHours ?? null],
+        })
+      );
+    }
+    return rows;
+  }
+
+  private createQualityRows(existingRows: any[] = []): FormArray {
+    const source = existingRows.length > 0 ? existingRows : [{}];
+    return this.fb.array(
+      source.map((row: any, index: number) =>
+        this.fb.group({
+          sn: [row?.sn ?? index + 1],
+          sampleNo: [row?.sampleNo || ''],
+          phase: [row?.phase || 'S1'],
+          date: [row?.date ? new Date(row.date) : null],
+          inhouseReportNo: [row?.inhouseReportNo || ''],
+          inhouseReportDate: [row?.inhouseReportDate ? new Date(row.inhouseReportDate) : null],
+          strategicReportNo: [row?.strategicReportNo || ''],
+          strategicReportDate: [row?.strategicReportDate ? new Date(row.strategicReportDate) : null],
+          thirdPartyReportNo: [row?.thirdPartyReportNo || ''],
+          thirdPartyReportDate: [row?.thirdPartyReportDate ? new Date(row.thirdPartyReportDate) : null],
+        })
+      )
+    );
+  }
+
+  private createQualityReportRows(existingRows: any[] = []): FormArray {
+    const source = existingRows.length > 0 ? existingRows : [{}];
+    return this.fb.array(
+      source.map((row: any) =>
+        this.fb.group({
+          phase: [row?.phase || 'S1'],
+          reportDate: [row?.reportDate ? new Date(row.reportDate) : null],
+        })
+      )
+    );
+  }
+
+  private createPaymentAllocationRows(existingRows: any[] = []): FormArray {
+    const source =
+      existingRows.length > 0
+        ? COST_SHEET_DESCRIPTIONS.map((description, index) => {
+            const existing = existingRows[index];
+            return {
+              sn: existing?.sn ?? index + 1,
+              description: existing?.description || description,
+              requestAmount: existing?.requestAmount ?? null,
+              paidAmount: existing?.paidAmount ?? null,
+            };
+          })
+        : COST_SHEET_DESCRIPTIONS.map((description, index) => ({
+            sn: index + 1,
+            description,
+            requestAmount: null,
+            paidAmount: null,
+          }));
+    return this.fb.array(
+      source.map((row: any, index: number) =>
+        this.fb.group({
+          sn: [row?.sn ?? index + 1],
+          description: [row?.description || ''],
+          requestAmount: [row?.requestAmount ?? null],
+          paidAmount: [row?.paidAmount ?? null],
+        })
+      )
+    );
+  }
+
+  private createPaymentCostingRows(existingRows: any[] = []): FormArray {
+    const source =
+      existingRows.length > 0
+        ? COST_SHEET_DESCRIPTIONS.map((description, index) => {
+            const existing = existingRows[index];
+            return {
+              sn: existing?.sn ?? index + 1,
+              description: existing?.description || description,
+              requestAmount: existing?.requestAmount ?? null,
+              paidAmount: existing?.paidAmount ?? null,
+              actualPaid: existing?.actualPaid ?? null,
+              refBillNo: existing?.refBillNo ?? '',
+              refBillDate: existing?.refBillDate ?? null,
+              refBillVendor: existing?.refBillVendor ?? '',
+            };
+          })
+        : COST_SHEET_DESCRIPTIONS.map((description, index) => ({
+            sn: index + 1,
+            description,
+            requestAmount: null,
+            paidAmount: null,
+            actualPaid: null,
+            refBillNo: '',
+            refBillDate: null,
+            refBillVendor: '',
+          }));
+    return this.fb.array(
+      source.map((row: any, index: number) =>
+        this.fb.group({
+          sn: [row?.sn ?? index + 1],
+          description: [row?.description || ''],
+          requestAmount: [row?.requestAmount ?? null],
+          paidAmount: [row?.paidAmount ?? null],
+          actualPaid: [row?.actualPaid ?? null],
+          refBillNo: [row?.refBillNo || ''],
+          refBillDate: [row?.refBillDate ? new Date(row.refBillDate) : null],
+          refBillVendor: [row?.refBillVendor || ''],
+        })
+      )
+    );
   }
 
   // --- Navigation ---
@@ -569,6 +925,51 @@ export class ShipmentFormComponent implements OnDestroy {
       if (!indices.includes(i)) return false;
     }
     return true;
+  }
+
+  private actualDateOrderValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const shipOnBoardDate = control.get('shipOnBoardDate')?.value;
+      const etd = control.get('updatedETD')?.value;
+      const eta = control.get('updatedETA')?.value;
+
+      const shipDate = shipOnBoardDate ? new Date(shipOnBoardDate) : null;
+      const etdDate = etd ? new Date(etd) : null;
+      const etaDate = eta ? new Date(eta) : null;
+
+      if (shipDate && etdDate && etdDate <= shipDate) {
+        return { etdBeforeShipOnBoard: true };
+      }
+
+      if (shipDate && etaDate && etaDate <= shipDate) {
+        return { etaBeforeShipOnBoard: true };
+      }
+
+      if (etdDate && etaDate && etaDate < etdDate) {
+        return { etaBeforeEtd: true };
+      }
+
+      return null;
+    };
+  }
+
+  private documentationBankValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const receiver = control.get('receiver')?.value;
+      if (receiver !== 'Bank') return null;
+
+      const requiredFields = [
+        'bankName',
+        'inwardCollectionAdviceDate',
+        'murabahaContractReleasedDate',
+        'murabahaContractApprovedDate',
+        'murabahaContractSubmittedDate',
+        'documentsReleasedDate',
+      ];
+
+      const missing = requiredFields.some((field) => !control.get(field)?.value);
+      return missing ? { missingBankDocumentFields: true } : null;
+    };
   }
 
   ngOnDestroy(): void {
