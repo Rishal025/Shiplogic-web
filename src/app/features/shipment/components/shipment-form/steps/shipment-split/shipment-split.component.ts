@@ -221,6 +221,19 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     return date.toLocaleString('en-US', { month: 'short' });
   }
 
+  getWeekLabelForRow(row: FormGroup): string {
+    const etaValue = row.get('eta')?.value;
+    if (etaValue) {
+      const etaDate = etaValue instanceof Date ? etaValue : new Date(etaValue);
+      if (!Number.isNaN(etaDate.getTime())) {
+        return this.getWeekString(etaDate);
+      }
+    }
+
+    const weekValue = row.get('weekWiseShipment')?.value;
+    return (typeof weekValue === 'string' && weekValue.trim()) ? weekValue : '—';
+  }
+
   getEtaCalendarDates(): Date[] {
     return this.plannedSplits.controls
       .map((group) => group.get('eta')?.value)
@@ -303,6 +316,29 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     return base ? `${base}-${index + 1}` : `${index + 1}`;
   }
 
+  getScheduledShipmentId(index: number): string {
+    const shipment = this.shipmentData()?.shipment as any;
+    const poFromPayload = shipment?.poNumber || shipment?.fpoNo || shipment?.orderNumber || '';
+    const poFromShipmentNo = String(shipment?.shipmentNo || '').split('-')[0] || '';
+    const base = poFromPayload || poFromShipmentNo || 'RHST';
+    return `${base}/SCG${String(index + 1).padStart(2, '0')}`;
+  }
+
+  getActualShipmentId(index: number): string {
+    const shipment = this.shipmentData()?.shipment as any;
+    const poFromPayload = shipment?.poNumber || shipment?.fpoNo || shipment?.orderNumber || '';
+    const poFromShipmentNo = String(shipment?.shipmentNo || '').split('-')[0] || '';
+    const base = poFromPayload || poFromShipmentNo || 'RHST';
+    return `${base}/ACT${String(index + 1).padStart(2, '0')}`;
+  }
+
+  canDeletePlannedRow(index: number): boolean {
+    if (this.isPlannedLocked()) return false;
+    if (this.plannedSplits.length <= 1) return false;
+    const row = this.plannedSplits.at(index);
+    return !!row?.get('isManualRow')?.value;
+  }
+
   getActualRowDate(row: FormGroup, controlName: 'shipOnBoardDate' | 'updatedETD' | 'updatedETA'): Date | null {
     const value = row.get(controlName)?.value;
     if (!value) return null;
@@ -376,12 +412,31 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
       next: (res) => {
         this.extractingBillNoRowIndex.set(null);
         const billNo = res.bill_no?.trim() ?? '';
+        const invoiceNumber = res.invoice_number?.trim() ?? '';
         if (billNo && this.actualSplits?.at(rowIndex)) {
-          this.actualSplits.at(rowIndex).get('BLNo')?.setValue(billNo);
+          const row = this.actualSplits.at(rowIndex);
+          row.get('BLNo')?.setValue(billNo);
+          if (invoiceNumber) {
+            row.get('commercialInvoiceNo')?.setValue(invoiceNumber);
+          }
+          if (res.shipped_on_board_date) row.get('shipOnBoardDate')?.setValue(new Date(res.shipped_on_board_date));
+          if (res.port_of_loading) row.get('portOfLoading')?.setValue(res.port_of_loading);
+          if (res.port_of_discharge) row.get('portOfDischarge')?.setValue(res.port_of_discharge);
+          if (res.number_of_containers != null) row.get('noOfContainers')?.setValue(res.number_of_containers);
+          if (res.number_of_bags != null) row.get('noOfBags')?.setValue(res.number_of_bags);
+          if (res.quantity_mt != null) row.get('quantityByMt')?.setValue(res.quantity_mt);
+          if (res.shipping_line) row.get('shippingLine')?.setValue(res.shipping_line);
+          if (res.free_detention_days != null) row.get('freeDetentionDays')?.setValue(res.free_detention_days);
+          if (res.maximum_detention_days != null) row.get('maximumDetentionDays')?.setValue(res.maximum_detention_days);
+          if (typeof res.freight_prepaid === 'boolean') row.get('freightPrepared')?.setValue(res.freight_prepaid ? 'Yes' : 'No');
+          row.get('billExtractionData')?.setValue(res);
+          if (Array.isArray((res as any).containers)) row.get('extractedContainers')?.setValue((res as any).containers);
           this.messageService.add({
             severity: 'success',
             summary: 'Bill number extracted',
-            detail: `BL No. set to "${billNo}".`
+            detail: invoiceNumber
+              ? `BL No. set to "${billNo}" and commercial invoice populated.`
+              : `BL No. set to "${billNo}".`
           });
         } else if (!billNo) {
           this.messageService.add({
@@ -448,10 +503,22 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
         if (!containerId) return;
 
         const payload = {
-          actualSerialNo: formValue['actualSerialNo'] || '',
+          actualSerialNo: this.getActualShipmentId(index),
           commercialInvoiceNo: formValue['commercialInvoiceNo'] || '',
           qtyMT: formValue['qtyMT'] || 0,
           bags: formValue['bags'] || 0,
+          pallet: formValue['pallet'] || 0,
+          portOfLoading: formValue['portOfLoading'] || '',
+          portOfDischarge: formValue['portOfDischarge'] || '',
+          noOfContainers: formValue['noOfContainers'] || 0,
+          noOfBags: formValue['noOfBags'] || 0,
+          quantityByMt: formValue['quantityByMt'] || 0,
+          shippingLine: formValue['shippingLine'] || '',
+          freeDetentionDays: formValue['freeDetentionDays'] || 0,
+          maximumDetentionDays: formValue['maximumDetentionDays'] || 0,
+          freightPrepared: formValue['freightPrepared'] || 'No',
+          billExtractionData: formValue['billExtractionData'] || null,
+          extractedContainers: formValue['extractedContainers'] || [],
           buyingUnit: 'MT',
           shipOnBoardDate: formValue['shipOnBoardDate']
             ? new Date(formValue['shipOnBoardDate']).toISOString().split('T')[0]

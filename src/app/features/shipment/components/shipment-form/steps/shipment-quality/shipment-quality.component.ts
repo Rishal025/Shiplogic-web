@@ -11,6 +11,9 @@ import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectModule } from 'primeng/select';
 import { selectShipmentData } from '../../../../../../store/shipment/shipment.selectors';
+import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
+import { ShipmentService } from '../../../../../../core/services/shipment.service';
+import { NotificationService } from '../../../../../../core/services/notification.service';
 
 type QualityDocKind = 'inhouse' | 'strategic' | 'thirdParty' | 'report';
 
@@ -38,6 +41,8 @@ export class ShipmentQualityComponent {
   private fb = inject(FormBuilder);
   private sanitizer = inject(DomSanitizer);
   private store = inject(Store);
+  private shipmentService = inject(ShipmentService);
+  private notificationService = inject(NotificationService);
 
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
   readonly phaseOptions = [
@@ -51,6 +56,7 @@ export class ShipmentQualityComponent {
     | null = null;
 
   readonly uploadedFiles = signal<Record<string, File | null>>({});
+  readonly savingRowIndex = signal<number | null>(null);
 
   showPreviewModal = signal(false);
   previewUrl = signal<string | null>(null);
@@ -86,10 +92,16 @@ export class ShipmentQualityComponent {
         date: [null],
         inhouseReportNo: [''],
         inhouseReportDate: [null],
+        inhouseReportDocumentUrl: [''],
+        inhouseReportDocumentName: [''],
         strategicReportNo: [''],
         strategicReportDate: [null],
+        strategicReportDocumentUrl: [''],
+        strategicReportDocumentName: [''],
         thirdPartyReportNo: [''],
         thirdPartyReportDate: [null],
+        thirdPartyReportDocumentUrl: [''],
+        thirdPartyReportDocumentName: [''],
       })
     );
   }
@@ -109,6 +121,9 @@ export class ShipmentQualityComponent {
       this.fb.group({
         phase: ['S1'],
         reportDate: [null],
+        remarks: [''],
+        documentUrl: [''],
+        documentName: [''],
       })
     );
   }
@@ -149,6 +164,39 @@ export class ShipmentQualityComponent {
     this.uploadedFiles.update((cur) => ({ ...cur, [key]: null }));
   }
 
+  getSavedUrl(row: AbstractControl, kind: QualityDocKind, table: 'qualityRows' | 'qualityReports'): string {
+    if (table === 'qualityReports') {
+      return row.get('documentUrl')?.value || '';
+    }
+    const controlName =
+      kind === 'inhouse'
+        ? 'inhouseReportDocumentUrl'
+        : kind === 'strategic'
+          ? 'strategicReportDocumentUrl'
+          : 'thirdPartyReportDocumentUrl';
+    return row.get(controlName)?.value || '';
+  }
+
+  getSavedName(row: AbstractControl, kind: QualityDocKind, table: 'qualityRows' | 'qualityReports'): string {
+    if (table === 'qualityReports') {
+      return row.get('documentName')?.value || '';
+    }
+    const controlName =
+      kind === 'inhouse'
+        ? 'inhouseReportDocumentName'
+        : kind === 'strategic'
+          ? 'strategicReportDocumentName'
+          : 'thirdPartyReportDocumentName';
+    return row.get(controlName)?.value || '';
+  }
+
+  openRemoteDocumentPreview(url: string, title: string): void {
+    this.previewUrl.set(url);
+    this.previewTitle.set(title);
+    this.previewIsImage.set(/\.(png|jpe?g|gif|webp)(\?|$)/i.test(url));
+    this.showPreviewModal.set(true);
+  }
+
   openDocumentPreview(file: File, title: string): void {
     this.previewUrl.set(URL.createObjectURL(file));
     this.previewTitle.set(title);
@@ -166,5 +214,77 @@ export class ShipmentQualityComponent {
 
   onPreviewVisibleChange(visible: boolean): void {
     if (!visible) this.closeDocumentPreview();
+  }
+
+  saveRow(index: number): void {
+    const group = this.formArray.at(index) as FormGroup | null;
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    if (!group || !shipmentId) return;
+
+    const containerId = group.get('containerId')?.value;
+    if (!containerId) {
+      this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
+      return;
+    }
+
+    const toDate = (value: unknown) =>
+      value ? new Date(value as string | Date).toISOString().split('T')[0] : '';
+
+    const qualityRows = this.getQualityRows(group).controls.map((row, rowIndex) => ({
+      sn: Number(row.get('sn')?.value) || rowIndex + 1,
+      sampleNo: row.get('sampleNo')?.value || '',
+      phase: row.get('phase')?.value || 'S1',
+      date: toDate(row.get('date')?.value),
+      inhouseReportNo: row.get('inhouseReportNo')?.value || '',
+      inhouseReportDate: toDate(row.get('inhouseReportDate')?.value),
+      inhouseReportDocumentUrl: row.get('inhouseReportDocumentUrl')?.value || '',
+      inhouseReportDocumentName: row.get('inhouseReportDocumentName')?.value || '',
+      strategicReportNo: row.get('strategicReportNo')?.value || '',
+      strategicReportDate: toDate(row.get('strategicReportDate')?.value),
+      strategicReportDocumentUrl: row.get('strategicReportDocumentUrl')?.value || '',
+      strategicReportDocumentName: row.get('strategicReportDocumentName')?.value || '',
+      thirdPartyReportNo: row.get('thirdPartyReportNo')?.value || '',
+      thirdPartyReportDate: toDate(row.get('thirdPartyReportDate')?.value),
+      thirdPartyReportDocumentUrl: row.get('thirdPartyReportDocumentUrl')?.value || '',
+      thirdPartyReportDocumentName: row.get('thirdPartyReportDocumentName')?.value || '',
+    }));
+
+    const qualityReports = this.getQualityReports(group).controls.map((row) => ({
+      phase: row.get('phase')?.value || 'S1',
+      reportDate: toDate(row.get('reportDate')?.value),
+      remarks: row.get('remarks')?.value || '',
+      documentUrl: row.get('documentUrl')?.value || '',
+      documentName: row.get('documentName')?.value || '',
+    }));
+
+    const formData = new FormData();
+    formData.append('qualityRows', JSON.stringify(qualityRows));
+    formData.append('qualityReports', JSON.stringify(qualityReports));
+
+    this.getQualityRows(group).controls.forEach((row, rowIndex) => {
+      const inhouse = this.getFile(index, rowIndex, 'inhouse', 'qualityRows');
+      const strategic = this.getFile(index, rowIndex, 'strategic', 'qualityRows');
+      const thirdParty = this.getFile(index, rowIndex, 'thirdParty', 'qualityRows');
+      if (inhouse) formData.append(`qualityRows_${rowIndex}_inhouse`, inhouse, inhouse.name);
+      if (strategic) formData.append(`qualityRows_${rowIndex}_strategic`, strategic, strategic.name);
+      if (thirdParty) formData.append(`qualityRows_${rowIndex}_thirdParty`, thirdParty, thirdParty.name);
+    });
+    this.getQualityReports(group).controls.forEach((row, rowIndex) => {
+      const file = this.getFile(index, rowIndex, 'report', 'qualityReports');
+      if (file) formData.append(`qualityReports_${rowIndex}_report`, file, file.name);
+    });
+
+    this.savingRowIndex.set(index);
+    this.shipmentService.submitQualityDetails(containerId, formData).subscribe({
+      next: () => {
+        this.savingRowIndex.set(null);
+        this.notificationService.success('Saved', 'Quality details saved successfully.');
+        this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+      },
+      error: (error) => {
+        this.savingRowIndex.set(null);
+        this.notificationService.error('Save failed', error.error?.message || 'Could not save quality details.');
+      }
+    });
   }
 }

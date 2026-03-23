@@ -34,11 +34,36 @@ export class ShipmentEffects {
             planned.forEach((container, index) => {
               const actualData = actual.find((a) => a.containerId === container.containerId);
               if (actualData?.BLNo) submittedActualIndices.push(index);
-              if (actualData?.DHL) submittedStep3Indices.push(index);
-              if (actualData?.deliveryOrderDate || actualData?.deliveryOrderDocumentUrl || (actualData as any)?.shipmentArrivedOn) submittedStep4Indices.push(index);
-              if (actualData?.paid_amount) submittedStep5Indices.push(index);
-              if (actualData?.clearance?.clearedOn) submittedStep6Indices.push(index);
-              if (actualData?.grn?.grnNo) submittedStep7Indices.push(index);
+              if (
+                actualData?.receiver ||
+                actualData?.expectedDocDate ||
+                actualData?.courierTrackNo ||
+                actualData?.inwardCollectionAdviceDocumentUrl ||
+                actualData?.murabahaContractSubmittedDocumentUrl ||
+                actualData?.documentsReleasedDocumentUrl
+              ) submittedStep3Indices.push(index);
+              if (
+                actualData?.arrivalOn ||
+                actualData?.arrivalNoticeDate ||
+                actualData?.arrivalNoticeDocumentUrl ||
+                actualData?.advanceRequestDocumentUrl ||
+                actualData?.doReleasedDocumentUrl ||
+                actualData?.dpApprovalDocumentUrl ||
+                actualData?.customsClearanceDocumentUrl ||
+                actualData?.municipalityDocumentUrl ||
+                (actualData?.transportationBooked?.length ?? 0) > 0
+              ) submittedStep4Indices.push(index);
+              if ((actualData?.storageSplits?.length ?? 0) > 0) submittedStep5Indices.push(index);
+              if ((actualData?.qualityRows?.length ?? 0) > 0 || (actualData?.qualityReports?.length ?? 0) > 0) {
+                submittedStep6Indices.push(index);
+              }
+              if (
+                (actualData?.paymentAllocations?.length ?? 0) > 0 ||
+                (actualData?.paymentCostings?.length ?? 0) > 0 ||
+                actualData?.paymentCostingDocumentUrl
+              ) {
+                submittedStep7Indices.push(index);
+              }
             });
 
             return [

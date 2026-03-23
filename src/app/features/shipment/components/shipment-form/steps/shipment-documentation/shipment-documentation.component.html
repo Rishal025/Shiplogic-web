@@ -44,10 +44,10 @@
                 >
                   @if (submittingRowIndex() === i) {
                     <i class="pi pi-spin pi-spinner text-[10px]"></i>
-                    Tracking...
+                    Saving...
                   } @else {
-                    <i class="pi pi-compass text-[10px]"></i>
-                    Track
+                    <i class="pi pi-check text-[10px]"></i>
+                    Save
                   }
                 </button>
                 @if (isRowSubmitted(i)) {
@@ -108,19 +108,12 @@
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bank Name</label>
                     <p-select formControlName="bankName" [options]="bankOptions" optionLabel="label" optionValue="value" placeholder="Select bank" styleClass="w-full" appendTo="body" />
                   </div>
-                  <div class="flex flex-col gap-1.5">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Murabaha Contract Released Date</label>
-                    <p-datepicker formControlName="murabahaContractReleasedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
-                  </div>
-                  <div class="flex flex-col gap-1.5">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Murabaha Contract Approved Date</label>
-                    <p-datepicker formControlName="murabahaContractApprovedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
-                  </div>
                 </div>
 
-                <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                @if (group.get('bankName')?.value) {
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   <div class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 shadow-sm">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Inward Collection Advice Date</label>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Inward Collection Notice Date</label>
                     <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                       <p-datepicker formControlName="inwardCollectionAdviceDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
                       <div class="flex items-center gap-2 sm:shrink-0">
@@ -134,16 +127,32 @@
                           <button type="button" (click)="clearFile(i, 'inwardAdvice')" class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 shrink-0">
                             <i class="pi pi-trash"></i>
                           </button>
+                        } @else if (getSavedFileUrl(group, 'inwardAdvice')) {
+                          <button type="button" (click)="openRemoteDocumentPreview(getSavedFileUrl(group, 'inwardAdvice'), getSavedFileName(group, 'inwardAdvice') || 'Inward Collection Advice Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0">
+                            <i class="pi pi-eye"></i>
+                          </button>
                         }
                       </div>
                     </div>
                     @if (getFile(i, 'inwardAdvice')) {
                       <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getFile(i, 'inwardAdvice')?.name }}</p>
+                    } @else if (getSavedFileName(group, 'inwardAdvice')) {
+                      <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getSavedFileName(group, 'inwardAdvice') }}</p>
                     }
                   </div>
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Murabaha Contract Release Date</label>
+                    <p-datepicker formControlName="murabahaContractReleasedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Murabaha Contract Approved Date</label>
+                    <p-datepicker formControlName="murabahaContractApprovedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
+                  </div>
+                </div>
 
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
                   <div class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 shadow-sm">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Murabaha Contract Submitted Date</label>
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Approved Murabaha Contract Submitted Date</label>
                     <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                       <p-datepicker formControlName="murabahaContractSubmittedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
                       <div class="flex items-center gap-2 sm:shrink-0">
@@ -157,11 +166,17 @@
                           <button type="button" (click)="clearFile(i, 'murabahaSubmitted')" class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 shrink-0">
                             <i class="pi pi-trash"></i>
                           </button>
+                        } @else if (getSavedFileUrl(group, 'murabahaSubmitted')) {
+                          <button type="button" (click)="openRemoteDocumentPreview(getSavedFileUrl(group, 'murabahaSubmitted'), getSavedFileName(group, 'murabahaSubmitted') || 'Murabaha Contract Submitted Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0">
+                            <i class="pi pi-eye"></i>
+                          </button>
                         }
                       </div>
                     </div>
                     @if (getFile(i, 'murabahaSubmitted')) {
                       <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getFile(i, 'murabahaSubmitted')?.name }}</p>
+                    } @else if (getSavedFileName(group, 'murabahaSubmitted')) {
+                      <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getSavedFileName(group, 'murabahaSubmitted') }}</p>
                     }
                   </div>
 
@@ -180,11 +195,17 @@
                           <button type="button" (click)="clearFile(i, 'documentsReleased')" class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 shrink-0">
                             <i class="pi pi-trash"></i>
                           </button>
+                        } @else if (getSavedFileUrl(group, 'documentsReleased')) {
+                          <button type="button" (click)="openRemoteDocumentPreview(getSavedFileUrl(group, 'documentsReleased'), getSavedFileName(group, 'documentsReleased') || 'Documents Released Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0">
+                            <i class="pi pi-eye"></i>
+                          </button>
                         }
                       </div>
                     </div>
                     @if (getFile(i, 'documentsReleased')) {
                       <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getFile(i, 'documentsReleased')?.name }}</p>
+                    } @else if (getSavedFileName(group, 'documentsReleased')) {
+                      <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getSavedFileName(group, 'documentsReleased') }}</p>
                     }
                   </div>
                 </div>
@@ -194,6 +215,7 @@
                     <i class="pi pi-exclamation-triangle mr-2"></i>
                     Bank receiver requires Bank Name and all bank-related dates/documents.
                   </div>
+                }
                 }
               </div>
             }

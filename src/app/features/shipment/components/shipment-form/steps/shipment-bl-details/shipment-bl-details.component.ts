@@ -4,6 +4,9 @@ import { AbstractControl, FormArray, ReactiveFormsModule } from '@angular/forms'
 import { DomSanitizer } from '@angular/platform-browser';
 import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { NotificationService } from '../../../../../../core/services/notification.service';
+import { ShipmentService } from '../../../../../../core/services/shipment.service';
+import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
 import { AccordionModule } from 'primeng/accordion';
 import { DatePickerModule } from 'primeng/datepicker';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -77,6 +80,8 @@ export class ShipmentBlDetailsComponent {
 
   private sanitizer = inject(DomSanitizer);
   private store = inject(Store);
+  private shipmentService = inject(ShipmentService);
+  private notificationService = inject(NotificationService);
 
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
   readonly isPlannedLocked = toSignal(this.store.select(selectIsPlannedLocked), { initialValue: false });
@@ -93,9 +98,8 @@ export class ShipmentBlDetailsComponent {
   ];
 
   readonly warehouseOptions = [
-    { label: 'Main Warehouse', value: 'Main Warehouse' },
-    { label: 'Secondary Warehouse', value: 'Secondary Warehouse' },
-    { label: 'Transit Warehouse', value: 'Transit Warehouse' },
+    { label: 'Warehouse DIC - RH006', value: 'Warehouse DIC - RH006' },
+    { label: 'Warehouse Musaffah- RH001P1', value: 'Warehouse Musaffah- RH001P1' },
   ];
   readonly costSheetDescriptions = COST_SHEET_DESCRIPTIONS;
 
@@ -104,6 +108,7 @@ export class ShipmentBlDetailsComponent {
   readonly bookingFiles = signal<Record<number, File | null>>({});
   readonly statusModalVisible = signal(false);
   readonly statusModalShipmentIndex = signal<number | null>(null);
+  readonly savingKey = signal<string | null>(null);
   readonly shipmentStages = [
     'Shipment Entry',
     'Shipment Tracker',
@@ -193,6 +198,21 @@ export class ShipmentBlDetailsComponent {
     this.bookingFiles.update((current) => ({ ...current, [shipmentIndex]: null }));
   }
 
+  getSavedBookingUrl(group: AbstractControl): string {
+    return group.get('costSheetBookingDocumentUrl')?.value || '';
+  }
+
+  getSavedBookingName(group: AbstractControl): string {
+    return group.get('costSheetBookingDocumentName')?.value || '';
+  }
+
+  openRemoteDocumentPreview(url: string, title: string): void {
+    this.previewUrl.set(url);
+    this.previewTitle.set(title);
+    this.previewIsImage.set(/\.(png|jpe?g|gif|webp)(\?|$)/i.test(url));
+    this.showPreviewModal.set(true);
+  }
+
   openDocumentPreview(file: File, title: string): void {
     const url = URL.createObjectURL(file);
     this.previewUrl.set(url);
@@ -216,6 +236,127 @@ export class ShipmentBlDetailsComponent {
   openStatusModal(index: number): void {
     this.statusModalShipmentIndex.set(index);
     this.statusModalVisible.set(true);
+  }
+
+  isSaving(index: number, section: 'bl' | 'cost' | 'storage'): boolean {
+    return this.savingKey() === `${section}-${index}`;
+  }
+
+  saveBLDetails(index: number): void {
+    const row = this.formArray.at(index);
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    if (!row || !shipmentId) return;
+
+    const containerId = row.get('containerId')?.value;
+    if (!containerId) {
+      this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
+      return;
+    }
+
+    const toDate = (value: unknown) =>
+      value ? new Date(value as string | Date).toISOString().split('T')[0] : '';
+
+    this.savingKey.set(`bl-${index}`);
+    const formData = new FormData();
+    formData.append('blNo', row.get('blNo')?.value || '');
+    formData.append('shippedOnBoard', toDate(row.get('shippedOnBoard')?.value));
+    formData.append('portOfLoading', row.get('portOfLoading')?.value || '');
+    formData.append('portOfDischarge', row.get('portOfDischarge')?.value || '');
+    formData.append('noOfContainers', String(Number(row.get('noOfContainers')?.value) || 0));
+    formData.append('noOfBags', String(Number(row.get('noOfBags')?.value) || 0));
+    formData.append('quantityByMt', String(Number(row.get('quantityByMt')?.value) || 0));
+    formData.append('shippingLine', row.get('shippingLine')?.value || '');
+    formData.append('freeDetentionDays', String(Number(row.get('freeDetentionDays')?.value) || 0));
+    formData.append('maximumDetentionDays', String(Number(row.get('maximumDetentionDays')?.value) || 0));
+    formData.append('freightPrepared', row.get('freightPrepared')?.value || 'No');
+
+    this.shipmentService.submitBLDetails(containerId, formData).subscribe({
+      next: () => {
+        this.savingKey.set(null);
+        this.notificationService.success('Saved', 'B/L details saved successfully.');
+        this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+      },
+      error: (error) => {
+        this.savingKey.set(null);
+        this.notificationService.error('Save failed', error.error?.message || 'Could not save B/L details.');
+      }
+    });
+  }
+
+  saveCostSheet(index: number): void {
+    const row = this.formArray.at(index);
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    if (!row || !shipmentId) return;
+
+    const containerId = row.get('containerId')?.value;
+    if (!containerId) {
+      this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
+      return;
+    }
+
+    const costSheetBookings = this.getCostSheetRows(row).getRawValue().map((entry: any) => ({
+      sn: Number(entry.sn) || 0,
+      description: entry.description || '',
+      requestAmount: Number(entry.requestAmount) || 0,
+      paidAmount: Number(entry.paidAmount) || 0,
+    }));
+
+    this.savingKey.set(`cost-${index}`);
+    const formData = new FormData();
+    formData.append('costSheetBookings', JSON.stringify(costSheetBookings));
+
+    const bookingFile = this.getBookingFile(index);
+    if (bookingFile) {
+      formData.append('costSheetBookingDocument', bookingFile, bookingFile.name);
+    }
+
+    this.shipmentService.submitBLDetails(containerId, formData).subscribe({
+      next: () => {
+        this.savingKey.set(null);
+        if (bookingFile) this.clearBookingFile(index);
+        this.notificationService.success('Saved', 'Cost sheet booking saved successfully.');
+        this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+      },
+      error: (error) => {
+        this.savingKey.set(null);
+        this.notificationService.error('Save failed', error.error?.message || 'Could not save cost sheet booking.');
+      }
+    });
+  }
+
+  saveStorageAllocations(index: number): void {
+    const row = this.formArray.at(index);
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    if (!row || !shipmentId) return;
+
+    const containerId = row.get('containerId')?.value;
+    if (!containerId) {
+      this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
+      return;
+    }
+
+    const storageAllocations = this.getStorageRows(row).getRawValue().map((entry: any) => ({
+      sn: Number(entry.sn) || 0,
+      containerSerialNo: entry.containerSerialNo || '',
+      warehouse: entry.warehouse || '',
+      storageAvailability: Number(entry.storageAvailability) || 0,
+    }));
+
+    this.savingKey.set(`storage-${index}`);
+    const formData = new FormData();
+    formData.append('storageAllocations', JSON.stringify(storageAllocations));
+
+    this.shipmentService.submitBLDetails(containerId, formData).subscribe({
+      next: () => {
+        this.savingKey.set(null);
+        this.notificationService.success('Saved', 'Storage allocations saved successfully.');
+        this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+      },
+      error: (error) => {
+        this.savingKey.set(null);
+        this.notificationService.error('Save failed', error.error?.message || 'Could not save storage allocations.');
+      }
+    });
   }
 
   onStatusModalVisibleChange(visible: boolean): void {

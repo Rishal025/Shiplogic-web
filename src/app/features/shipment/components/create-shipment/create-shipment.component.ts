@@ -1,8 +1,9 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnDestroy, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterLink, ActivatedRoute } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
 
 // PrimeNG Imports (v21 matching package.json)
 import { InputTextModule } from 'primeng/inputtext';
@@ -17,9 +18,8 @@ import { DialogModule } from 'primeng/dialog';
 
 import { PrimaryButtonDirective } from '../../../../shared/directives/button.directive';
 import { ShipmentService } from '../../../../core/services/shipment.service';
-import { Item } from '../../../../core/models/item.model';
-import { Supplier } from '../../../../core/models/supplier.model';
 import { CreateShipmentPayload, ExtractedShipmentData } from '../../../../core/models/shipment.model';
+import { ItemService } from '../../../../core/services/item.service';
 
 @Component({
   selector: 'app-create-shipment',
@@ -42,12 +42,8 @@ import { CreateShipmentPayload, ExtractedShipmentData } from '../../../../core/m
   templateUrl: './create-shipment.component.html',
   styleUrls: ['./create-shipment.component.scss']
 })
-export class CreateShipmentComponent implements OnInit {
+export class CreateShipmentComponent implements OnInit, OnDestroy {
   shipmentForm!: FormGroup;
-
-  // Dropdown data from resolver (pre-loaded)
-  items = signal<Item[]>([]);
-  suppliers = signal<Supplier[]>([]);
   submitting = signal(false);
 
   // Document extraction: document1 = Purchase order, document2 = Pro-forma Invoice
@@ -55,8 +51,10 @@ export class CreateShipmentComponent implements OnInit {
   document2File = signal<File | null>(null);
   s1QualityReportFile = signal<File | null>(null);
   extracting = signal(false);
+  extractedQ1Report = signal<Record<string, unknown> | null>(null);
   /** Set after extract & autopopulate when response includes shipment_calculations; used for price-mismatch warning. */
   extractionPriceMismatch = signal<{ isPriceMatching: boolean; diffPercent?: number } | null>(null);
+  private subscriptions = new Subscription();
 
   // Document preview modal
   showPreviewModal = signal(false);
@@ -115,18 +113,10 @@ export class CreateShipmentComponent implements OnInit {
     { label: 'Other', value: 'Other' }
   ];
 
-  countries = [
-    { label: 'USA', value: 'USA' },
-    { label: 'China', value: 'China' },
-    { label: 'Germany', value: 'Germany' },
-    { label: 'Pakistan', value: 'Pakistan' },
-    { label: 'India', value: 'India' }
-  ];
-
   constructor(
     private fb: FormBuilder,
-    private route: ActivatedRoute,
     private shipmentService: ShipmentService,
+    private itemService: ItemService,
     private messageService: MessageService,
     private router: Router,
     private sanitizer: DomSanitizer
@@ -134,23 +124,17 @@ export class CreateShipmentComponent implements OnInit {
 
   ngOnInit(): void {
     this.initForm();
-    this.loadResolvedData();
     this.setupAutoFill();
   }
 
-  private loadResolvedData(): void {
-    // Get pre-loaded data from route resolver
-    const formData = this.route.snapshot.data['formData'];
-    if (formData) {
-      this.items.set(formData.items || []);
-      this.suppliers.set(formData.suppliers || []);
-    }
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
   }
 
   private initForm(): void {
     this.shipmentForm = this.fb.group({
       // Shipment Info
-      commodity: [null],
+      commodity: [''],
       piNo: [''],
       piDate: [null],
       fpoNo: [''],
@@ -158,7 +142,7 @@ export class CreateShipmentComponent implements OnInit {
       incoTerms: [null],
       portOfLoading: [''],
       portOfDischarge: [''],
-      item: [null],
+      itemCode: [''],
       brandName: [''],
       barcode: [''],
       variant: [''],
@@ -166,8 +150,8 @@ export class CreateShipmentComponent implements OnInit {
       itemDescription: [''],
 
       // Supplier Details
-      supplier: [null, Validators.required],
-      countryOfOrigin: [null],
+      supplier: ['', Validators.required],
+      countryOfOrigin: [''],
 
       // Quantity of Packaging
       packagingType: [''],
@@ -206,41 +190,20 @@ export class CreateShipmentComponent implements OnInit {
   }
 
   private setupAutoFill(): void {
-    this.shipmentForm.get('item')?.valueChanges.subscribe((itemId) => {
-      if (itemId) {
-        const selectedItem = this.items().find((item) => item._id === itemId);
-        if (selectedItem) {
-          this.shipmentForm.patchValue({
-            brandName: this.shipmentForm.get('brandName')?.value || selectedItem.riceName || '',
-            itemDescription: this.shipmentForm.get('itemDescription')?.value || selectedItem.description || '',
-            packagingType: selectedItem.packing || '',
-            barcode: selectedItem.barcode || selectedItem.itemCode || '',
-            variant: selectedItem.variant || selectedItem.riceName || '',
-            hsCode: selectedItem.hsCode || ''
-          }, { emitEvent: false });
-        }
-      } else {
-        this.shipmentForm.patchValue({
-          barcode: '',
-          variant: '',
-          hsCode: ''
-        }, { emitEvent: false });
-      }
-    });
+    const itemCodeControl = this.shipmentForm.get('itemCode');
+    if (itemCodeControl) {
+      this.subscriptions.add(
+        itemCodeControl.valueChanges
+          .pipe(debounceTime(300), distinctUntilChanged())
+          .subscribe((value) => {
+            const itemCode = typeof value === 'string' ? value.trim() : '';
+            if (!itemCode) return;
+            this.lookupItemMetadata(itemCode);
+          })
+      );
+    }
 
-    // Auto-fill country of origin when supplier is selected
-    this.shipmentForm.get('supplier')?.valueChanges.subscribe((supplierId) => {
-      if (supplierId) {
-        const selectedSupplier = this.suppliers().find(supplier => supplier._id === supplierId);
-        if (selectedSupplier) {
-          this.shipmentForm.patchValue({
-            countryOfOrigin: selectedSupplier.country
-          }, { emitEvent: false });
-        }
-      }
-    });
-
-    this.shipmentForm.get('paymentTerms')?.valueChanges.subscribe((term) => {
+    this.subscriptions.add(this.shipmentForm.get('paymentTerms')!.valueChanges.subscribe((term) => {
       const bankNameControl = this.shipmentForm.get('bankName');
       if (!bankNameControl) return;
 
@@ -252,7 +215,7 @@ export class CreateShipmentComponent implements OnInit {
       }
 
       bankNameControl.updateValueAndValidity({ emitEvent: false });
-    });
+    }));
   }
 
   requiresBankName(term: string | null | undefined): boolean {
@@ -334,11 +297,13 @@ export class CreateShipmentComponent implements OnInit {
   onExtractAndAutopopulate(): void {
     const file1 = this.document1File();
     const file2 = this.document2File();
-    if (!file1 || !file2) return;
+    const quality = this.s1QualityReportFile();
+    if (!file1 || !file2 || !quality) return;
 
     const formData = new FormData();
     formData.append('document1', file1, file1.name);
     formData.append('document2', file2, file2.name);
+    formData.append('s1QualityReport', quality, quality.name);
 
     this.extracting.set(true);
     this.extractionPriceMismatch.set(null);
@@ -375,6 +340,7 @@ export class CreateShipmentComponent implements OnInit {
     try {
       const d = data as Record<string, unknown>;
       const patch: Record<string, unknown> = {};
+      this.extractedQ1Report.set((data.q1Report as Record<string, unknown>) ?? null);
 
       const dateKeys = ['piDate', 'purchaseDate', 'expectedETD', 'expectedETA'];
       for (const key of dateKeys) {
@@ -398,39 +364,22 @@ export class CreateShipmentComponent implements OnInit {
         patch[key] = v;
       }
 
-      // Resolve supplier: match by supplierCode (case-insensitive) first, then by name (case-insensitive / contains)
-      const rawCode = d['supplierCode'];
       const rawName = d['supplierName'];
-      const code = typeof rawCode === 'string' ? rawCode.trim() : '';
       const name = typeof rawName === 'string' ? rawName.trim() : '';
-      if (code || name) {
-        const supplier = this.findSupplierByCodeOrName(code, name);
-        if (supplier) {
-          patch['supplier'] = supplier._id;
-          // Set Country of Origin from supplier when setting supplier programmatically (valueChanges won't fire with emitEvent: false)
-          patch['countryOfOrigin'] = supplier.country ?? '';
-        }
+      if (name) {
+        patch['supplier'] = name;
       }
 
-      // Resolve item by itemCode or description when extraction provides it
       const rawItemCode = d['itemCode'];
-      const rawItemDescription = d['itemDescription'];
       const itemCode = typeof rawItemCode === 'string' ? rawItemCode.trim() : '';
-      const itemDescription = typeof rawItemDescription === 'string' ? rawItemDescription.trim() : '';
-      if (itemCode || itemDescription) {
-        const item = this.findItemByCodeOrDescription(itemCode, itemDescription);
-        if (item) {
-          patch['item'] = item._id;
-          patch['packagingType'] = patch['packagingType'] ?? item.packing ?? '';
-          patch['barcode'] = item.barcode || item.itemCode || '';
-          patch['variant'] = item.variant || item.riceName || '';
-          patch['hsCode'] = item.hsCode || '';
-          patch['brandName'] = patch['brandName'] ?? item.riceName ?? '';
-          patch['itemDescription'] = patch['itemDescription'] ?? item.description ?? '';
-        }
+      if (itemCode) {
+        patch['itemCode'] = itemCode;
       }
 
       this.shipmentForm.patchValue(patch, { emitEvent: false });
+      if (itemCode) {
+        this.lookupItemMetadata(itemCode);
+      }
       // Ensure form validity is recalculated so Save Shipment enables when required fields are set
       this.shipmentForm.updateValueAndValidity({ emitEvent: true });
 
@@ -454,38 +403,38 @@ export class CreateShipmentComponent implements OnInit {
     return isNaN(parsed.getTime()) ? null : parsed;
   }
 
-  private findSupplierByCodeOrName(code: string, name: string): Supplier | undefined {
-    const list = this.suppliers();
-    if (!list.length) return undefined;
-    const codeLower = code.toLowerCase().replace(/[\s\-_]+/g, '');
-    const nameLower = name.toLowerCase();
-    return list.find(s => {
-      const sCode = s.supplierCode?.toLowerCase().replace(/[\s\-_]+/g, '') ?? '';
-      if (codeLower && sCode && sCode === codeLower) return true;
-      if (nameLower && s.name?.toLowerCase() === nameLower) return true;
-      if (nameLower && s.name?.toLowerCase().includes(nameLower)) return true;
-      if (nameLower && nameLower.includes(s.name?.toLowerCase() ?? '')) return true;
-      return false;
-    });
+  private lookupItemMetadata(itemCode: string): void {
+    const normalizedItemCode = itemCode.trim();
+    if (!normalizedItemCode) return;
+
+    this.subscriptions.add(
+      this.itemService.getItemByCode(normalizedItemCode).subscribe({
+        next: (item) => {
+          const currentDescription = String(this.shipmentForm.get('itemDescription')?.value || '').trim();
+          const currentCommodity = String(this.shipmentForm.get('commodity')?.value || '').trim();
+          const currentPacking = String(this.shipmentForm.get('packagingType')?.value || '').trim();
+          this.shipmentForm.patchValue({
+            brandName: item.brand || this.shipmentForm.get('brandName')?.value || '',
+            barcode: item.barcode || this.shipmentForm.get('barcode')?.value || '',
+            variant: item.variant || this.shipmentForm.get('variant')?.value || '',
+            hsCode: item.hsCode || item.hs_code || this.shipmentForm.get('hsCode')?.value || '',
+            countryOfOrigin: item.country_of_origin || this.shipmentForm.get('countryOfOrigin')?.value || '',
+            itemDescription: currentDescription || item.item_name || '',
+            commodity: currentCommodity || item.category || '',
+            packagingType: currentPacking || this.getPackagingLabel(item.unit_kg)
+          }, { emitEvent: false });
+          this.shipmentForm.updateValueAndValidity({ emitEvent: false });
+        },
+        error: () => {
+          // Item enrichment is optional; leave manual/extracted values untouched.
+        }
+      })
+    );
   }
 
-  private findItemByCodeOrDescription(code: string, description: string): Item | undefined {
-    const list = this.items();
-    if (!list.length) return undefined;
-
-    const normalizedCode = code.toLowerCase().replace(/[\s\-_]+/g, '');
-    const normalizedDescription = description.toLowerCase();
-
-    return list.find((item) => {
-      const itemCode = item.itemCode?.toLowerCase().replace(/[\s\-_]+/g, '') ?? '';
-      const itemDescription = item.description?.toLowerCase() ?? '';
-
-      if (normalizedCode && itemCode && itemCode === normalizedCode) return true;
-      if (normalizedDescription && itemDescription === normalizedDescription) return true;
-      if (normalizedDescription && itemDescription.includes(normalizedDescription)) return true;
-      if (normalizedDescription && normalizedDescription.includes(itemDescription)) return true;
-      return false;
-    });
+  private getPackagingLabel(unitKg?: number): string {
+    if (!unitKg || !Number.isFinite(unitKg)) return '';
+    return `1X${unitKg}KG`;
   }
 
   onSubmit(): void {
@@ -512,8 +461,18 @@ export class CreateShipmentComponent implements OnInit {
       poNumber: poNumberValue,
       year: new Date().getFullYear().toString(),
       orderDate: formValue.purchaseDate ? new Date(formValue.purchaseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0], // YYYY-MM-DD
-      supplierId: formValue.supplier,
-      itemId: formValue.item || undefined,
+      supplierName: formValue.supplier || '',
+      itemCode: formValue.itemCode || '',
+      itemDescription: formValue.itemDescription || '',
+      commodity: formValue.commodity || '',
+      countryOfOrigin: formValue.countryOfOrigin || '',
+      brandName: formValue.brandName || '',
+      barcode: formValue.barcode || '',
+      variant: formValue.variant || '',
+      hsCode: formValue.hsCode || '',
+      packing: formValue.packagingType || '',
+      portOfLoading: formValue.portOfLoading || '',
+      portOfDischarge: formValue.portOfDischarge || '',
       plannedQtyMT: formValue.plannedContainers?.toString() || '0',
       estimatedContainerCount: formValue.noOfShipments?.toString() || '0',
       estimatedContainerSize: formValue.containerSize || '',
@@ -528,11 +487,27 @@ export class CreateShipmentComponent implements OnInit {
       incoterms: formValue.incoTerms || '',
       buyunit: formValue.buyingUnit || '',
       paymentTerms: formValue.paymentTerms || '',
+      bankName: formValue.bankName || '',
+      q1Report: JSON.stringify(this.extractedQ1Report() || {}),
       splitContainers: formValue.noOfShipments?.toString() || '0',
       totalSplitQtyMT: formValue.noOfShipments?.toString() || '0'
     };
 
-    this.shipmentService.createShipment(payload).subscribe({
+    const createFormData = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        createFormData.append(key, String(value));
+      }
+    });
+
+    const lpo = this.document1File();
+    const proforma = this.document2File();
+    const s1 = this.s1QualityReportFile();
+    if (lpo) createFormData.append('lpoDocument', lpo, lpo.name);
+    if (proforma) createFormData.append('proformaDocument', proforma, proforma.name);
+    if (s1) createFormData.append('s1QualityReport', s1, s1.name);
+
+    this.shipmentService.createShipment(createFormData).subscribe({
       next: (response) => {
         this.submitting.set(false);
         this.messageService.add({

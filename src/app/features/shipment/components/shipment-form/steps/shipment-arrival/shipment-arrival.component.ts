@@ -34,11 +34,11 @@ const STEP5_DOC_CONFIG: {
   remarksControl?: string;
 }[] = [
   { kind: 'arrivalNotice', label: 'Arrival Notice Date', dateControl: 'arrivalNoticeDate' },
-  { kind: 'advanceRequest', label: 'Advance Request Date', dateControl: 'advanceRequestDate' },
+  { kind: 'advanceRequest', label: 'Advance Received', dateControl: 'advanceRequestDate' },
   { kind: 'doReleased', label: 'DO Released Date', dateControl: 'doReleasedDate', remarksControl: 'doReleasedRemarks' },
-  { kind: 'dpApproval', label: 'DP Approval Date', dateControl: 'dpApprovalDate', remarksControl: 'dpApprovalRemarks' },
+  { kind: 'dpApproval', label: 'DP Clearance Date', dateControl: 'dpApprovalDate', remarksControl: 'dpApprovalRemarks' },
   { kind: 'customsClearance', label: 'Customs Clearance Date', dateControl: 'customsClearanceDate', remarksControl: 'customsClearanceRemarks' },
-  { kind: 'municipality', label: 'Municipality Date', dateControl: 'municipalityDate', remarksControl: 'municipalityRemarks' },
+  { kind: 'municipality', label: 'Municipality Check Date', dateControl: 'municipalityDate', remarksControl: 'municipalityRemarks' },
 ];
 
 @Component({
@@ -193,6 +193,37 @@ export class ShipmentArrivalComponent {
     this.getFileSignal(kind).update((cur) => ({ ...cur, [containerIndex]: null }));
   }
 
+  getSavedFileUrl(group: AbstractControl, kind: Step5DocKind): string {
+    const map = {
+      arrivalNotice: 'arrivalNoticeDocumentUrl',
+      advanceRequest: 'advanceRequestDocumentUrl',
+      doReleased: 'doReleasedDocumentUrl',
+      dpApproval: 'dpApprovalDocumentUrl',
+      customsClearance: 'customsClearanceDocumentUrl',
+      municipality: 'municipalityDocumentUrl',
+    } as const;
+    return group.get(map[kind])?.value || '';
+  }
+
+  getSavedFileName(group: AbstractControl, kind: Step5DocKind): string {
+    const map = {
+      arrivalNotice: 'arrivalNoticeDocumentName',
+      advanceRequest: 'advanceRequestDocumentName',
+      doReleased: 'doReleasedDocumentName',
+      dpApproval: 'dpApprovalDocumentName',
+      customsClearance: 'customsClearanceDocumentName',
+      municipality: 'municipalityDocumentName',
+    } as const;
+    return group.get(map[kind])?.value || '';
+  }
+
+  openRemoteDocumentPreview(url: string, title: string): void {
+    this.previewUrl.set(url);
+    this.previewTitle.set(title);
+    this.previewIsImage.set(/\.(png|jpe?g|gif|webp)(\?|$)/i.test(url));
+    this.showPreviewModal.set(true);
+  }
+
   openDocumentPreview(file: File, title: string): void {
     this.previewUrl.set(URL.createObjectURL(file));
     this.previewTitle.set(title);
@@ -236,33 +267,41 @@ export class ShipmentArrivalComponent {
           delayHours: tb.delayHours ?? null,
         }));
 
+        const payload = new FormData();
+        payload.append('arrivalOn', toDate(formValue['arrivalOn']));
+        payload.append('shipmentFreeRetentionDate', toDate(formValue['shipmentFreeRetentionDate']));
+        payload.append('portRetentionWithPenaltyDate', toDate(formValue['portRetentionWithPenaltyDate']));
+        payload.append('arrivalNoticeDate', toDate(formValue['arrivalNoticeDate']));
+        payload.append('advanceRequestDate', toDate(formValue['advanceRequestDate']));
+        payload.append('doReleasedDate', toDate(formValue['doReleasedDate']));
+        payload.append('doReleasedRemarks', formValue['doReleasedRemarks'] || '');
+        payload.append('dpApprovalDate', toDate(formValue['dpApprovalDate']));
+        payload.append('dpApprovalRemarks', formValue['dpApprovalRemarks'] || '');
+        payload.append('customsClearanceDate', toDate(formValue['customsClearanceDate']));
+        payload.append('customsClearanceRemarks', formValue['customsClearanceRemarks'] || '');
+        payload.append('tokenReceivedDate', toDate(formValue['tokenReceivedDate']));
+        payload.append('municipalityDate', toDate(formValue['municipalityDate']));
+        payload.append('municipalityRemarks', formValue['municipalityRemarks'] || '');
+        payload.append('transportationBooked', JSON.stringify(transportationBooked));
+
+        const fileMap: Array<[Step5DocKind, string]> = [
+          ['arrivalNotice', 'arrivalNoticeDocument'],
+          ['advanceRequest', 'advanceRequestDocument'],
+          ['doReleased', 'doReleasedDocument'],
+          ['dpApproval', 'dpApprovalDocument'],
+          ['customsClearance', 'customsClearanceDocument'],
+          ['municipality', 'municipalityDocument'],
+        ];
+        fileMap.forEach(([kind, key]) => {
+          const file = this.getFile(index, kind);
+          if (file) payload.append(key, file, file.name);
+        });
+
         this.store.dispatch(
           ShipmentActions.submitLogistics({
             containerId,
             index,
-            payload: {
-              arrivalOn: toDate(formValue['arrivalOn']),
-              shipmentFreeRetentionDate: toDate(formValue['shipmentFreeRetentionDate']),
-              portRetentionWithPenaltyDate: toDate(formValue['portRetentionWithPenaltyDate']),
-              arrivalNoticeDate: toDate(formValue['arrivalNoticeDate']),
-              arrivalNoticeDocumentUrl: '',
-              advanceRequestDate: toDate(formValue['advanceRequestDate']),
-              advanceRequestDocumentUrl: '',
-              doReleasedDate: toDate(formValue['doReleasedDate']),
-              doReleasedDocumentUrl: '',
-              doReleasedRemarks: formValue['doReleasedRemarks'] || '',
-              dpApprovalDate: toDate(formValue['dpApprovalDate']),
-              dpApprovalDocumentUrl: '',
-              dpApprovalRemarks: formValue['dpApprovalRemarks'] || '',
-              customsClearanceDate: toDate(formValue['customsClearanceDate']),
-              customsClearanceDocumentUrl: '',
-              customsClearanceRemarks: formValue['customsClearanceRemarks'] || '',
-              tokenReceivedDate: toDate(formValue['tokenReceivedDate']),
-              municipalityDate: toDate(formValue['municipalityDate']),
-              municipalityDocumentUrl: '',
-              municipalityRemarks: formValue['municipalityRemarks'] || '',
-              transportationBooked,
-            },
+            payload,
           })
         );
       },

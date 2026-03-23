@@ -115,16 +115,18 @@
         </ng-template>
         <ng-template pTemplate="body" let-group let-i="rowIndex">
           <tr [formGroup]="$any(group)">
-            <td class="planned-col-shipment text-slate-700 font-semibold text-xs">{{ getShipmentNoForRow(i) }}</td>
+            <td class="planned-col-shipment text-slate-700 font-semibold text-xs">{{ getScheduledShipmentId(i) }}</td>
             <td class="planned-col-compact">
               <p-inputNumber formControlName="FCL" styleClass="w-full"
-                inputStyleClass="table-input" ariaLabel="FCL Units" placeholder="1"
+                inputStyleClass="table-input text-center" ariaLabel="FCL Units" placeholder="1"
+                [min]="0" [max]="999" [minFractionDigits]="0" [maxFractionDigits]="0"
               ></p-inputNumber>
             </td>
             <td class="planned-col-compact">
               <p-inputNumber formControlName="size" styleClass="w-full"
-                inputStyleClass="table-input"
+                inputStyleClass="table-input text-center"
                 ariaLabel="Container Size" placeholder="Size"
+                [min]="0" [max]="999" [minFractionDigits]="0" [maxFractionDigits]="0"
               ></p-inputNumber>
             </td>
             <td class="planned-col-qty">
@@ -147,10 +149,9 @@
             <td class="planned-col-month text-slate-700 font-semibold text-xs">
               {{ getMonthLabel(group.get('eta')?.value) }}
             </td>
-            <td class="planned-col-week">
-              <input pInputText formControlName="weekWiseShipment"
-                class="table-input-text w-full" aria-label="Week of Shipment" placeholder="W1, W2..."
-              />
+            <td class="planned-col-week text-slate-700 font-semibold text-xs">
+              {{ getWeekLabelForRow($any(group)) }}
+              <input pInputText formControlName="weekWiseShipment" class="hidden" readonly />
             </td>
             @if (!isPlannedLocked()) {
               <td class="planned-col-action text-center">
@@ -158,7 +159,7 @@
                   <button
                     type="button"
                     (click)="removePlannedRow.emit(i)"
-                    [disabled]="plannedSplits.length <= 1"
+                    [disabled]="!canDeletePlannedRow(i)"
                     class="w-8 h-8 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
                     [attr.aria-label]="'Remove row ' + (i + 1)"
                   ><i class="pi pi-trash text-xs"></i></button>
@@ -204,7 +205,7 @@
       <p-table [value]="actualSplits.controls" styleClass="p-datatable-sm custom-tracker-table actual-table">
         <ng-template pTemplate="header">
           <tr>
-            <th scope="col" class="actual-col-serial">ACTUAL SERIAL NO</th>
+            <th scope="col" class="actual-col-serial">SCHEDULE SERIAL NO</th>
             <th scope="col" class="actual-col-shipment">SHIPMENT NO</th>
             <th scope="col" class="actual-col-compact">FCL</th>
             <th scope="col" class="actual-col-compact">SIZE</th>
@@ -221,26 +222,23 @@
         </ng-template>
         <ng-template pTemplate="body" let-group let-i="rowIndex">
           <tr [formGroup]="$any(group)" [class.bg-emerald-50/50]="isRowSubmitted(i)">
-            <td class="actual-col-serial">
-              <input
-                pInputText
-                formControlName="actualSerialNo"
-                class="table-input-text w-full"
-                aria-label="Actual Serial Number"
-                placeholder="1"
-              />
+            <td class="actual-col-serial text-slate-700 font-semibold text-xs">
+              {{ getScheduledShipmentId(i) }}
+              <input pInputText formControlName="actualSerialNo" class="hidden" />
             </td>
-            <td class="actual-col-shipment text-slate-700 font-semibold text-xs">{{ getShipmentNoForRow(i) }}</td>
+            <td class="actual-col-shipment text-slate-700 font-semibold text-xs">{{ getActualShipmentId(i) }}</td>
             <td class="actual-col-compact">
               <p-inputNumber formControlName="FCL" styleClass="w-full"
-                inputStyleClass="table-input bg-slate-100 opacity-80" ariaLabel="FCL" placeholder="–"
+                inputStyleClass="table-input bg-slate-100 opacity-80 text-center" ariaLabel="FCL" placeholder="–"
                 [readonly]="true"
+                [min]="0" [max]="999" [minFractionDigits]="0" [maxFractionDigits]="0"
               ></p-inputNumber>
             </td>
             <td class="actual-col-compact">
               <p-inputNumber formControlName="size" styleClass="w-full"
-                inputStyleClass="table-input bg-slate-100 opacity-80" ariaLabel="Size" placeholder="–"
+                inputStyleClass="table-input bg-slate-100 opacity-80 text-center" ariaLabel="Size" placeholder="–"
                 [readonly]="true"
+                [min]="0" [max]="999" [minFractionDigits]="0" [maxFractionDigits]="0"
               ></p-inputNumber>
             </td>
             <td class="actual-col-num">

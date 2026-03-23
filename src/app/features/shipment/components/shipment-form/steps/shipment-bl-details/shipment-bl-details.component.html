@@ -27,6 +27,20 @@
             <div class="flex items-center gap-2 shrink-0">
               <button
                 type="button"
+                (click)="$event.stopPropagation(); saveBLDetails(i)"
+                [disabled]="isSaving(i, 'bl')"
+                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                @if (isSaving(i, 'bl')) {
+                  <i class="pi pi-spin pi-spinner text-[10px]"></i>
+                  Saving...
+                } @else {
+                  <i class="pi pi-check text-[10px]"></i>
+                  Save
+                }
+              </button>
+              <button
+                type="button"
                 (click)="$event.stopPropagation(); openStatusModal(i)"
                 class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-wider bg-blue-50 text-blue-600 hover:bg-blue-100"
               >
@@ -126,6 +140,19 @@
                   <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
                     <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Cost Sheet Booking</span>
                     <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        (click)="saveCostSheet(i)"
+                        [disabled]="isSaving(i, 'cost')"
+                        class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
+                      >
+                        @if (isSaving(i, 'cost')) {
+                          <i class="pi pi-spin pi-spinner text-[10px]"></i>
+                        } @else {
+                          <i class="pi pi-check text-[10px]"></i>
+                        }
+                        Save
+                      </button>
                       <label class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0">
                         <i class="pi pi-upload"></i>
                         <input type="file" class="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" (change)="onBookingFileSelected($event, i)" />
@@ -137,9 +164,18 @@
                         <button type="button" (click)="clearBookingFile(i)" class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 shrink-0">
                           <i class="pi pi-trash"></i>
                         </button>
+                      } @else if (getSavedBookingUrl(group)) {
+                        <button type="button" (click)="openRemoteDocumentPreview(getSavedBookingUrl(group), getSavedBookingName(group) || 'Cost Sheet Attachment')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0">
+                          <i class="pi pi-eye"></i>
+                        </button>
                       }
                     </div>
                   </div>
+                  @if (!getBookingFile(i) && getSavedBookingName(group)) {
+                    <div class="px-4 py-2 border-b border-slate-100 bg-white">
+                      <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getSavedBookingName(group) }}</p>
+                    </div>
+                  }
 
                   <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.8fr)_160px_160px] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>
@@ -199,8 +235,21 @@
                 </div>
               } @else {
                 <div class="rounded-2xl border border-slate-200 overflow-hidden">
-                  <div class="px-4 py-3 bg-slate-50 border-b border-slate-100">
+                  <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-3">
                     <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Storage Allocations</span>
+                    <button
+                      type="button"
+                      (click)="saveStorageAllocations(i)"
+                      [disabled]="isSaving(i, 'storage')"
+                      class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
+                    >
+                      @if (isSaving(i, 'storage')) {
+                        <i class="pi pi-spin pi-spinner text-[10px]"></i>
+                      } @else {
+                        <i class="pi pi-check text-[10px]"></i>
+                      }
+                      Save
+                    </button>
                   </div>
                   <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.2fr)_minmax(0,1fr)_160px] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>

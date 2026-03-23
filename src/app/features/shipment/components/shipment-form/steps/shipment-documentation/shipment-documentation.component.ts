@@ -139,6 +139,33 @@ export class ShipmentDocumentationComponent {
     }));
   }
 
+  getSavedFileUrl(group: AbstractControl, kind: 'inwardAdvice' | 'murabahaSubmitted' | 'documentsReleased'): string {
+    const controlName =
+      kind === 'inwardAdvice'
+        ? 'inwardCollectionAdviceDocumentUrl'
+        : kind === 'murabahaSubmitted'
+          ? 'murabahaContractSubmittedDocumentUrl'
+          : 'documentsReleasedDocumentUrl';
+    return group.get(controlName)?.value || '';
+  }
+
+  getSavedFileName(group: AbstractControl, kind: 'inwardAdvice' | 'murabahaSubmitted' | 'documentsReleased'): string {
+    const controlName =
+      kind === 'inwardAdvice'
+        ? 'inwardCollectionAdviceDocumentName'
+        : kind === 'murabahaSubmitted'
+          ? 'murabahaContractSubmittedDocumentName'
+          : 'documentsReleasedDocumentName';
+    return group.get(controlName)?.value || '';
+  }
+
+  openRemoteDocumentPreview(url: string, title: string): void {
+    this.previewUrl.set(url);
+    this.previewTitle.set(title);
+    this.previewIsImage.set(/\.(png|jpe?g|gif|webp)(\?|$)/i.test(url));
+    this.showPreviewModal.set(true);
+  }
+
   openDocumentPreview(file: File, title: string): void {
     const url = URL.createObjectURL(file);
     this.previewUrl.set(url);
@@ -246,26 +273,33 @@ export class ShipmentDocumentationComponent {
         const toDate = (val: any) =>
           val ? new Date(val).toISOString().split('T')[0] : '';
 
+        const payload = new FormData();
+        payload.append('BLNo', formValue['BLNo'] || '');
+        payload.append('courierTrackNo', formValue['courierTrackNo'] || '');
+        payload.append('courierServiceProvider', formValue['courierServiceProvider'] || '');
+        payload.append('DHL', formValue['courierTrackNo'] || '');
+        payload.append('expectedDocDate', toDate(formValue['expectedDocDate']));
+        payload.append('receiver', formValue['receiver'] || '');
+        payload.append('bankName', formValue['bankName'] || '');
+        payload.append('inwardCollectionAdviceDate', toDate(formValue['inwardCollectionAdviceDate']));
+        payload.append('murabahaContractReleasedDate', toDate(formValue['murabahaContractReleasedDate']));
+        payload.append('murabahaContractApprovedDate', toDate(formValue['murabahaContractApprovedDate']));
+        payload.append('murabahaContractSubmittedDate', toDate(formValue['murabahaContractSubmittedDate']));
+        payload.append('documentsReleasedDate', toDate(formValue['documentsReleasedDate']));
+
+        const inwardAdvice = this.getFile(index, 'inwardAdvice');
+        const murabahaSubmitted = this.getFile(index, 'murabahaSubmitted');
+        const documentsReleased = this.getFile(index, 'documentsReleased');
+
+        if (inwardAdvice) payload.append('inwardCollectionAdviceDocument', inwardAdvice, inwardAdvice.name);
+        if (murabahaSubmitted) payload.append('murabahaContractSubmittedDocument', murabahaSubmitted, murabahaSubmitted.name);
+        if (documentsReleased) payload.append('documentsReleasedDocument', documentsReleased, documentsReleased.name);
+
         this.store.dispatch(
           ShipmentActions.submitDocumentation({
             containerId,
             index,
-            payload: {
-              BLNo: formValue['BLNo'] || '',
-              courierTrackNo: formValue['courierTrackNo'] || '',
-              courierServiceProvider: formValue['courierServiceProvider'] || '',
-              expectedDocDate: toDate(formValue['expectedDocDate']),
-              receiver: formValue['receiver'] || '',
-              bankName: formValue['bankName'] || '',
-              inwardCollectionAdviceDate: toDate(formValue['inwardCollectionAdviceDate']),
-              inwardCollectionAdviceDocumentUrl: '',
-              murabahaContractReleasedDate: toDate(formValue['murabahaContractReleasedDate']),
-              murabahaContractApprovedDate: toDate(formValue['murabahaContractApprovedDate']),
-              murabahaContractSubmittedDate: toDate(formValue['murabahaContractSubmittedDate']),
-              murabahaContractSubmittedDocumentUrl: '',
-              documentsReleasedDate: toDate(formValue['documentsReleasedDate']),
-              documentsReleasedDocumentUrl: '',
-            },
+            payload,
           })
         );
       },

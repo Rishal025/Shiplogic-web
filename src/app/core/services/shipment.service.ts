@@ -32,15 +32,45 @@ export interface CreatePlannedContainersPayload {
 }
 
 export interface ActualContainer {
+  actualSerialNo?: string;
+  commercialInvoiceNo?: string;
+  shipOnBoardDate?: string;
   size: string;
   FCL: number;
   qtyMT: number;
   bags: number;
+  pallet?: number;
   weekWiseShipment: string;
   buyingUnit: string;
   updatedETD: string;  // ISO date string
   updatedETA: string;  // ISO date string
   BLNo: string;
+}
+
+export interface BLDetailsPayload {
+  blNo: string;
+  shippedOnBoard: string;
+  portOfLoading: string;
+  portOfDischarge: string;
+  noOfContainers: number;
+  noOfBags: number;
+  quantityByMt: number;
+  shippingLine: string;
+  freeDetentionDays: number;
+  maximumDetentionDays: number;
+  freightPrepared: string;
+  costSheetBookings: Array<{
+    sn: number;
+    description: string;
+    requestAmount: number;
+    paidAmount: number;
+  }>;
+  storageAllocations: Array<{
+    sn: number;
+    containerSerialNo: string;
+    warehouse: string;
+    storageAvailability: number;
+  }>;
 }
 
 // Step 3: Documentation (Document Tracker)
@@ -75,18 +105,36 @@ export interface WarehouseScheduleItem extends DeliveryScheduleItem {
 }
 
 export interface LogisticsPayload {
-  deliveryOrderDocumentUrl: string;
-  deliveryOrderDate: string;
-  tokenDocumentUrl: string;
-  tokenDate: string;
-  transportArrangedDocumentUrl: string;
-  transportArrangedDate: string;
-  customsClearanceDocumentUrl: string;
+  arrivalOn: string;
+  shipmentFreeRetentionDate: string;
+  portRetentionWithPenaltyDate: string;
+  arrivalNoticeDate: string;
+  arrivalNoticeDocumentUrl: string;
+  advanceRequestDate: string;
+  advanceRequestDocumentUrl: string;
+  doReleasedDate: string;
+  doReleasedDocumentUrl: string;
+  doReleasedRemarks: string;
+  dpApprovalDate: string;
+  dpApprovalDocumentUrl: string;
+  dpApprovalRemarks: string;
   customsClearanceDate: string;
-  municipalityClearanceDocumentUrl: string;
-  municipalityClearanceDate: string;
-  deliverySchedules: DeliveryScheduleItem[];
-  warehouseSchedules: WarehouseScheduleItem[];
+  customsClearanceDocumentUrl: string;
+  customsClearanceRemarks: string;
+  tokenReceivedDate: string;
+  municipalityDate: string;
+  municipalityDocumentUrl: string;
+  municipalityRemarks: string;
+  transportationBooked: Array<{
+    sn?: number;
+    containerSerialNo: string;
+    transportCompanyName: string;
+    bookedDate: string;
+    bookingTime: string;
+    transportDate: string;
+    transportTime: string;
+    delayHours: number | null;
+  }>;
 }
 
 // Step 5: Clearance Payment
@@ -108,6 +156,22 @@ export interface GRNPayload {
   grnNo: string;
   grnDate: string;  // ISO date string
   statusRemarks: string;
+}
+
+export interface StorageDetailsPayload {
+  storageSplits: Array<{
+    containerSerialNo: string;
+    warehouse: string;
+    storageAvailability: number | null;
+    receivedOnDate: string;
+    receivedOnTime: string;
+    customsInspection: string;
+    grn: string;
+    batch: string;
+    productionDate: string;
+    expiryDate: string;
+    remarks: string;
+  }>;
 }
 
 @Injectable({
@@ -134,7 +198,7 @@ export class ShipmentService {
     return this.http.get<DashboardSummaryResponse>(`${this.apiUrl}/dashboard`);
   }
 
-  createShipment(payload: CreateShipmentPayload): Observable<CreateShipmentResponse> {
+  createShipment(payload: CreateShipmentPayload | FormData): Observable<CreateShipmentResponse> {
     return this.http.post<CreateShipmentResponse>(`${this.apiUrl}/create`, payload);
   }
 
@@ -191,8 +255,12 @@ export class ShipmentService {
    * @param containerId - The container ID
    * @param paymentData - Documentation and payment details
    */
-  submitDocumentationPayment(containerId: string, paymentData: DocumentationPaymentPayload): Observable<any> {
+  submitDocumentationPayment(containerId: string, paymentData: DocumentationPaymentPayload | FormData): Observable<any> {
     return this.http.patch(`${this.apiUrl}/container/payment/${containerId}`, paymentData);
+  }
+
+  submitBLDetails(containerId: string, payload: BLDetailsPayload | FormData): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/container/bl-details/${containerId}`, payload);
   }
 
   /**
@@ -201,7 +269,7 @@ export class ShipmentService {
    * @param containerId - The container ID
    * @param logisticsData - Arrival and clearance expected dates
    */
-  submitLogistics(containerId: string, logisticsData: LogisticsPayload): Observable<any> {
+  submitLogistics(containerId: string, logisticsData: LogisticsPayload | FormData): Observable<any> {
     return this.http.patch(`${this.apiUrl}/container/logistic/${containerId}`, logisticsData);
   }
 
@@ -223,6 +291,18 @@ export class ShipmentService {
    */
   submitClearance(containerId: string, clearanceData: ClearancePayload): Observable<any> {
     return this.http.patch(`${this.apiUrl}/container/clearance/${containerId}`, clearanceData);
+  }
+
+  submitStorageDetails(containerId: string, payload: StorageDetailsPayload | FormData): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/container/storage/${containerId}`, payload);
+  }
+
+  submitQualityDetails(containerId: string, payload: FormData): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/container/quality/${containerId}`, payload);
+  }
+
+  submitPaymentCostingDetails(containerId: string, payload: FormData): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/container/payment-costing/${containerId}`, payload);
   }
 
   /**

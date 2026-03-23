@@ -34,10 +34,10 @@
                 >
                   @if (submittingRowIndex() === i) {
                     <i class="pi pi-spin pi-spinner text-[10px]"></i>
-                    Tracking...
+                    Saving...
                   } @else {
-                    <i class="pi pi-compass text-[10px]"></i>
-                    Track
+                    <i class="pi pi-check text-[10px]"></i>
+                    Save
                   }
                 </button>
                 @if (isRowSubmitted(i)) {
@@ -85,7 +85,7 @@
               @for (doc of step5DocConfig; track doc.kind) {
                 <div class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 shadow-sm">
                   <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                    {{ doc.label }} + Document
+                    {{ doc.label }}
                   </label>
                   <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                     <p-datepicker [formControlName]="doc.dateControl" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
@@ -114,11 +114,21 @@
                         >
                           <i class="pi pi-trash"></i>
                         </button>
+                      } @else if (getSavedFileUrl(group, doc.kind)) {
+                        <button
+                          type="button"
+                          (click)="openRemoteDocumentPreview(getSavedFileUrl(group, doc.kind), getSavedFileName(group, doc.kind) || (doc.label + ' Document'))"
+                          class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0"
+                        >
+                          <i class="pi pi-eye"></i>
+                        </button>
                       }
                     </div>
                   </div>
                   @if (getFile(i, doc.kind)) {
                     <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getFile(i, doc.kind)?.name }}</p>
+                  } @else if (getSavedFileName(group, doc.kind)) {
+                    <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getSavedFileName(group, doc.kind) }}</p>
                   }
                   @if (doc.remarksControl) {
                     <div class="flex flex-col gap-1.5">
@@ -132,7 +142,7 @@
 
             <div class="rounded-2xl border border-slate-200 overflow-hidden">
               <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
-                <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Transportation Booked</span>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Transportation Arranged</span>
                 <span class="text-[9px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
                   Based on containers
                 </span>
@@ -142,10 +152,10 @@
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Container No</span>
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transport Company Name</span>
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Booked Date</span>
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Arranged Date</span>
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Booking Time</span>
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transport Date</span>
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transport Time</span>
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transportation Date</span>
+                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transportation Time</span>
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Delay Hours</span>
               </div>
 
@@ -156,9 +166,9 @@
                       <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
                       <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container No" />
                       <input pInputText formControlName="transportCompanyName" class="table-input-text w-full" placeholder="Company name" />
-                      <p-datepicker formControlName="bookedDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Booked date" styleClass="w-full" />
+                      <p-datepicker formControlName="bookedDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Arranged date" styleClass="w-full" />
                       <input pInputText formControlName="bookingTime" class="table-input-text w-full" placeholder="HH:MM" />
-                      <p-datepicker formControlName="transportDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Transport date" styleClass="w-full" />
+                      <p-datepicker formControlName="transportDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Transportation date" styleClass="w-full" />
                       <input pInputText formControlName="transportTime" class="table-input-text w-full" placeholder="HH:MM" />
                       <p-inputNumber formControlName="delayHours" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
                     </div>
@@ -176,7 +186,7 @@
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                           <div class="flex flex-col gap-1.5">
-                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Booked Date</label>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Arranged Date</label>
                             <p-datepicker formControlName="bookedDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Date" styleClass="w-full" />
                           </div>
                           <div class="flex flex-col gap-1.5">
@@ -186,11 +196,11 @@
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                           <div class="flex flex-col gap-1.5">
-                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Transport Date</label>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Transportation Date</label>
                             <p-datepicker formControlName="transportDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Date" styleClass="w-full" />
                           </div>
                           <div class="flex flex-col gap-1.5">
-                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Transport Time</label>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Transportation Time</label>
                             <input pInputText formControlName="transportTime" class="table-input-text w-full" placeholder="HH:MM" />
                           </div>
                         </div>

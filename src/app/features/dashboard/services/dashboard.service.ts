@@ -57,7 +57,16 @@ export class DashboardService {
           partiallyPaidShipments: response?.paymentSummary?.partiallyPaidShipments ?? 0,
           paidShipments: response?.paymentSummary?.paidShipments ?? 0
         },
-        recentShipments: Array.isArray(response?.recentShipments) ? response.recentShipments : []
+        recentShipments: Array.isArray(response?.recentShipments) ? response.recentShipments : [],
+        shippingStatus: {
+          orders: Array.isArray(response?.shippingStatus?.orders) ? response.shippingStatus.orders : [],
+          volumeToday: Array.isArray(response?.shippingStatus?.volumeToday) ? response.shippingStatus.volumeToday : [],
+          inventory: Array.isArray(response?.shippingStatus?.inventory) ? response.shippingStatus.inventory : [],
+          financialPerformance: Array.isArray(response?.shippingStatus?.financialPerformance)
+            ? response.shippingStatus.financialPerformance
+            : [],
+          monthlyKpis: Array.isArray(response?.shippingStatus?.monthlyKpis) ? response.shippingStatus.monthlyKpis : []
+        }
       };
   }
 

@@ -47,7 +47,7 @@
                 input {
                     @apply w-full border-none bg-transparent py-2 px-2 text-xs font-bold text-slate-900 text-center;
                     @apply focus:ring-1 focus:ring-blue-400 focus:bg-white focus:shadow-inner rounded;
-                    min-width: 60px;
+                    min-width: 0;
                 }
             }
 
@@ -141,8 +141,8 @@
                 }
 
                 th.actual-col-ci, td.actual-col-ci {
-                    width: 165px;
-                    min-width: 165px;
+                    width: 200px;
+                    min-width: 200px;
                 }
             }
         }
@@ -164,8 +164,8 @@
             }
 
             th.planned-col-qty, td.planned-col-qty {
-                width: 110px;
-                min-width: 110px;
+                width: 76px;
+                min-width: 76px;
             }
 
             th.planned-col-date, td.planned-col-date {
@@ -221,13 +221,13 @@
             .p-datatable-thead > tr > th { @apply bg-emerald-50/30 text-emerald-800; }
 
             /* Equal-width columns so inputs align with Scheduled table */
-            th.actual-col-serial, td.actual-col-serial { width: 118px; min-width: 118px; }
-            th.actual-col-shipment, td.actual-col-shipment { width: 120px; min-width: 120px; }
-            th.actual-col-num, td.actual-col-num { width: 90px; min-width: 90px; }
-            th.actual-col-compact, td.actual-col-compact { width: 68px; min-width: 68px; }
-            th.actual-col-ci, td.actual-col-ci { width: 170px; min-width: 170px; }
+            th.actual-col-serial, td.actual-col-serial { width: 190px; min-width: 190px; }
+            th.actual-col-shipment, td.actual-col-shipment { width: 180px; min-width: 180px; }
+            th.actual-col-num, td.actual-col-num { width: 68px; min-width: 68px; }
+            th.actual-col-compact, td.actual-col-compact { width: 54px; min-width: 54px; }
+            th.actual-col-ci, td.actual-col-ci { width: 220px; min-width: 220px; }
             th.actual-col-bl, td.actual-col-bl { width: 200px; min-width: 200px; }
-            th.actual-col-date, td.actual-col-date { width: 115px; min-width: 115px; }
+            th.actual-col-date, td.actual-col-date { width: 132px; min-width: 132px; }
             th.actual-col-action, td.actual-col-action { width: 100px; min-width: 100px; }
 
             .actual-col-serial .table-input-text,

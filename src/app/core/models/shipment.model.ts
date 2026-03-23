@@ -76,6 +76,49 @@ export interface DashboardSummaryResponse {
   arrivalSummary: DashboardArrivalSummary;
   paymentSummary: DashboardPaymentSummary;
   recentShipments: DashboardRecentShipment[];
+  shippingStatus?: DashboardShippingStatus;
+}
+
+export interface DashboardShippingStatusOrder {
+  _id: string;
+  customer: string;
+  orderStatus: string;
+  orderDate?: string;
+}
+
+export interface DashboardShippingStatusMetric {
+  label: string;
+  value: number;
+}
+
+export interface DashboardShippingStatusInventoryRow {
+  category: string;
+  product: string;
+  sku: string;
+  inStock: number;
+}
+
+export interface DashboardShippingStatusPerformanceRow {
+  label: string;
+  cashToCash: number;
+  accountRec: number;
+  inventoryDays: number;
+  payableDays: number;
+}
+
+export interface DashboardShippingStatusMonthlyKpiRow {
+  metric: string;
+  thisMonth: number;
+  pastMonth: number;
+  change: number;
+}
+
+export interface DashboardShippingStatus {
+  orders: DashboardShippingStatusOrder[];
+  volumeToday: DashboardShippingStatusMetric[];
+  inventory: DashboardShippingStatusInventoryRow[];
+  financialPerformance: DashboardShippingStatusPerformanceRow[];
+  monthlyKpis: DashboardShippingStatusMonthlyKpiRow[];
 }
 
 // Create Shipment Payload
@@ -83,8 +126,20 @@ export interface CreateShipmentPayload {
   poNumber: string;              // Shipment No.
   year: string;                  // Year (not shown in UI)
   orderDate: string;             // Order Date (YYYY-MM-DD)
-  supplierId: string;            // Supplier ID from dropdown
+  supplierId?: string;           // Optional supplier master ID
+  supplierName: string;          // Supplier text
   itemId?: string;               // Item ID from dropdown (optional)
+  itemCode?: string;
+  itemDescription?: string;
+  commodity?: string;
+  countryOfOrigin?: string;
+  brandName?: string;
+  barcode?: string;
+  variant?: string;
+  hsCode?: string;
+  packing?: string;
+  portOfLoading?: string;
+  portOfDischarge?: string;
   plannedQtyMT: string;          // Planned Quantity MT
   estimatedContainerCount: string; // Planned Containers
   estimatedContainerSize: string;  // Container Size
@@ -99,6 +154,8 @@ export interface CreateShipmentPayload {
   incoterms?: string;            // Inco Terms
   buyunit?: string;           // Buying Unit (MT/Bag)
   paymentTerms?: string;         // Payment Terms
+  bankName?: string;
+  q1Report?: string;
   splitContainers?: string;      // Split Containers
   totalSplitQtyMT?: string;      // Total Split Quantity MT (from Split Containers)
 }
@@ -132,6 +189,16 @@ export interface CreateShipmentResponse {
     };
     currentStage: string;
     _id: string;
+    supplierName?: string;
+    itemCode?: string;
+    itemDescription?: string;
+    commodity?: string;
+    countryOfOrigin?: string;
+    brandName?: string;
+    barcode?: string;
+    variant?: string;
+    hsCode?: string;
+    q1Report?: Record<string, unknown> | null;
     createdAt: string;
     updatedAt: string;
     __v: number;
@@ -198,6 +265,18 @@ export interface ExtractedShipmentData {
   expectedETA?: string;
   /** From Python shipment_calculations; used for FCL/pallet/bags and price-mismatch warning. */
   shipmentCalculations?: ShipmentCalculations;
+  /** Full S1 quality extraction payload from Python response (s1_quality_report). */
+  q1Report?: {
+    report_details?: {
+      report_date?: string | null;
+      report_no?: string | null;
+    };
+    sample_details?: Record<string, unknown>;
+    quality_parameters?: Array<Record<string, unknown>>;
+    cooking_result?: Record<string, unknown>;
+    analysis_details?: Record<string, unknown>;
+    [key: string]: unknown;
+  };
 }
 
 export interface ExtractShipmentFromDocumentsResponse {
@@ -208,6 +287,23 @@ export interface ExtractShipmentFromDocumentsResponse {
 /** Response from bill-no extraction API (POST /shipment/extract-bill-no). */
 export interface ExtractBillNoResponse {
   bill_no: string;
+  invoice_number?: string;
+  shipped_on_board_date?: string;
+  port_of_loading?: string;
+  port_of_discharge?: string;
+  number_of_containers?: number;
+  number_of_bags?: number;
+  quantity_mt?: number;
+  shipping_line?: string;
+  free_detention_days?: number;
+  maximum_detention_days?: number;
+  freight_prepaid?: boolean;
+  containers?: Array<{
+    container_no?: string;
+    containerNo?: string;
+    pkg_ct?: number;
+    pkgCt?: number;
+  }>;
   metadata?: {
     input_tokens?: number;
     output_tokens?: number;
@@ -235,6 +331,10 @@ export interface ShipmentInfo {
   fpoNo?: string;
   supplier: string;
   item: string;
+  itemCode?: string;
+  commodity?: string;
+  countryOfOrigin?: string;
+  itemDescription?: string;
   riceName?: string;
   packing?: string;
   piNo: string;
@@ -257,6 +357,7 @@ export interface ShipmentInfo {
   proformaDocumentUrl?: string;
   s1QualityReportName?: string;
   s1QualityReportUrl?: string;
+  q1Report?: Record<string, unknown> | null;
   plannedETD?: string;
   plannedETA?: string;
   containerSize?: number;
@@ -307,6 +408,54 @@ export interface ActualContainer {
   updatedETD?: string;
   updatedETA?: string;
   BLNo?: string;
+  portOfLoading?: string;
+  portOfDischarge?: string;
+  noOfContainers?: number;
+  noOfBags?: number;
+  quantityByMt?: number;
+  shippingLine?: string;
+  freeDetentionDays?: number;
+  maximumDetentionDays?: number;
+  freightPrepared?: string;
+  billExtractionData?: {
+    bill_no?: string;
+    invoice_number?: string;
+    shipped_on_board_date?: string;
+    port_of_loading?: string;
+    port_of_discharge?: string;
+    number_of_containers?: number;
+    number_of_bags?: number;
+    quantity_mt?: number;
+    shipping_line?: string;
+    free_detention_days?: number;
+    maximum_detention_days?: number;
+    freight_prepaid?: boolean;
+    vessel_name?: string;
+    containers?: Array<{
+      container_no?: string;
+      pkg_ct?: number;
+      containerNo?: string;
+      pkgCt?: number;
+    }>;
+  };
+  extractedContainers?: Array<{
+    containerNo?: string;
+    pkgCt?: number;
+  }>;
+  costSheetBookingDocumentUrl?: string;
+  costSheetBookingDocumentName?: string;
+  costSheetBookings?: {
+    sn?: number;
+    description?: string;
+    requestAmount?: number;
+    paidAmount?: number;
+  }[];
+  storageAllocations?: {
+    sn?: number;
+    containerSerialNo?: string;
+    warehouse?: string;
+    storageAvailability?: number;
+  }[];
   // Step 3: Documentation — Purchase
   DHL?: string;
   courierTrackNo?: string;
@@ -317,12 +466,15 @@ export interface ActualContainer {
   bankName?: string;
   inwardCollectionAdviceDate?: string;
   inwardCollectionAdviceDocumentUrl?: string;
+  inwardCollectionAdviceDocumentName?: string;
   murabahaContractReleasedDate?: string;
   murabahaContractApprovedDate?: string;
   murabahaContractSubmittedDate?: string;
   murabahaContractSubmittedDocumentUrl?: string;
+  murabahaContractSubmittedDocumentName?: string;
   documentsReleasedDate?: string;
   documentsReleasedDocumentUrl?: string;
+  documentsReleasedDocumentName?: string;
   // Step 3: Documentation — legacy
   bankAdvanceAmountDocumentUrl?: string;
   bankAdvanceApprovedDocumentUrl?: string;
@@ -337,25 +489,29 @@ export interface ActualContainer {
   shipmentFreeRetentionDate?: string;
   portRetentionWithPenaltyDate?: string;
   arrivalNoticeDocumentUrl?: string;
+  arrivalNoticeDocumentName?: string;
   arrivalNoticeDate?: string;
   advanceRequestDocumentUrl?: string;
+  advanceRequestDocumentName?: string;
   advanceRequestDate?: string;
 
-  deliveryOrderDocumentUrl?: string;
-  deliveryOrderDate?: string;
-  deliveryOrderRemarks?: string;
-
   dpApprovalDocumentUrl?: string;
+  dpApprovalDocumentName?: string;
   dpApprovalDate?: string;
   dpApprovalRemarks?: string;
 
   customsClearanceDocumentUrl?: string;
+  customsClearanceDocumentName?: string;
   customsClearanceDate?: string;
   customsClearanceRemarks?: string;
 
   tokenDocumentUrl?: string;
   tokenDate?: string;
 
+  municipalityDocumentUrl?: string;
+  municipalityDocumentName?: string;
+  municipalityDate?: string;
+  municipalityRemarks?: string;
   municipalityClearanceDocumentUrl?: string;
   municipalityClearanceDate?: string;
   municipalityClearanceRemarks?: string;
@@ -369,11 +525,23 @@ export interface ActualContainer {
   transportDelayHours?: number;
   transportTokenGateNo?: string;
 
-  transportArrangedDocumentUrl?: string;
-  transportArrangedDate?: string;
+  doReleasedDate?: string;
+  doReleasedDocumentUrl?: string;
+  doReleasedDocumentName?: string;
+  doReleasedRemarks?: string;
 
   deliverySchedules?: DeliverySchedule[];
   warehouseSchedules?: WarehouseSchedule[];
+  transportationBooked?: Array<{
+    sn?: number;
+    containerSerialNo?: string;
+    transportCompanyName?: string;
+    bookedDate?: string;
+    bookingTime?: string;
+    transportDate?: string;
+    transportTime?: string;
+    delayHours?: number;
+  }>;
   // Step 4 legacy
   clearExpectedOn?: string;
   shipmentArrivedOn?: string;
@@ -392,7 +560,8 @@ export interface ActualContainer {
     customsInspection?: string;
     grn?: string;
     batch?: string;
-    products?: string;
+    productionDate?: string;
+    expiryDate?: string;
     remarks?: string;
   }[];
 
@@ -424,6 +593,51 @@ export interface ActualContainer {
     grnDate: string;
     statusRemarks: string;
   };
+  qualityRows?: {
+    sn?: number;
+    sampleNo?: string;
+    phase?: string;
+    date?: string;
+    inhouseReportNo?: string;
+    inhouseReportDate?: string;
+    inhouseReportDocumentUrl?: string;
+    inhouseReportDocumentName?: string;
+    strategicReportNo?: string;
+    strategicReportDate?: string;
+    strategicReportDocumentUrl?: string;
+    strategicReportDocumentName?: string;
+    thirdPartyReportNo?: string;
+    thirdPartyReportDate?: string;
+    thirdPartyReportDocumentUrl?: string;
+    thirdPartyReportDocumentName?: string;
+  }[];
+  qualityReports?: {
+    phase?: string;
+    reportDate?: string;
+    remarks?: string;
+    documentUrl?: string;
+    documentName?: string;
+  }[];
+  paymentAllocations?: {
+    sn?: number;
+    description?: string;
+    requestAmount?: number;
+    paidAmount?: number;
+  }[];
+  paymentCostings?: {
+    sn?: number;
+    description?: string;
+    requestAmount?: number;
+    paidAmount?: number;
+    actualPaid?: number;
+    refBillNo?: string;
+    refBillDate?: string;
+    refBillVendor?: string;
+    refBillDocumentUrl?: string;
+    refBillDocumentName?: string;
+  }[];
+  paymentCostingDocumentUrl?: string;
+  paymentCostingDocumentName?: string;
 }
 
 // Legacy interfaces for form/detail views (keep for backward compatibility)

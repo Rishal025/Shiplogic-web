@@ -188,3 +188,183 @@
 .sl-empty {
     @apply text-center text-sm text-slate-500;
 }
+
+.shipping-status-card {
+    @apply rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm sm:p-6;
+}
+
+.shipping-status-head {
+    @apply mb-4 border-b border-slate-200 pb-3;
+
+    h2 {
+        @apply text-lg font-black tracking-tight text-slate-900 sm:text-xl;
+    }
+}
+
+.shipping-status-grid {
+    @apply grid grid-cols-1 gap-4 xl:grid-cols-2;
+}
+
+.status-panel {
+    @apply rounded-2xl border border-slate-200 bg-slate-50/40 p-4 sm:p-5;
+}
+
+.status-panel-title {
+    @apply mb-3 text-sm font-black uppercase tracking-[0.16em] text-slate-700;
+}
+
+.status-filter-row {
+    @apply mb-3 flex flex-col gap-2 text-sm text-slate-600 sm:flex-row sm:items-center;
+
+    label {
+        @apply text-xs font-bold uppercase tracking-[0.12em] text-slate-500;
+    }
+
+    select {
+        @apply min-w-[180px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition;
+    }
+
+    select:focus {
+        @apply border-blue-500 ring-2 ring-blue-100;
+    }
+}
+
+.status-table-wrap {
+    @apply max-h-[235px] overflow-auto;
+}
+
+.status-table {
+    @apply w-full border-separate border-spacing-0;
+
+    th {
+        @apply border-b border-slate-200 px-3 py-2 text-left text-[10px] font-black uppercase tracking-[0.12em] text-slate-400;
+    }
+
+    td {
+        @apply border-b border-slate-100 px-3 py-2 text-sm text-slate-700;
+    }
+}
+
+.status-table.compact {
+    th {
+        @apply text-[9px];
+    }
+
+    td {
+        @apply py-2 text-xs;
+    }
+}
+
+.status-empty {
+    @apply py-6 text-center text-sm text-slate-500;
+}
+
+.status-metric-grid {
+    @apply grid grid-cols-2 gap-3;
+}
+
+.status-metric {
+    @apply rounded-xl border border-slate-200 bg-white p-3;
+
+    span {
+        @apply text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500;
+    }
+
+    strong {
+        @apply mt-1 block text-2xl font-black text-slate-900;
+    }
+}
+
+.perf-legend {
+    @apply mb-3 flex flex-wrap gap-x-4 gap-y-2;
+
+    span {
+        @apply inline-flex items-center gap-2 text-[11px] text-slate-600;
+    }
+}
+
+.dot {
+    @apply h-2.5 w-2.5 rounded-full;
+}
+
+.dot.cash {
+    @apply bg-blue-500;
+}
+
+.dot.rec {
+    @apply bg-emerald-500;
+}
+
+.dot.inv {
+    @apply bg-amber-500;
+}
+
+.dot.pay {
+    @apply bg-rose-500;
+}
+
+.perf-chart {
+    @apply flex h-[230px] items-end gap-3 overflow-x-auto pb-1;
+}
+
+.perf-col {
+    @apply flex min-w-[96px] flex-1 flex-col items-center gap-2;
+
+    span {
+        @apply text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500;
+    }
+}
+
+.perf-bars {
+    @apply flex h-[190px] w-full items-end justify-center gap-1 rounded-xl bg-white p-2;
+}
+
+.bar {
+    @apply w-4 rounded-t-md transition-all;
+}
+
+.bar.cash {
+    @apply bg-blue-500;
+}
+
+.bar.rec {
+    @apply bg-emerald-500;
+}
+
+.bar.inv {
+    @apply bg-amber-500;
+}
+
+.bar.pay {
+    @apply bg-rose-500;
+}
+
+.stage-donut-wrap {
+    @apply mt-4 flex flex-col gap-3 sm:flex-row sm:items-center;
+}
+
+.stage-donut {
+    @apply h-[150px] w-[150px] rounded-full border border-slate-200 bg-slate-100;
+}
+
+.stage-legend {
+    @apply grid flex-1 grid-cols-1 gap-2;
+}
+
+.legend-item {
+    @apply flex items-center gap-2 text-xs text-slate-600;
+
+    i {
+        @apply h-2.5 w-2.5 rounded-full;
+    }
+}
+
+@media (max-width: 767px) {
+    .shipping-status-grid {
+        @apply grid-cols-1;
+    }
+
+    .status-metric-grid {
+        @apply grid-cols-1;
+    }
+}

@@ -13,11 +13,26 @@
 } @else {
   <p-accordion [multiple]="true" styleClass="flex flex-col gap-3">
     @for (group of formArray.controls; track $index; let i = $index) {
-      <p-accordion-panel [value]="'quality-' + i" styleClass="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+        <p-accordion-panel [value]="'quality-' + i" styleClass="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         <p-accordion-header styleClass="bg-white hover:bg-slate-50 px-4 py-3">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <span class="w-6 h-6 rounded-full bg-slate-800 text-white text-[10px] font-black flex items-center justify-center shrink-0">{{ i + 1 }}</span>
-            <span class="text-xs font-bold text-slate-700 truncate">Shipment No: {{ getShipmentNoLabel(i) }}</span>
+          <div class="flex items-center justify-between gap-3 w-full pr-2">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-6 h-6 rounded-full bg-slate-800 text-white text-[10px] font-black flex items-center justify-center shrink-0">{{ i + 1 }}</span>
+              <span class="text-xs font-bold text-slate-700 truncate">Shipment No: {{ getShipmentNoLabel(i) }}</span>
+            </div>
+            <button
+              type="button"
+              (click)="$event.stopPropagation(); saveRow(i)"
+              class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+            >
+              @if (savingRowIndex() === i) {
+                <i class="pi pi-spin pi-spinner text-[10px]"></i>
+                Saving...
+              } @else {
+                <i class="pi pi-check text-[10px]"></i>
+                Save
+              }
+            </button>
           </div>
         </p-accordion-header>
         <p-accordion-content styleClass="bg-white">
@@ -63,37 +78,43 @@
 
                     <div class="grid grid-cols-1 xl:grid-cols-3 gap-3">
                       <div class="rounded-xl border border-slate-100 p-3 flex flex-col gap-2.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Report No (Inhouse) Date + Document</label>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">In-house Report</label>
                         <input pInputText formControlName="inhouseReportNo" class="table-input-text w-full" placeholder="Report no" />
                         <div class="flex items-center gap-2">
                           <p-datepicker formControlName="inhouseReportDate" appendTo="body" inputStyleClass="table-input w-full" styleClass="flex-1" placeholder="Date"></p-datepicker>
                           <button type="button" (click)="clickFileInput(i, r, 'inhouse', 'qualityRows')" class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><i class="pi pi-upload"></i></button>
                           @if (getFile(i, r, 'inhouse', 'qualityRows')) {
                             <button type="button" (click)="openDocumentPreview(getFile(i, r, 'inhouse', 'qualityRows')!, 'Inhouse Report')" class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><i class="pi pi-eye"></i></button>
+                          } @else if (getSavedUrl(row, 'inhouse', 'qualityRows')) {
+                            <button type="button" (click)="openRemoteDocumentPreview(getSavedUrl(row, 'inhouse', 'qualityRows'), getSavedName(row, 'inhouse', 'qualityRows') || 'In-house Report')" class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><i class="pi pi-eye"></i></button>
                           }
                         </div>
                       </div>
 
                       <div class="rounded-xl border border-slate-100 p-3 flex flex-col gap-2.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Report No (Strategic Stock) Date + Document</label>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Strategic Stock Report</label>
                         <input pInputText formControlName="strategicReportNo" class="table-input-text w-full" placeholder="Report no" />
                         <div class="flex items-center gap-2">
                           <p-datepicker formControlName="strategicReportDate" appendTo="body" inputStyleClass="table-input w-full" styleClass="flex-1" placeholder="Date"></p-datepicker>
                           <button type="button" (click)="clickFileInput(i, r, 'strategic', 'qualityRows')" class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><i class="pi pi-upload"></i></button>
                           @if (getFile(i, r, 'strategic', 'qualityRows')) {
                             <button type="button" (click)="openDocumentPreview(getFile(i, r, 'strategic', 'qualityRows')!, 'Strategic Stock Report')" class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><i class="pi pi-eye"></i></button>
+                          } @else if (getSavedUrl(row, 'strategic', 'qualityRows')) {
+                            <button type="button" (click)="openRemoteDocumentPreview(getSavedUrl(row, 'strategic', 'qualityRows'), getSavedName(row, 'strategic', 'qualityRows') || 'Strategic Stock Report')" class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><i class="pi pi-eye"></i></button>
                           }
                         </div>
                       </div>
 
                       <div class="rounded-xl border border-slate-100 p-3 flex flex-col gap-2.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Report No (Third Party Lab) Date + Document</label>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Third Party Lab Report</label>
                         <input pInputText formControlName="thirdPartyReportNo" class="table-input-text w-full" placeholder="Report no" />
                         <div class="flex items-center gap-2">
                           <p-datepicker formControlName="thirdPartyReportDate" appendTo="body" inputStyleClass="table-input w-full" styleClass="flex-1" placeholder="Date"></p-datepicker>
                           <button type="button" (click)="clickFileInput(i, r, 'thirdParty', 'qualityRows')" class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><i class="pi pi-upload"></i></button>
                           @if (getFile(i, r, 'thirdParty', 'qualityRows')) {
                             <button type="button" (click)="openDocumentPreview(getFile(i, r, 'thirdParty', 'qualityRows')!, 'Third Party Lab Report')" class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><i class="pi pi-eye"></i></button>
+                          } @else if (getSavedUrl(row, 'thirdParty', 'qualityRows')) {
+                            <button type="button" (click)="openRemoteDocumentPreview(getSavedUrl(row, 'thirdParty', 'qualityRows'), getSavedName(row, 'thirdParty', 'qualityRows') || 'Third Party Lab Report')" class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><i class="pi pi-eye"></i></button>
                           }
                         </div>
                       </div>
@@ -105,7 +126,7 @@
 
             <div class="quality-section-shell rounded-2xl border border-slate-200 overflow-hidden">
               <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
-                <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Quality Reports</span>
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Additional Quality Report</span>
                 <button type="button" (click)="addQualityReportRow(group)" class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50">
                   <i class="pi pi-plus"></i> Add Row
                 </button>
@@ -114,7 +135,7 @@
               <div class="p-3 sm:p-4 flex flex-col gap-3" formArrayName="qualityReports">
                 @for (row of getQualityReports(group).controls; track $index; let r = $index) {
                   <div [formGroupName]="r" class="rounded-xl border border-slate-200 bg-white p-3 sm:p-4 overflow-x-auto">
-                    <div class="min-w-[640px] flex items-end gap-3">
+                    <div class="min-w-[760px] flex items-end gap-3">
                       <div class="flex flex-col gap-1.5 w-20 shrink-0">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">SN</label>
                         <div class="table-input-text w-full bg-slate-50 flex items-center">{{ r + 1 }}</div>
@@ -127,6 +148,10 @@
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Report Date</label>
                         <p-datepicker formControlName="reportDate" appendTo="body" inputStyleClass="table-input w-full" styleClass="w-full" placeholder="Date"></p-datepicker>
                       </div>
+                      <div class="flex flex-col gap-1.5 w-56 shrink-0">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Remarks</label>
+                        <input pInputText formControlName="remarks" class="table-input-text w-full" placeholder="Remarks" />
+                      </div>
                       <div class="flex flex-col gap-1.5 shrink-0">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Document Upload</label>
                         <div class="flex items-center gap-2">
@@ -134,6 +159,8 @@
                           @if (getFile(i, r, 'report', 'qualityReports')) {
                             <button type="button" (click)="openDocumentPreview(getFile(i, r, 'report', 'qualityReports')!, 'Quality Report')" class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><i class="pi pi-eye"></i></button>
                             <button type="button" (click)="clearFile(i, r, 'report', 'qualityReports')" class="w-9 h-9 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100"><i class="pi pi-trash"></i></button>
+                          } @else if (getSavedUrl(row, 'report', 'qualityReports')) {
+                            <button type="button" (click)="openRemoteDocumentPreview(getSavedUrl(row, 'report', 'qualityReports'), getSavedName(row, 'report', 'qualityReports') || 'Additional Quality Report')" class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><i class="pi pi-eye"></i></button>
                           }
                         </div>
                       </div>

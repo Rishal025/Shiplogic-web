@@ -108,7 +108,7 @@
                 (click)="onExtractAndAutopopulate()"
                 appButton
                 class="shadow-sm w-full md:w-auto"
-                [disabled]="!document1File() || !document2File() || extracting()">
+                [disabled]="!document1File() || !document2File() || !s1QualityReportFile() || extracting()">
                 <i [class]="extracting() ? 'pi pi-spin pi-spinner mr-2' : 'pi pi-download mr-2'"></i>
                 <span>{{ extracting() ? 'Extracting...' : 'Extract & autopopulate' }}</span>
               </button>
@@ -151,40 +151,12 @@
               </p-select>
             </div>
             <div class="flex flex-col">
-              <label class="sl-label">Item</label>
-              <p-select 
-                [options]="items()"
-                formControlName="item" 
-                optionLabel="description"
-                optionValue="_id"
-                placeholder="Select Item" 
-                [showClear]="true" 
-                [virtualScroll]="true"
-                [virtualScrollItemSize]="38"
-                [filter]="true"
-                filterBy="description,itemCode,riceName"
-                styleClass="w-full" 
-                appendTo="body">
-                <ng-template let-item pTemplate="item">
-                  <div class="flex flex-col">
-                    <span class="font-semibold text-sm">{{ item.description }}</span>
-                    <span class="text-xs text-slate-500">{{ item.itemCode }} • {{ item.packing }}</span>
-                  </div>
-                </ng-template>
-              </p-select>
+              <label class="sl-label">Item Code</label>
+              <input pInputText formControlName="itemCode" placeholder="Enter item code" class="w-full" />
             </div>
             <div class="flex flex-col">
               <label class="sl-label">Commodity</label>
-              <p-select 
-                [options]="commodities"
-                formControlName="commodity" 
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Select Commodity" 
-                [showClear]="true" 
-                styleClass="w-full" 
-                appendTo="body">
-              </p-select>
+              <input pInputText formControlName="commodity" placeholder="Enter commodity" class="w-full" />
             </div>
             <div class="flex flex-col">
               <label class="sl-label">Brand</label>
@@ -220,26 +192,7 @@
           <div class="sl-card-body grid grid-cols-1 md:grid-cols-2 gap-5">
             <div class="flex flex-col">
               <label class="sl-label">Supplier</label>
-              <p-select 
-                [options]="suppliers()"
-                formControlName="supplier" 
-                optionLabel="name"
-                optionValue="_id"
-                placeholder="Select Supplier" 
-                [showClear]="true" 
-                [virtualScroll]="true"
-                [virtualScrollItemSize]="38"
-                [filter]="true"
-                filterBy="name,supplierCode,country"
-                styleClass="w-full" 
-                appendTo="body">
-                <ng-template let-supplier pTemplate="item">
-                  <div class="flex flex-col">
-                    <span class="font-semibold text-sm">{{supplier.name}}</span>
-                    <span class="text-xs text-slate-500">{{supplier.supplierCode}} • {{supplier.country}}</span>
-                  </div>
-                </ng-template>
-              </p-select>
+              <input pInputText formControlName="supplier" placeholder="Enter supplier name" class="w-full" />
             </div>
             <div class="flex flex-col">
               <label class="sl-label">Country of Origin</label>

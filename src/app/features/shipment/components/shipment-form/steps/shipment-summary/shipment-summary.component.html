@@ -19,8 +19,9 @@
           </div>
           <button
             type="button"
-            class="w-9 h-9 rounded-full border border-slate-200 bg-white text-slate-400 flex items-center justify-center"
+            class="w-9 h-9 rounded-full border border-slate-200 bg-white text-slate-400 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:text-blue-600 hover:border-blue-200 transition-colors"
             [disabled]="!shipmentData()?.shipment?.lpoDocumentUrl"
+            (click)="openDocument(shipmentData()?.shipment?.lpoDocumentUrl, 'LPO')"
             [title]="shipmentData()?.shipment?.lpoDocumentUrl ? 'View LPO' : 'LPO preview not available yet'">
             <i class="pi pi-eye"></i>
           </button>
@@ -37,8 +38,9 @@
           </div>
           <button
             type="button"
-            class="w-9 h-9 rounded-full border border-slate-200 bg-white text-slate-400 flex items-center justify-center"
+            class="w-9 h-9 rounded-full border border-slate-200 bg-white text-slate-400 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:text-blue-600 hover:border-blue-200 transition-colors"
             [disabled]="!shipmentData()?.shipment?.proformaDocumentUrl"
+            (click)="openDocument(shipmentData()?.shipment?.proformaDocumentUrl, 'Pro-forma Invoice')"
             [title]="shipmentData()?.shipment?.proformaDocumentUrl ? 'View Pro-forma Invoice' : 'Pro-forma preview not available yet'">
             <i class="pi pi-eye"></i>
           </button>
@@ -55,8 +57,9 @@
           </div>
           <button
             type="button"
-            class="w-9 h-9 rounded-full border border-slate-200 bg-white text-slate-400 flex items-center justify-center"
+            class="w-9 h-9 rounded-full border border-slate-200 bg-white text-slate-400 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:text-blue-600 hover:border-blue-200 transition-colors"
             [disabled]="!shipmentData()?.shipment?.s1QualityReportUrl"
+            (click)="openDocument(shipmentData()?.shipment?.s1QualityReportUrl, 'S1 Quality Report')"
             [title]="shipmentData()?.shipment?.s1QualityReportUrl ? 'View S1 Quality Report' : 'S1 Quality Report preview not available yet'">
             <i class="pi pi-eye"></i>
           </button>
@@ -99,14 +102,6 @@
           <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Container Size</span>
           <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.containerSize ?? '–' }}</span>
         </div>
-        <div class="flex flex-col gap-1 md:col-span-2">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Planned ETD / ETA</span>
-          <span class="text-sm font-semibold text-slate-900">
-            {{ (shipmentData()?.shipment?.plannedETD | date: 'mediumDate') || '–' }}
-            <span class="text-slate-400 mx-1">/</span>
-            {{ (shipmentData()?.shipment?.plannedETA | date: 'mediumDate') || '–' }}
-          </span>
-        </div>
       </div>
     </section>
 
@@ -124,8 +119,12 @@
           <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.supplier || '–' }}</span>
         </div>
         <div class="flex flex-col gap-1">
+          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Item Code</span>
+          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.itemCode || '–' }}</span>
+        </div>
+        <div class="flex flex-col gap-1">
           <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Commodity / Item</span>
-          <span class="text-sm font-semibold text-slate-900 line-clamp-2" [title]="shipmentData()?.shipment?.item || ''">{{ shipmentData()?.shipment?.item || '–' }}</span>
+          <span class="text-sm font-semibold text-slate-900 line-clamp-2" [title]="shipmentData()?.shipment?.itemDescription || shipmentData()?.shipment?.item || ''">{{ shipmentData()?.shipment?.commodity || shipmentData()?.shipment?.itemDescription || shipmentData()?.shipment?.item || '–' }}</span>
         </div>
         <div class="flex flex-col gap-1">
           <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Brand</span>
@@ -150,6 +149,10 @@
         <div class="flex flex-col gap-1">
           <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">H.S Code</span>
           <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.hsCode || '–' }}</span>
+        </div>
+        <div class="flex flex-col gap-1">
+          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Country of Origin</span>
+          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.countryOfOrigin || '–' }}</span>
         </div>
       </div>
     </section>
@@ -206,3 +209,31 @@
     </div>
   </section>
 </div>
+
+@if (showPreviewModal()) {
+  <div class="fixed inset-0 z-[90] bg-slate-900/70 p-4 sm:p-8">
+    <div class="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
+        <h3 class="text-base font-bold text-slate-900">{{ previewTitle() }}</h3>
+        <button
+          type="button"
+          class="h-9 w-9 rounded-full border border-slate-200 text-slate-500 hover:border-rose-200 hover:text-rose-500"
+          (click)="closePreviewModal()"
+          title="Close preview">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+      <div class="min-h-0 flex-1 bg-slate-100 p-3 sm:p-4">
+        @if (previewIsImage()) {
+          <img [src]="previewUrl() || ''" alt="Document preview" class="h-full w-full rounded-xl object-contain bg-white" />
+        } @else {
+          <iframe
+            [src]="previewSafeUrl()"
+            class="h-full w-full rounded-xl bg-white"
+            title="Document preview">
+          </iframe>
+        }
+      </div>
+    </div>
+  </div>
+}

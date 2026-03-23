@@ -24,9 +24,24 @@
                 Shipment No: {{ getShipmentNoLabel(i) }}
               </span>
             </div>
-            <span class="text-[9px] font-semibold text-slate-400 shrink-0">
-              {{ getContainersArray(group).length }} Container(s)
-            </span>
+            <div class="flex items-center gap-3 shrink-0">
+              <span class="text-[9px] font-semibold text-slate-400 shrink-0">
+                {{ getContainersArray(group).length }} Container(s)
+              </span>
+              <button
+                type="button"
+                (click)="$event.stopPropagation(); saveRow(i)"
+                class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 shadow-lg shadow-slate-900/20 text-[10px] uppercase transition-all"
+              >
+                @if (savingRowIndex() === i) {
+                  <i class="pi pi-spin pi-spinner"></i>
+                  Saving...
+                } @else {
+                  <i class="pi pi-save"></i>
+                  Save
+                }
+              </button>
+            </div>
           </div>
         </p-accordion-header>
         <p-accordion-content styleClass="bg-white">
@@ -85,19 +100,23 @@
                       </div>
                       <div class="flex flex-col gap-1.5">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Warehouse</label>
-                        <p-select
-                          [options]="warehouseOptions"
-                          formControlName="warehouse"
-                          optionLabel="label"
-                          optionValue="value"
-                          placeholder="Select warehouse"
-                          styleClass="w-full h-10 md:h-[38px]"
-                          appendTo="body">
-                        </p-select>
+                        <input
+                          pInputText
+                          class="table-input-text w-full bg-slate-50"
+                          [value]="$any(cGroup).get('warehouse')?.value || ''"
+                          readonly
+                          placeholder="Warehouse"
+                        />
                       </div>
                       <div class="flex flex-col gap-1.5">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Storage Availability</label>
-                        <p-inputNumber formControlName="storageAvailability" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
+                        <input
+                          pInputText
+                          class="table-input-text w-full bg-slate-50"
+                          [value]="$any(cGroup).get('storageAvailability')?.value ?? ''"
+                          readonly
+                          placeholder="0"
+                        />
                       </div>
                     </div>
                   } @else {
@@ -161,8 +180,12 @@
                         <input pInputText formControlName="batch" class="table-input-text w-full" placeholder="Enter Batch Number" />
                       </div>
                       <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Products</label>
-                        <input pInputText formControlName="products" class="table-input-text w-full" placeholder="Enter Products" />
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Production Date</label>
+                        <p-datepicker formControlName="productionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Expiry Date</label>
+                        <p-datepicker formControlName="expiryDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
                       </div>
                       <div class="flex flex-col gap-1.5 md:col-span-2 xl:col-span-3">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Remarks</label>
@@ -186,17 +209,6 @@
                 </button>
               </div>
             }
-
-            <!-- Save -->
-            <div class="pt-2 flex justify-end">
-              <button
-                type="button"
-                class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 shadow-lg shadow-slate-900/20 text-[10px] uppercase transition-all"
-              >
-                <i class="pi pi-save"></i>
-                Save Details
-              </button>
-            </div>
           </div>
         </p-accordion-content>
       </p-accordion-panel>
