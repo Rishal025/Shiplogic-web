@@ -4,13 +4,14 @@ import { ReactiveFormsModule, FormArray, AbstractControl } from '@angular/forms'
 import { DomSanitizer } from '@angular/platform-browser';
 import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ConfirmationService } from 'primeng/api';
+import { ConfirmationService, MessageService } from 'primeng/api';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { DatePickerModule } from 'primeng/datepicker';
 import { AccordionModule } from 'primeng/accordion';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
+import { ShipmentService } from '../../../../../../core/services/shipment.service';
 import {
   selectShipmentData,
   selectSubmittedStep3Indices,
@@ -61,6 +62,7 @@ export class ShipmentArrivalComponent {
   @Input({ required: true }) formArray!: FormArray;
 
   readonly step5DocConfig = STEP5_DOC_CONFIG;
+  readonly secondaryStep5DocConfig = STEP5_DOC_CONFIG.filter((doc) => doc.kind !== 'arrivalNotice');
 
   @ViewChild('arrivalNoticeInput') arrivalNoticeInputRef?: ElementRef<HTMLInputElement>;
   @ViewChild('advanceRequestInput') advanceRequestInputRef?: ElementRef<HTMLInputElement>;
@@ -87,6 +89,8 @@ export class ShipmentArrivalComponent {
   previewUrl = signal<string | null>(null);
   previewTitle = signal('');
   previewIsImage = signal(false);
+  previewZoom = signal(1);
+  previewTransformOrigin = signal('center center');
   previewSafeUrl = computed(() => {
     const url = this.previewUrl();
     if (!url || this.previewIsImage()) return null;
@@ -96,6 +100,8 @@ export class ShipmentArrivalComponent {
   private store = inject(Store);
   private confirmationService = inject(ConfirmationService);
   private sanitizer = inject(DomSanitizer);
+  private shipmentService = inject(ShipmentService);
+  private messageService = inject(MessageService);
 
   readonly submittedIndices = toSignal(this.store.select(selectSubmittedStep4Indices), { initialValue: [] });
   readonly precedingIndices = toSignal(this.store.select(selectSubmittedStep3Indices), { initialValue: [] });
@@ -105,6 +111,14 @@ export class ShipmentArrivalComponent {
     effect(() => {
       this.submittedIndices().forEach((idx) => {
         if (this.formArray?.at(idx)) this.formArray.at(idx).disable({ emitEvent: false });
+      });
+    });
+
+    effect(() => {
+      if (!this.formArray) return;
+      this.formArray.controls.forEach((_, index) => {
+        this.updateDerivedDates(index);
+        this.updateDelayHours(index);
       });
     });
   }
@@ -125,6 +139,10 @@ export class ShipmentArrivalComponent {
 
   getTransportationRows(group: AbstractControl): FormArray {
     return group.get('transportationBooked') as FormArray;
+  }
+
+  getTransportationContainerCount(group: AbstractControl): number {
+    return this.getTransportationRows(group).length;
   }
 
   getVisibleTransportationRows(group: AbstractControl, index: number): AbstractControl[] {
@@ -183,6 +201,9 @@ export class ShipmentArrivalComponent {
     const row = this.pendingFileRow;
     if (row !== null && this.pendingDocKind === kind && file) {
       this.getFileSignal(kind).update((cur) => ({ ...cur, [row]: file }));
+      if (kind === 'arrivalNotice') {
+        this.extractArrivalNotice(row, file);
+      }
     }
     this.pendingFileRow = null;
     this.pendingDocKind = null;
@@ -221,6 +242,7 @@ export class ShipmentArrivalComponent {
     this.previewUrl.set(url);
     this.previewTitle.set(title);
     this.previewIsImage.set(/\.(png|jpe?g|gif|webp)(\?|$)/i.test(url));
+    this.resetPreviewZoom();
     this.showPreviewModal.set(true);
   }
 
@@ -228,6 +250,7 @@ export class ShipmentArrivalComponent {
     this.previewUrl.set(URL.createObjectURL(file));
     this.previewTitle.set(title);
     this.previewIsImage.set(file.type.startsWith('image/'));
+    this.resetPreviewZoom();
     this.showPreviewModal.set(true);
   }
 
@@ -236,11 +259,43 @@ export class ShipmentArrivalComponent {
     if (url) URL.revokeObjectURL(url);
     this.previewUrl.set(null);
     this.previewTitle.set('');
+    this.resetPreviewZoom();
     this.showPreviewModal.set(false);
   }
 
   onPreviewVisibleChange(visible: boolean): void {
     if (!visible) this.closeDocumentPreview();
+  }
+
+  zoomInPreview(): void {
+    this.previewZoom.update((zoom) => Math.min(zoom + 0.25, 4));
+  }
+
+  zoomOutPreview(): void {
+    this.previewZoom.update((zoom) => Math.max(zoom - 0.25, 1));
+  }
+
+  resetPreviewZoom(): void {
+    this.previewZoom.set(1);
+    this.previewTransformOrigin.set('center center');
+  }
+
+  onPreviewImageDoubleClick(event: MouseEvent): void {
+    const target = event.currentTarget as HTMLElement | null;
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    this.previewTransformOrigin.set(`${x}% ${y}%`);
+    this.previewZoom.update((zoom) => (zoom > 1 ? 1 : 2));
+  }
+
+  onArrivalDateChange(index: number): void {
+    this.updateDerivedDates(index);
+  }
+
+  onTransportationTimeChange(index: number): void {
+    this.updateDelayHours(index);
   }
 
   confirmSubmit(index: number): void {
@@ -257,13 +312,16 @@ export class ShipmentArrivalComponent {
 
         const toDate = (val: unknown) => (val ? new Date(val as Date).toISOString().split('T')[0] : '');
 
+        this.updateDerivedDates(index);
+        this.updateDelayHours(index);
+
         const transportationBooked = (formValue['transportationBooked'] || []).map((tb: any) => ({
           containerSerialNo: tb.containerSerialNo || '',
           transportCompanyName: tb.transportCompanyName || '',
           bookedDate: toDate(tb.bookedDate),
-          bookingTime: tb.bookingTime || '',
+          bookingTime: this.toTimeString(tb.bookingTime),
           transportDate: toDate(tb.transportDate),
-          transportTime: tb.transportTime || '',
+          transportTime: this.toTimeString(tb.transportTime),
           delayHours: tb.delayHours ?? null,
         }));
 
@@ -271,7 +329,9 @@ export class ShipmentArrivalComponent {
         payload.append('arrivalOn', toDate(formValue['arrivalOn']));
         payload.append('shipmentFreeRetentionDate', toDate(formValue['shipmentFreeRetentionDate']));
         payload.append('portRetentionWithPenaltyDate', toDate(formValue['portRetentionWithPenaltyDate']));
+        payload.append('maximumRetentionDate', toDate(formValue['maximumRetentionDate']));
         payload.append('arrivalNoticeDate', toDate(formValue['arrivalNoticeDate']));
+        payload.append('arrivalNoticeFreeRetentionDays', String(formValue['arrivalNoticeFreeRetentionDays'] ?? ''));
         payload.append('advanceRequestDate', toDate(formValue['advanceRequestDate']));
         payload.append('doReleasedDate', toDate(formValue['doReleasedDate']));
         payload.append('doReleasedRemarks', formValue['doReleasedRemarks'] || '');
@@ -306,5 +366,131 @@ export class ShipmentArrivalComponent {
         );
       },
     });
+  }
+
+  private updateDerivedDates(index: number): void {
+    const group = this.formArray.at(index);
+    const arrivalOn = group?.get('arrivalOn')?.value;
+    if (!group || !arrivalOn) {
+      group?.get('shipmentFreeRetentionDate')?.patchValue(null, { emitEvent: false });
+      group?.get('portRetentionWithPenaltyDate')?.patchValue(null, { emitEvent: false });
+      group?.get('maximumRetentionDate')?.patchValue(null, { emitEvent: false });
+      return;
+    }
+
+    const actualData = this.shipmentData()?.actual?.[index];
+    const freeDays =
+      Number(group.get('arrivalNoticeFreeRetentionDays')?.value ?? 0) ||
+      Number(actualData?.freeDetentionDays ?? 0) ||
+      0;
+    const maxDays = Number(actualData?.maximumDetentionDays ?? 0) || 0;
+    group.get('shipmentFreeRetentionDate')?.patchValue(this.addDays(arrivalOn, freeDays), { emitEvent: false });
+    const maximumRetentionDate = this.addDays(arrivalOn, maxDays);
+    group.get('maximumRetentionDate')?.patchValue(maximumRetentionDate, { emitEvent: false });
+    group.get('portRetentionWithPenaltyDate')?.patchValue(maximumRetentionDate, { emitEvent: false });
+  }
+
+  private updateDelayHours(index: number): void {
+    const group = this.formArray.at(index);
+    const storageGroup = (this.shipmentData()?.actual?.[index] as any)?.storageSplits || [];
+    this.getTransportationRows(group).controls.forEach((row) => {
+      const serial = row.get('containerSerialNo')?.value;
+      const storageMatch = storageGroup.find((item: any) => item.containerSerialNo === serial);
+      const delayHours = this.calculateDelayHours(
+        row.get('transportDate')?.value,
+        row.get('transportTime')?.value,
+        storageMatch?.receivedOnDate,
+        storageMatch?.receivedOnTime
+      );
+      row.get('delayHours')?.patchValue(delayHours, { emitEvent: false });
+      });
+  }
+
+  private extractArrivalNotice(index: number, file: File): void {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    this.shipmentService.extractArrivalNoticeFromDocument(formData).subscribe({
+      next: (res) => {
+        const group = this.formArray.at(index);
+        if (!group) return;
+        if (res.arrival_on) {
+          const parsedArrivalOn = this.parseApiDate(res.arrival_on);
+          group.get('arrivalOn')?.setValue(parsedArrivalOn);
+          if (!group.get('arrivalNoticeDate')?.value) {
+            group.get('arrivalNoticeDate')?.setValue(parsedArrivalOn);
+          }
+        }
+        if (res.free_retension_days != null) {
+          group.get('arrivalNoticeFreeRetentionDays')?.setValue(Number(res.free_retension_days) || 0);
+        }
+        this.updateDerivedDates(index);
+        group.updateValueAndValidity({ emitEvent: false });
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Arrival notice extracted',
+          detail: 'Arrival date and free retention days were populated from the uploaded document.'
+        });
+      },
+      error: (err) => {
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Arrival notice extraction failed',
+          detail: err.error?.message || 'We could not extract arrival details from the uploaded document.'
+        });
+      }
+    });
+  }
+
+  private parseApiDate(value: string): Date | null {
+    if (!value) return null;
+    const parts = value.split('-').map((part) => Number(part));
+    if (parts.length === 3 && parts.every((part) => Number.isFinite(part))) {
+      const [year, month, day] = parts;
+      return new Date(year, month - 1, day);
+    }
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private toTimeString(value: unknown): string {
+    if (!value) return '';
+    if (value instanceof Date) {
+      const hours = String(value.getHours()).padStart(2, '0');
+      const minutes = String(value.getMinutes()).padStart(2, '0');
+      return `${hours}:${minutes}`;
+    }
+    if (typeof value === 'string') return value;
+    return '';
+  }
+
+  private combineDateTime(dateValue: unknown, timeValue: unknown): Date | null {
+    if (!dateValue || !timeValue) return null;
+    const date = new Date(dateValue as string | Date);
+    if (Number.isNaN(date.getTime())) return null;
+    const timeString = this.toTimeString(timeValue);
+    const [hours, minutes] = timeString.split(':').map((part) => Number(part));
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+    date.setHours(hours, minutes, 0, 0);
+    return date;
+  }
+
+  private calculateDelayHours(
+    transportDateValue: unknown,
+    transportTimeValue: unknown,
+    receivedDateValue: unknown,
+    receivedTimeValue: unknown,
+  ): number {
+    const transportAt = this.combineDateTime(transportDateValue, transportTimeValue);
+    const receivedAt = this.combineDateTime(receivedDateValue, receivedTimeValue);
+    if (!transportAt || !receivedAt) return 0;
+    return Math.max(0, Math.round(((receivedAt.getTime() - transportAt.getTime()) / 3600000) * 100) / 100);
+  }
+
+  private addDays(dateValue: unknown, days: number): Date | null {
+    if (!dateValue) return null;
+    const date = new Date(dateValue as string | Date);
+    if (Number.isNaN(date.getTime())) return null;
+    date.setDate(date.getDate() + days);
+    return date;
   }
 }

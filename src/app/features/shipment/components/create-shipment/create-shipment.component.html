@@ -120,7 +120,7 @@
             </div>
             <div class="flex flex-col">
               <label class="sl-label">PO Date</label>
-              <p-datepicker formControlName="purchaseDate" [showIcon]="true" iconDisplay="button" placeholder="Select Date" styleClass="w-full" inputStyleClass="w-full" appendTo="body"></p-datepicker>
+              <p-datepicker formControlName="purchaseDate" [showIcon]="true" iconDisplay="button" placeholder="Select Date" styleClass="w-full" inputStyleClass="w-full" appendTo="body" [dateFormat]="appDateFormat"></p-datepicker>
             </div>
             <div class="flex flex-col">
               <label class="sl-label">PI No.</label>
@@ -128,7 +128,7 @@
             </div>
             <div class="flex flex-col">
               <label class="sl-label">PI Date</label>
-              <p-datepicker formControlName="piDate" [showIcon]="true" iconDisplay="button" placeholder="Select PI Date" styleClass="w-full" inputStyleClass="w-full" appendTo="body"></p-datepicker>
+              <p-datepicker formControlName="piDate" [showIcon]="true" iconDisplay="button" placeholder="Select PI Date" styleClass="w-full" inputStyleClass="w-full" appendTo="body" [dateFormat]="appDateFormat"></p-datepicker>
             </div>
             <!-- Port row -->
             <div class="flex flex-col">

@@ -29,7 +29,7 @@
                 type="button"
                 (click)="$event.stopPropagation(); saveBLDetails(i)"
                 [disabled]="isSaving(i, 'bl')"
-                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 @if (isSaving(i, 'bl')) {
                   <i class="pi pi-spin pi-spinner text-[10px]"></i>
@@ -63,7 +63,7 @@
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shipped On Board</label>
-                <p-datepicker formControlName="shippedOnBoard" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
+                <p-datepicker formControlName="shippedOnBoard" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Port of Loading</label>
@@ -99,13 +99,19 @@
               </div>
               <div class="flex flex-col gap-1.5 md:col-span-2 xl:col-span-1">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Freight Prepared</label>
-                <p-selectButton
-                  formControlName="freightPrepared"
-                  [options]="freightPreparedOptions"
-                  optionLabel="label"
-                  optionValue="value"
-                  styleClass="w-full">
-                </p-selectButton>
+                <div class="flex items-center gap-3 h-10">
+                  <p-toggleswitch
+                    formControlName="freightPrepared"
+                    trueValue="Yes"
+                    falseValue="No">
+                  </p-toggleswitch>
+                  <span
+                    class="text-xs font-bold"
+                    [class.text-green-600]="group.get('freightPrepared')?.value === 'Yes'"
+                    [class.text-slate-500]="group.get('freightPrepared')?.value !== 'Yes'">
+                    {{ group.get('freightPrepared')?.value || 'No' }}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -120,7 +126,7 @@
                   [class.bg-slate-100]="getActiveTab(i) !== 'cost'"
                   [class.text-slate-500]="getActiveTab(i) !== 'cost'"
                 >
-                  Cost Sheet Booking
+                  Clearing Advance
                 </button>
                 <button
                   type="button"
@@ -138,8 +144,16 @@
               @if (getActiveTab(i) === 'cost') {
                 <div class="rounded-2xl border border-slate-200 overflow-hidden">
                   <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
-                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Cost Sheet Booking</span>
-                    <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Clearing Advance</span>
+                  <div class="flex items-center gap-2">
+                      <button
+                        type="button"
+                        (click)="generateCostSheetReport(i)"
+                        class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-blue-600 hover:bg-blue-100"
+                      >
+                        <i class="pi pi-file-export text-[10px]"></i>
+                        Generate Report
+                      </button>
                       <button
                         type="button"
                         (click)="saveCostSheet(i)"
@@ -190,8 +204,8 @@
                         <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.8fr)_160px_160px] gap-3 items-start">
                           <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
                           <div class="flex items-center min-h-10 text-sm font-semibold text-slate-700">{{ row.get('description')?.value }}</div>
-                          <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" />
-                          <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" />
+                          <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="0" [maxFractionDigits]="2" />
+                          <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="0" [maxFractionDigits]="2" [readonly]="true" />
                         </div>
 
                         <div class="md:hidden flex flex-col gap-3">
@@ -208,11 +222,11 @@
                             <div class="grid grid-cols-2 gap-3">
                               <div class="flex flex-col gap-1.5">
                                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Request Amount</label>
-                                <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" />
+                                <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="0" [maxFractionDigits]="2" />
                               </div>
                               <div class="flex flex-col gap-1.5">
                                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Paid Amount</label>
-                                <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" />
+                                <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="0" [maxFractionDigits]="2" [readonly]="true" />
                               </div>
                             </div>
                           </div>
@@ -251,18 +265,19 @@
                       Save
                     </button>
                   </div>
-                  <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.2fr)_minmax(0,1fr)_160px] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
+                  <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.3fr)_120px_minmax(0,1fr)] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Container Serial No</span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Bags</span>
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Warehouse</span>
-                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Storage Availability</span>
                   </div>
                   <div class="flex flex-col">
                     @for (row of getStorageRows(group).controls; track $index) {
                       <div [formGroup]="$any(row)" class="border-b last:border-b-0 border-slate-100 p-4">
-                        <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.2fr)_minmax(0,1fr)_160px] gap-3 items-start">
+                        <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.3fr)_120px_minmax(0,1fr)] gap-3 items-start">
                           <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
                           <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container Serial No" />
+                          <p-inputNumber formControlName="bags" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
                           <p-select
                             [options]="warehouseOptions"
                             formControlName="warehouse"
@@ -272,7 +287,6 @@
                             styleClass="w-full"
                             appendTo="body">
                           </p-select>
-                          <p-inputNumber formControlName="storageAvailability" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
                         </div>
                         <div class="md:hidden flex flex-col gap-3">
                           <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider">SN {{ row.get('sn')?.value }}</span>
@@ -293,8 +307,8 @@
                             </p-select>
                           </div>
                           <div class="flex flex-col gap-1.5">
-                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Storage Availability</label>
-                            <p-inputNumber formControlName="storageAvailability" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
+                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bags</label>
+                            <p-inputNumber formControlName="bags" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
                           </div>
                         </div>
                       </div>
@@ -321,10 +335,23 @@
   [draggable]="false"
   [resizable]="true"
   appendTo="body">
-  <div class="document-preview-content flex items-center justify-center min-h-[70vh] bg-slate-100 p-4">
+  <div class="flex items-center justify-end gap-2 border-b border-slate-200 bg-white px-4 py-3">
+    <button type="button" (click)="zoomOutPreview()" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600">
+      <i class="pi pi-minus"></i>
+    </button>
+    <button type="button" (click)="zoomInPreview()" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600">
+      <i class="pi pi-plus"></i>
+    </button>
+    <button type="button" (click)="resetPreviewZoom()" class="inline-flex rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-blue-600">
+      Reset
+    </button>
+  </div>
+  <div class="document-preview-content flex items-center justify-center min-h-[70vh] bg-slate-100 p-4 overflow-auto">
     @if (previewUrl(); as url) {
       @if (previewIsImage()) {
-        <img [src]="url" [alt]="previewTitle()" class="max-w-full max-h-[80vh] object-contain rounded shadow-lg" />
+        <div class="overflow-auto rounded-xl border-2 border-dashed border-blue-100 bg-white/70 p-2">
+          <img [src]="url" [alt]="previewTitle()" class="max-w-full max-h-[80vh] object-contain rounded shadow-lg transition-transform duration-200 cursor-zoom-in" [style.transform]="'scale(' + previewZoom() + ')'" [style.transformOrigin]="previewTransformOrigin()" (dblclick)="onPreviewImageDoubleClick($event)" />
+        </div>
       } @else {
         <iframe [src]="previewSafeUrl()" class="w-full h-[80vh] min-h-[500px] rounded border-0 bg-white shadow-lg" title="Document preview"></iframe>
       }

@@ -24,6 +24,7 @@ import {
 } from '../../../../../../store/shipment/shipment.selectors';
 import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
+import { ScheduledHistoryEntry } from '../../../../../../core/models/shipment.model';
 
 @Component({
   selector: 'app-shipment-split',
@@ -44,6 +45,7 @@ import { ShipmentService } from '../../../../../../core/services/shipment.servic
   templateUrl: './shipment-split.component.html',
 })
 export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
+  readonly appDateFormat = 'dd/mm/yy';
   @Input({ required: true }) plannedSplits!: FormArray;
   @Input({ required: true }) actualSplits!: FormArray;
   @Input({ required: true }) noOfShipmentsControl!: FormControl<number | null>;
@@ -80,11 +82,14 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   readonly extractingBillNoRowIndex = signal<number | null>(null);
   readonly showEtaCalendar = signal(false);
   readonly etaCalendarDates = signal<Date[]>([]);
+  readonly editablePlannedRows = signal<number[]>([]);
+  readonly showEtaShareModal = signal(false);
 
   /** True after user clicks Confirm (No of Shipments) so the input becomes readonly until lock. */
   readonly noOfShipmentsConfirmed = signal(false);
 
   private actualRecalcSub?: Subscription;
+  private plannedLockSub?: Subscription;
 
   constructor() {
     // Disable submitted actual rows whenever submitted indices change
@@ -100,7 +105,16 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     // Reset confirmed state when planned rows are cleared (e.g. new shipment loaded)
     effect(() => {
       const len = this.plannedSplits?.length ?? 0;
-      if (len === 0) this.noOfShipmentsConfirmed.set(false);
+      if (len === 0) {
+        this.noOfShipmentsConfirmed.set(false);
+        this.editablePlannedRows.set([]);
+      }
+    });
+
+    effect(() => {
+      this.isPlannedLocked();
+      this.editablePlannedRows();
+      this.applyPlannedRowLockState();
     });
 
     // Auto-calculate bags and pallet for Actual tab rows from FCL, size, and packing
@@ -142,10 +156,32 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
         }
       });
     }
+
+    if (this.plannedSplits?.valueChanges) {
+      this.plannedLockSub = this.plannedSplits.valueChanges.pipe(debounceTime(0)).subscribe(() => {
+        this.applyPlannedRowLockState();
+      });
+      queueMicrotask(() => this.applyPlannedRowLockState());
+    }
   }
 
   ngOnDestroy(): void {
     this.actualRecalcSub?.unsubscribe();
+    this.plannedLockSub?.unsubscribe();
+  }
+
+  private applyPlannedRowLockState(): void {
+    if (!this.plannedSplits) return;
+    const locked = this.isPlannedLocked();
+    const editable = new Set(this.editablePlannedRows());
+
+    this.plannedSplits.controls.forEach((control, index) => {
+      if (locked && !editable.has(index)) {
+        control.disable({ emitEvent: false });
+      } else {
+        control.enable({ emitEvent: false });
+      }
+    });
   }
 
   /** Parse packing (e.g. "20 KG" or 20) to number in KG. Default 20. */
@@ -186,8 +222,29 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     return { bags, pallet };
   }
 
-  setTab(tab: 'planned' | 'actual') {
+  setTab(tab: 'planned' | 'actual' | 'history') {
     this.store.dispatch(ShipmentActions.setActiveSplitTab({ tab }));
+  }
+
+  get scheduledHistory(): ScheduledHistoryEntry[] {
+    return this.shipmentData()?.scheduledHistory || [];
+  }
+
+  isPlannedRowEditable(index: number): boolean {
+    return this.editablePlannedRows().includes(index);
+  }
+
+  startPlannedRowEdit(index: number): void {
+    if (!this.isPlannedLocked() || this.isPlannedRowEditable(index)) return;
+    this.editablePlannedRows.set([...this.editablePlannedRows(), index].sort((a, b) => a - b));
+  }
+
+  cancelPlannedRowEdit(index: number): void {
+    this.editablePlannedRows.set(this.editablePlannedRows().filter((rowIndex) => rowIndex !== index));
+  }
+
+  hasPendingPlannedEdits(): boolean {
+    return this.editablePlannedRows().length > 0;
   }
 
   onConfirmNoOfShipments(): void {
@@ -244,10 +301,12 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
 
   openEtaCalendar(): void {
     this.etaCalendarDates.set(this.getEtaCalendarDates());
+    this.showEtaShareModal.set(false);
     this.showEtaCalendar.set(true);
   }
 
   closeEtaCalendar(): void {
+    this.showEtaShareModal.set(false);
     this.showEtaCalendar.set(false);
   }
 
@@ -256,12 +315,34 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
       .slice()
       .sort((left, right) => left.getTime() - right.getTime())
       .map((date) =>
-        date.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
+        date.toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit',
           year: 'numeric',
         })
       );
+  }
+
+  getShipmentTrackerId(): string {
+    const shipment = this.shipmentData()?.shipment as any;
+    return shipment?.poNumber || shipment?.orderNumber || String(shipment?.shipmentNo || '').split('-')[0] || shipment?._id || '';
+  }
+
+  getEtaShareText(): string {
+    const shipmentNo = this.shipmentData()?.shipment?.shipmentNo || 'Shipment';
+    const trackerId = this.getShipmentTrackerId();
+    const trackerUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+    return [
+      `Shipment Tracker: ${shipmentNo}`,
+      trackerId ? `Tracker ID: ${trackerId}` : null,
+      trackerUrl ? `Tracker URL: ${trackerUrl}` : null,
+      '',
+      'Scheduled ETA Dates',
+      ...this.getEtaCalendarDateLabels().map((label) => `- ${label}`),
+    ]
+      .filter(Boolean)
+      .join('\n');
   }
 
   async shareEtaCalendarDates(): Promise<void> {
@@ -275,7 +356,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const shareText = ['Scheduled ETA Dates', ...labels.map((label) => `- ${label}`)].join('\n');
+    const shareText = this.getEtaShareText();
 
     try {
       if (navigator.share) {
@@ -311,6 +392,55 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  shareEtaCalendarOnWhatsApp(): void {
+    const labels = this.getEtaCalendarDateLabels();
+    if (!labels.length) {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'No ETA dates',
+        detail: 'Add ETA dates first to share them.',
+      });
+      return;
+    }
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(this.getEtaShareText())}`, '_blank', 'noopener');
+  }
+
+  shareEtaCalendarViaEmail(): void {
+    const labels = this.getEtaCalendarDateLabels();
+    if (!labels.length) {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'No ETA dates',
+        detail: 'Add ETA dates first to share them.',
+      });
+      return;
+    }
+
+    const shipmentNo = this.shipmentData()?.shipment?.shipmentNo || 'Shipment';
+    const subject = encodeURIComponent(`ETA Calendar - ${shipmentNo}`);
+    const body = encodeURIComponent(this.getEtaShareText());
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  }
+
+  openEtaShareModal(): void {
+    const labels = this.getEtaCalendarDateLabels();
+    if (!labels.length) {
+      this.messageService.add({
+        severity: 'info',
+        summary: 'No ETA dates',
+        detail: 'Add ETA dates first to share them.',
+      });
+      return;
+    }
+
+    this.showEtaShareModal.set(true);
+  }
+
+  closeEtaShareModal(): void {
+    this.showEtaShareModal.set(false);
+  }
+
   getShipmentNoForRow(index: number): string {
     const base = this.shipmentData()?.shipment?.shipmentNo || '';
     return base ? `${base}-${index + 1}` : `${index + 1}`;
@@ -339,14 +469,14 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     return !!row?.get('isManualRow')?.value;
   }
 
-  getActualRowDate(row: FormGroup, controlName: 'shipOnBoardDate' | 'updatedETD' | 'updatedETA'): Date | null {
+  getActualRowDate(row: FormGroup, controlName: string): Date | null {
     const value = row.get(controlName)?.value;
     if (!value) return null;
     const date = value instanceof Date ? value : new Date(value);
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
-  getStrictMinDate(row: FormGroup, controlName: 'shipOnBoardDate' | 'updatedETD' | 'updatedETA'): Date | undefined {
+  getStrictMinDate(row: FormGroup, controlName: string): Date | undefined {
     const baseDate = this.getActualRowDate(row, controlName);
     if (!baseDate) return undefined;
     const minDate = new Date(baseDate);
@@ -364,15 +494,22 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     }
 
     if (group.hasError('etaBeforeEtd')) {
-      return 'ETA must be on or after ETD.';
+      return 'ETA must be later than ETD.';
+    }
+
+    return null;
+  }
+
+  getPlannedDateError(group: FormGroup): string | null {
+    if (group.hasError('etaBeforeEtd')) {
+      return 'ETA must be later than ETD.';
     }
 
     return null;
   }
 
   getPlannedTotals() {
-    const splits =
-      this.activeSplitTab() === 'planned' ? this.plannedSplits : this.actualSplits;
+    const splits = this.activeSplitTab() === 'actual' ? this.actualSplits : this.plannedSplits;
     return splits.getRawValue().reduce(
       (acc, curr) => ({
         mt: acc.mt + (Number(curr['qtyMT']) || 0),
@@ -470,22 +607,45 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
       header: 'Confirm Scheduled Submission',
       icon: 'pi pi-lock',
       accept: () => {
-        const containers = this.plannedSplits.getRawValue().map(c => ({
+        const targetNoOfShipments = Number(this.noOfShipmentsControl.value) || this.plannedSplits.length;
+        const containers = this.plannedSplits.getRawValue().slice(0, targetNoOfShipments).map(c => ({
           ...c,
           etd: c.etd ? new Date(c.etd).toISOString().split('T')[0] : '',
           eta: c.eta ? new Date(c.eta).toISOString().split('T')[0] : '',
         }));
-        const noOfShipments = Number(this.noOfShipmentsControl.value) || this.plannedSplits.length;
         this.store.dispatch(
           ShipmentActions.submitPlannedContainers({
             shipmentId: shipmentData.shipment._id || (shipmentData as any).shipment.id,
             containers: containers,
             plannedQtyMT: shipmentData.shipment.plannedQtyMT || 0,
-            noOfShipments,
+            noOfShipments: targetNoOfShipments,
+            keepTab: this.isPlannedLocked(),
           })
         );
+        this.editablePlannedRows.set([]);
       },
     });
+  }
+
+  formatHistoryTimestamp(value: string | Date | null | undefined): string {
+    if (!value) return '—';
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
+  summarizeHistoryChange(entry: ScheduledHistoryEntry): string {
+    const beforeCount = entry.before?.length || 0;
+    const afterCount = entry.after?.length || 0;
+    const beforeQty = (entry.before || []).reduce((sum, row) => sum + (Number(row.qtyMT) || 0), 0);
+    const afterQty = (entry.after || []).reduce((sum, row) => sum + (Number(row.qtyMT) || 0), 0);
+    return `${beforeCount} -> ${afterCount} rows, ${beforeQty} MT -> ${afterQty} MT`;
   }
 
   confirmActualSubmission(index: number) {

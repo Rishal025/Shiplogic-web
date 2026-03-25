@@ -92,7 +92,7 @@ export class ShipmentEffects {
   submitPlannedContainers$ = createEffect(() =>
     this.actions$.pipe(
       ofType(ShipmentActions.submitPlannedContainers),
-      switchMap(({ shipmentId, containers, plannedQtyMT, noOfShipments }) => {
+      switchMap(({ shipmentId, containers, plannedQtyMT, noOfShipments, keepTab }) => {
         const total = containers.reduce((sum, c) => sum + (Number(c.qtyMT) || 0), 0);
         if (total > plannedQtyMT) {
           this.notificationService.error(
@@ -104,11 +104,11 @@ export class ShipmentEffects {
 
         return this.shipmentService
           .createPlannedContainers({ shipmentId, plannedContainers: containers, noOfShipments })
-          .pipe(
-            mergeMap(() => {
-              this.notificationService.success('Success', 'Planned containers submitted successfully');
-              return [
-                ShipmentActions.submitPlannedSuccess(),
+            .pipe(
+              mergeMap(() => {
+                this.notificationService.success('Success', 'Planned containers submitted successfully');
+                return [
+                ShipmentActions.submitPlannedSuccess({ keepTab }),
                 ShipmentActions.loadShipmentDetail({ id: shipmentId }),
               ];
             }),

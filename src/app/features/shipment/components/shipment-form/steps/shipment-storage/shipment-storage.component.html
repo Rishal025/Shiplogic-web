@@ -28,16 +28,34 @@
               <span class="text-[9px] font-semibold text-slate-400 shrink-0">
                 {{ getContainersArray(group).length }} Container(s)
               </span>
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  (click)="$event.stopPropagation(); clickGlobalFileInput(i)"
+                  class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600"
+                >
+                  <i class="pi pi-upload"></i>
+                </button>
+                @if (getGlobalFile(i)) {
+                  <button type="button" (click)="$event.stopPropagation(); openDocumentPreview(getGlobalFile(i)!, 'Storage Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600">
+                    <i class="pi pi-eye"></i>
+                  </button>
+                } @else if (getSavedGlobalDocumentUrl(group)) {
+                  <button type="button" (click)="$event.stopPropagation(); openRemoteDocumentPreview(getSavedGlobalDocumentUrl(group), getSavedGlobalDocumentName(group) || 'Storage Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600">
+                    <i class="pi pi-eye"></i>
+                  </button>
+                }
+              </div>
               <button
                 type="button"
                 (click)="$event.stopPropagation(); saveRow(i)"
-                class="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 shadow-lg shadow-slate-900/20 text-[10px] uppercase transition-all"
+                class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100"
               >
                 @if (savingRowIndex() === i) {
-                  <i class="pi pi-spin pi-spinner"></i>
+                  <i class="pi pi-spin pi-spinner text-[10px]"></i>
                   Saving...
                 } @else {
-                  <i class="pi pi-save"></i>
+                  <i class="pi pi-check text-[10px]"></i>
                   Save
                 }
               </button>
@@ -99,6 +117,16 @@
                         <input pInputText formControlName="containerSerialNo" class="table-input-text w-full bg-slate-50" readonly placeholder="Container Serial No" />
                       </div>
                       <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bags</label>
+                        <input
+                          pInputText
+                          class="table-input-text w-full bg-slate-50"
+                          [value]="$any(cGroup).get('bags')?.value ?? ''"
+                          readonly
+                          placeholder="0"
+                        />
+                      </div>
+                      <div class="flex flex-col gap-1.5">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Warehouse</label>
                         <input
                           pInputText
@@ -121,10 +149,19 @@
                     </div>
                   } @else {
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 animate-in fade-in duration-200">
-                      <!-- Copied from Storage Allocation -->
                       <div class="flex flex-col gap-1.5">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Container Serial No</label>
                         <input pInputText formControlName="containerSerialNo" class="table-input-text w-full bg-slate-50" readonly placeholder="Container Serial No" />
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bags</label>
+                        <input
+                          pInputText
+                          class="table-input-text w-full bg-slate-50"
+                          [value]="$any(cGroup).get('bags')?.value ?? ''"
+                          readonly
+                          placeholder="0"
+                        />
                       </div>
                       <div class="flex flex-col gap-1.5">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Warehouse</label>
@@ -150,11 +187,11 @@
                       <!-- Arrival-specific fields -->
                       <div class="flex flex-col gap-1.5">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Received On Date</label>
-                        <p-datepicker formControlName="receivedOnDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
+                        <p-datepicker formControlName="receivedOnDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
                       </div>
                       <div class="flex flex-col gap-1.5">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Received On Time</label>
-                        <input pInputText formControlName="receivedOnTime" class="table-input-text w-full" placeholder="e.g. 14:30" />
+                        <p-datepicker formControlName="receivedOnTime" appendTo="body" inputStyleClass="table-input" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" />
                       </div>
                       <div class="flex flex-col gap-1.5">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Customs Inspection</label>
@@ -181,15 +218,37 @@
                       </div>
                       <div class="flex flex-col gap-1.5">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Production Date</label>
-                        <p-datepicker formControlName="productionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
+                        <p-datepicker formControlName="productionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
                       </div>
                       <div class="flex flex-col gap-1.5">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Expiry Date</label>
-                        <p-datepicker formControlName="expiryDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
+                        <p-datepicker formControlName="expiryDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
                       </div>
                       <div class="flex flex-col gap-1.5 md:col-span-2 xl:col-span-3">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Remarks</label>
                         <input pInputText formControlName="remarks" class="table-input-text w-full" placeholder="Any remarks" />
+                      </div>
+                      <div class="flex flex-col gap-1.5 md:col-span-2 xl:col-span-3">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Row Document</label>
+                        <div class="flex flex-wrap items-center gap-2">
+                          <button type="button" (click)="clickRowFileInput(i, c)" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600">
+                            <i class="pi pi-upload"></i>
+                          </button>
+                          @if (getRowFile(i, c)) {
+                            <button type="button" (click)="openDocumentPreview(getRowFile(i, c)!, 'Storage Row Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600">
+                              <i class="pi pi-eye"></i>
+                            </button>
+                            <button type="button" (click)="clearRowFile(i, c)" class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100">
+                              <i class="pi pi-trash"></i>
+                            </button>
+                            <span class="text-[11px] text-slate-400 break-all">{{ getRowFile(i, c)?.name }}</span>
+                          } @else if (getSavedRowDocumentUrl(cGroup)) {
+                            <button type="button" (click)="openRemoteDocumentPreview(getSavedRowDocumentUrl(cGroup), getSavedRowDocumentName(cGroup) || 'Storage Row Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600">
+                              <i class="pi pi-eye"></i>
+                            </button>
+                            <span class="text-[11px] text-slate-400 break-all">{{ getSavedRowDocumentName(cGroup) }}</span>
+                          }
+                        </div>
                       </div>
                     </div>
                   }
@@ -215,3 +274,41 @@
     }
   </p-accordion>
 }
+
+<input #storageRowFileInput type="file" class="!hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" (change)="onRowFileInputChange($event)" />
+<input #storageGlobalFileInput type="file" class="!hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" (change)="onGlobalFileInputChange($event)" />
+
+<p-dialog
+  [header]="previewTitle()"
+  [visible]="showPreviewModal()"
+  (visibleChange)="onPreviewVisibleChange($event)"
+  [modal]="true"
+  [dismissableMask]="true"
+  [style]="{ width: '90vw', maxWidth: '900px' }"
+  [contentStyle]="{ overflow: 'auto', padding: '0' }"
+  [draggable]="false"
+  [resizable]="true"
+  appendTo="body">
+  <div class="flex items-center justify-end gap-2 border-b border-slate-200 bg-white px-4 py-3">
+    <button type="button" (click)="zoomOutPreview()" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600">
+      <i class="pi pi-minus"></i>
+    </button>
+    <button type="button" (click)="zoomInPreview()" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600">
+      <i class="pi pi-plus"></i>
+    </button>
+    <button type="button" (click)="resetPreviewZoom()" class="inline-flex rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-blue-600">
+      Reset
+    </button>
+  </div>
+  <div class="document-preview-content flex items-center justify-center min-h-[70vh] bg-slate-100 p-4 overflow-auto">
+    @if (previewUrl(); as url) {
+      @if (previewIsImage()) {
+        <div class="overflow-auto rounded-xl border-2 border-dashed border-blue-100 bg-white/70 p-2">
+          <img [src]="url" [alt]="previewTitle()" class="max-w-full max-h-[80vh] object-contain rounded shadow-lg transition-transform duration-200 cursor-zoom-in" [style.transform]="'scale(' + previewZoom() + ')'" [style.transformOrigin]="previewTransformOrigin()" (dblclick)="onPreviewImageDoubleClick($event)" />
+        </div>
+      } @else {
+        <iframe [src]="previewSafeUrl()" class="w-full h-[80vh] min-h-[500px] rounded border-0 bg-white shadow-lg" title="Document preview"></iframe>
+      }
+    }
+  </div>
+</p-dialog>

@@ -8,7 +8,7 @@ export interface ShipmentState {
   currentStep: number;
   totalContainers: number;
   isPlannedLocked: boolean;
-  activeSplitTab: 'planned' | 'actual';
+  activeSplitTab: 'planned' | 'actual' | 'history';
   submittedActualIndices: number[];
   submittedStep3Indices: number[];
   submittedStep4Indices: number[];

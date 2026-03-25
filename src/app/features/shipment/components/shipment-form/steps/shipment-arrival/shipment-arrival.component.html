@@ -30,7 +30,7 @@
                   type="button"
                   (click)="$event.stopPropagation(); confirmSubmit(i)"
                   [disabled]="isRowSubmitted(i) || submittingRowIndex() === i"
-                  class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed bg-slate-900 text-white"
+                  class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   @if (submittingRowIndex() === i) {
                     <i class="pi pi-spin pi-spinner text-[10px]"></i>
@@ -61,34 +61,86 @@
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Port & Customs Clearance</span>
                 <div class="flex-1 h-px bg-slate-200"></div>
               </div>
-              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Arrival On</label>
-                  <p-datepicker formControlName="arrivalOn" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
+              <div class="flex flex-col gap-4">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Arrival Notice Date</label>
+                    <div class="flex flex-col gap-2">
+                      <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <p-datepicker formControlName="arrivalNoticeDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                        <div class="flex items-center gap-2 sm:shrink-0">
+                          <button
+                            type="button"
+                            (click)="clickFileInput(i, 'arrivalNotice')"
+                            [disabled]="isRowSubmitted(i)"
+                            class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0 disabled:opacity-50"
+                          >
+                            <i class="pi pi-upload"></i>
+                          </button>
+                          @if (getFile(i, 'arrivalNotice')) {
+                            <button
+                              type="button"
+                              (click)="openDocumentPreview(getFile(i, 'arrivalNotice')!, 'Arrival Notice Document')"
+                              class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0"
+                            >
+                              <i class="pi pi-eye"></i>
+                            </button>
+                            <button
+                              type="button"
+                              (click)="clearFile(i, 'arrivalNotice')"
+                              [disabled]="isRowSubmitted(i)"
+                              class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 shrink-0 disabled:opacity-50"
+                            >
+                              <i class="pi pi-trash"></i>
+                            </button>
+                          } @else if (getSavedFileUrl(group, 'arrivalNotice')) {
+                            <button
+                              type="button"
+                              (click)="openRemoteDocumentPreview(getSavedFileUrl(group, 'arrivalNotice'), getSavedFileName(group, 'arrivalNotice') || 'Arrival Notice Document')"
+                              class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0"
+                            >
+                              <i class="pi pi-eye"></i>
+                            </button>
+                          }
+                        </div>
+                      </div>
+                      @if (getFile(i, 'arrivalNotice')) {
+                        <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getFile(i, 'arrivalNotice')?.name }}</p>
+                      } @else if (getSavedFileName(group, 'arrivalNotice')) {
+                        <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getSavedFileName(group, 'arrivalNotice') }}</p>
+                      }
+                    </div>
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Arrival On</label>
+                    <p-datepicker formControlName="arrivalOn" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onArrivalDateChange(i)" />
+                  </div>
                 </div>
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shipment Free Retention Date</label>
-                  <p-datepicker formControlName="shipmentFreeRetentionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
-                </div>
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Port Retention with Penalty Date</label>
-                  <p-datepicker formControlName="portRetentionWithPenaltyDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
-                </div>
-                <div class="flex flex-col gap-1.5">
-                  <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Token Received Date</label>
-                  <p-datepicker formControlName="tokenReceivedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shipment Free Retention Date</label>
+                    <p-datepicker formControlName="shipmentFreeRetentionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="false" />
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Maximum Retention Date</label>
+                    <p-datepicker formControlName="maximumRetentionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="false" />
+                  </div>
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Port Retention Date</label>
+                    <p-datepicker formControlName="portRetentionWithPenaltyDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="false" />
+                  </div>
                 </div>
               </div>
             </div>
 
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              @for (doc of step5DocConfig; track doc.kind) {
+              @for (doc of secondaryStep5DocConfig; track doc.kind) {
                 <div class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 shadow-sm">
                   <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                     {{ doc.label }}
                   </label>
                   <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <p-datepicker [formControlName]="doc.dateControl" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" />
+                    <p-datepicker [formControlName]="doc.dateControl" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
                     <div class="flex items-center gap-2 sm:shrink-0">
                       <button
                         type="button"
@@ -136,6 +188,12 @@
                       <input pInputText [formControlName]="doc.remarksControl" class="table-input-text w-full" placeholder="Add remarks" />
                     </div>
                   }
+                  @if (doc.kind === 'customsClearance') {
+                    <div class="flex flex-col gap-1.5">
+                      <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Token Received Date</label>
+                      <p-datepicker formControlName="tokenReceivedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                    </div>
+                  }
                 </div>
               }
             </div>
@@ -144,11 +202,11 @@
               <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
                 <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Transportation Arranged</span>
                 <span class="text-[9px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
-                  Based on containers
+                  {{ getTransportationContainerCount(group) }} Container(s)
                 </span>
               </div>
 
-              <div class="hidden md:grid md:grid-cols-[70px_minmax(0,1.1fr)_minmax(0,1fr)_150px_130px_150px_130px_110px] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
+              <div class="hidden md:grid md:grid-cols-[70px_minmax(0,1.05fr)_minmax(0,1.35fr)_132px_110px_132px_110px_96px] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Container No</span>
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transport Company Name</span>
@@ -162,15 +220,15 @@
               <div class="flex flex-col">
                 @for (row of getVisibleTransportationRows(group, i); track $index) {
                   <div [formGroup]="$any(row)" class="border-b last:border-b-0 border-slate-100 p-4">
-                    <div class="hidden md:grid md:grid-cols-[70px_minmax(0,1.1fr)_minmax(0,1fr)_150px_130px_150px_130px_110px] gap-3 items-start">
+                    <div class="hidden md:grid md:grid-cols-[70px_minmax(0,1.05fr)_minmax(0,1.35fr)_132px_110px_132px_110px_96px] gap-3 items-start">
                       <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
                       <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container No" />
                       <input pInputText formControlName="transportCompanyName" class="table-input-text w-full" placeholder="Company name" />
-                      <p-datepicker formControlName="bookedDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Arranged date" styleClass="w-full" />
-                      <input pInputText formControlName="bookingTime" class="table-input-text w-full" placeholder="HH:MM" />
-                      <p-datepicker formControlName="transportDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Transportation date" styleClass="w-full" />
-                      <input pInputText formControlName="transportTime" class="table-input-text w-full" placeholder="HH:MM" />
-                      <p-inputNumber formControlName="delayHours" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
+                      <p-datepicker formControlName="bookedDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Arranged date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onTransportationTimeChange(i)" />
+                      <p-datepicker formControlName="bookingTime" appendTo="body" inputStyleClass="table-input w-full" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" />
+                      <p-datepicker formControlName="transportDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Transportation date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onTransportationTimeChange(i)" />
+                      <p-datepicker formControlName="transportTime" appendTo="body" inputStyleClass="table-input w-full" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" (onSelect)="onTransportationTimeChange(i)" />
+                      <p-inputNumber formControlName="delayHours" styleClass="w-full" inputStyleClass="table-input w-full bg-slate-50" [useGrouping]="false" placeholder="0" [readonly]="true" />
                     </div>
 
                     <div class="md:hidden flex flex-col gap-3">
@@ -187,26 +245,26 @@
                         <div class="grid grid-cols-2 gap-3">
                           <div class="flex flex-col gap-1.5">
                             <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Arranged Date</label>
-                            <p-datepicker formControlName="bookedDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Date" styleClass="w-full" />
+                            <p-datepicker formControlName="bookedDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onTransportationTimeChange(i)" />
                           </div>
                           <div class="flex flex-col gap-1.5">
                             <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Booking Time</label>
-                            <input pInputText formControlName="bookingTime" class="table-input-text w-full" placeholder="HH:MM" />
+                            <p-datepicker formControlName="bookingTime" appendTo="body" inputStyleClass="table-input w-full" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" />
                           </div>
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                           <div class="flex flex-col gap-1.5">
                             <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Transportation Date</label>
-                            <p-datepicker formControlName="transportDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Date" styleClass="w-full" />
+                            <p-datepicker formControlName="transportDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onTransportationTimeChange(i)" />
                           </div>
                           <div class="flex flex-col gap-1.5">
                             <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Transportation Time</label>
-                            <input pInputText formControlName="transportTime" class="table-input-text w-full" placeholder="HH:MM" />
+                            <p-datepicker formControlName="transportTime" appendTo="body" inputStyleClass="table-input w-full" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" (onSelect)="onTransportationTimeChange(i)" />
                           </div>
                         </div>
                         <div class="flex flex-col gap-1.5">
                           <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Delay Hours</label>
-                          <p-inputNumber formControlName="delayHours" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
+                          <p-inputNumber formControlName="delayHours" styleClass="w-full" inputStyleClass="table-input w-full bg-slate-50" [useGrouping]="false" placeholder="0" [readonly]="true" />
                         </div>
                       </div>
                     </div>
@@ -255,10 +313,23 @@
   [resizable]="true"
   appendTo="body"
 >
-  <div class="document-preview-content flex items-center justify-center min-h-[70vh] bg-slate-100 p-4">
+  <div class="flex items-center justify-end gap-2 border-b border-slate-200 bg-white px-4 py-3">
+    <button type="button" (click)="zoomOutPreview()" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600">
+      <i class="pi pi-minus"></i>
+    </button>
+    <button type="button" (click)="zoomInPreview()" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600">
+      <i class="pi pi-plus"></i>
+    </button>
+    <button type="button" (click)="resetPreviewZoom()" class="inline-flex rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-blue-600">
+      Reset
+    </button>
+  </div>
+  <div class="document-preview-content flex items-center justify-center min-h-[70vh] bg-slate-100 p-4 overflow-auto">
     @if (previewUrl(); as url) {
       @if (previewIsImage()) {
-        <img [src]="url" [alt]="previewTitle()" class="max-w-full max-h-[80vh] object-contain rounded shadow-lg" />
+        <div class="overflow-auto rounded-xl border-2 border-dashed border-blue-100 bg-white/70 p-2">
+          <img [src]="url" [alt]="previewTitle()" class="max-w-full max-h-[80vh] object-contain rounded shadow-lg transition-transform duration-200 cursor-zoom-in" [style.transform]="'scale(' + previewZoom() + ')'" [style.transformOrigin]="previewTransformOrigin()" (dblclick)="onPreviewImageDoubleClick($event)" />
+        </div>
       } @else {
         <iframe [src]="previewSafeUrl()" class="w-full h-[80vh] min-h-[500px] rounded border-0 bg-white shadow-lg" title="Document preview"></iframe>
       }

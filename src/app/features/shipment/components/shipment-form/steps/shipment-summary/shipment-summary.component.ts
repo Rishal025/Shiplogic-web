@@ -28,6 +28,8 @@ export class ShipmentSummaryComponent {
   readonly previewUrl = signal<string | null>(null);
   readonly previewTitle = signal('');
   readonly previewIsImage = signal(false);
+  readonly previewZoom = signal(1);
+  readonly previewTransformOrigin = signal('center center');
   readonly previewSafeUrl = computed(() => {
     const url = this.previewUrl();
     if (!url || this.previewIsImage()) return null;
@@ -39,6 +41,7 @@ export class ShipmentSummaryComponent {
     this.previewUrl.set(url);
     this.previewTitle.set(title);
     this.previewIsImage.set(this.isImageUrl(url));
+    this.resetPreviewZoom();
     this.showPreviewModal.set(true);
   }
 
@@ -47,6 +50,30 @@ export class ShipmentSummaryComponent {
     this.previewUrl.set(null);
     this.previewTitle.set('');
     this.previewIsImage.set(false);
+    this.resetPreviewZoom();
+  }
+
+  zoomInPreview(): void {
+    this.previewZoom.update((zoom) => Math.min(zoom + 0.25, 4));
+  }
+
+  zoomOutPreview(): void {
+    this.previewZoom.update((zoom) => Math.max(zoom - 0.25, 1));
+  }
+
+  resetPreviewZoom(): void {
+    this.previewZoom.set(1);
+    this.previewTransformOrigin.set('center center');
+  }
+
+  onPreviewImageDoubleClick(event: MouseEvent): void {
+    const target = event.currentTarget as HTMLElement | null;
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    this.previewTransformOrigin.set(`${x}% ${y}%`);
+    this.previewZoom.update((zoom) => (zoom > 1 ? 1 : 2));
   }
 
   private isImageUrl(url: string): boolean {

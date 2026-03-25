@@ -146,6 +146,11 @@ export interface CreateShipmentPayload {
   plannedETD: string;            // Planned ETD (YYYY-MM-DD)
   plannedETA: string;            // Expected ETA (YYYY-MM-DD)
   piNo: string;                  // PI No.
+  piDate?: string;
+  fpoNo?: string;
+  fcl?: string;
+  pallet?: string;
+  bags?: string;
   fcPerUnit: string;             // FC per Unit
   totalFC: string;               // Estimated Total FC
   amountAED: string;             // Converted AED value
@@ -315,11 +320,41 @@ export interface ExtractBillNoResponse {
   };
 }
 
+export interface ExtractArrivalNoticeResponse {
+  arrival_on?: string | null;
+  free_retension_days?: number;
+  metadata?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    total_tokens?: number;
+    cost_incurred?: number;
+    cost_currency?: string;
+    latency_ms?: number;
+    model?: string;
+  } | null;
+}
+
 // Shipment Details API Response (GET /shipment/:id)
 export interface ShipmentDetailsResponse {
   shipment: ShipmentInfo;
   planned: PlannedContainer[];
   actual: ActualContainer[];
+  scheduledHistory?: ScheduledHistoryEntry[];
+}
+
+export interface ScheduledHistoryEntry {
+  id: string;
+  action: 'ScheduledBaselineCreated' | 'ScheduledBaselineUpdated';
+  remarks: string;
+  createdAt: string;
+  updatedAt?: string;
+  user?: {
+    id: string;
+    name?: string;
+    email?: string;
+  } | null;
+  before: PlannedContainer[];
+  after: PlannedContainer[];
 }
 
 export interface ShipmentInfo {
@@ -338,6 +373,12 @@ export interface ShipmentInfo {
   riceName?: string;
   packing?: string;
   piNo: string;
+  piDate?: string;
+  portOfLoading?: string;
+  portOfDischarge?: string;
+  fcl?: number;
+  pallet?: number;
+  bags?: number;
   plannedQtyMT: number;
   assumedContainerCount: number;
   currentStage: string;
@@ -453,6 +494,7 @@ export interface ActualContainer {
   storageAllocations?: {
     sn?: number;
     containerSerialNo?: string;
+    bags?: number;
     warehouse?: string;
     storageAvailability?: number;
   }[];
@@ -488,6 +530,8 @@ export interface ActualContainer {
   arrivalOn?: string;
   shipmentFreeRetentionDate?: string;
   portRetentionWithPenaltyDate?: string;
+  maximumRetentionDate?: string;
+  arrivalNoticeFreeRetentionDays?: number;
   arrivalNoticeDocumentUrl?: string;
   arrivalNoticeDocumentName?: string;
   arrivalNoticeDate?: string;
@@ -553,6 +597,7 @@ export interface ActualContainer {
   // Step 5: Storage Allocation & Arrival — per physical container
   storageSplits?: {
     containerSerialNo?: string;
+    bags?: number;
     warehouse?: string;
     storageAvailability?: number;
     receivedOnDate?: string;
@@ -563,7 +608,11 @@ export interface ActualContainer {
     productionDate?: string;
     expiryDate?: string;
     remarks?: string;
+    documentUrl?: string;
+    documentName?: string;
   }[];
+  storageDocumentUrl?: string;
+  storageDocumentName?: string;
 
   // Transport per physical container (from Port & Customs step)
   transportSplits?: {

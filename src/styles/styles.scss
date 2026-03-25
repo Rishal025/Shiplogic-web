@@ -173,3 +173,63 @@
   border-radius: 10px;
   &:hover { background: #94a3b8; }
 }
+
+/*
+ * Quality Table Scroll Fix (Global)
+ * -----------------------------------
+ * DOM chain analysis revealed that PrimeNG's internal .p-accordioncontent-wrapper 
+ * and p-motion elements inside .quality-table-shell's accordion expand to the full 
+ * table width (2788px) despite the p-accordioncontent correctly being constrained 
+ * to the viewport width. ng-deep rules in the component scope do not reliably reach 
+ * these runtime-rendered PrimeNG internals, so the fix must live in global styles.
+ * 
+ * The .quality-table-shell ancestor scopes this rule to only the Quality step's table.
+ */
+.p-accordioncontent-wrapper:has(.quality-table-shell),
+.quality-table-shell {
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.quality-table-shell .quality-scroll-viewport {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.quality-table-shell .quality-scroll-table .p-datatable-table {
+  min-width: 2600px;
+  width: max-content;
+}
+
+/*
+ * Payment Costing Table Scroll Fix (Global)
+ * Same approach as the Quality table — constrain the p-accordioncontent-wrapper
+ * so PrimeNG's p-motion animation wrapper can't expand to the full table width.
+ */
+.p-accordioncontent-wrapper:has(.payment-costing-shell),
+.payment-costing-shell {
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.payment-costing-shell .payment-costing-scroll-viewport {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.payment-costing-shell .payment-costing-scroll-table .p-datatable-table {
+  min-width: 1600px;
+  width: max-content;
+}

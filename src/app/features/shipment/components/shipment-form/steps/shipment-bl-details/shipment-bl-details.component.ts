@@ -13,6 +13,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectButtonModule } from 'primeng/selectbutton';
 import { SelectModule } from 'primeng/select';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { TabsModule } from 'primeng/tabs';
 import { DialogModule } from 'primeng/dialog';
 import {
@@ -70,6 +71,7 @@ const COST_SHEET_DESCRIPTIONS = [
     InputTextModule,
     SelectButtonModule,
     SelectModule,
+    ToggleSwitchModule,
     TabsModule,
     DialogModule,
   ],
@@ -91,11 +93,6 @@ export class ShipmentBlDetailsComponent {
   readonly submittedStep5Indices = toSignal(this.store.select(selectSubmittedStep5Indices), { initialValue: [] });
   readonly submittedStep6Indices = toSignal(this.store.select(selectSubmittedStep6Indices), { initialValue: [] });
   readonly submittedStep7Indices = toSignal(this.store.select(selectSubmittedStep7Indices), { initialValue: [] });
-
-  readonly freightPreparedOptions = [
-    { label: 'Yes', value: 'Yes' },
-    { label: 'No', value: 'No' },
-  ];
 
   readonly warehouseOptions = [
     { label: 'Warehouse DIC - RH006', value: 'Warehouse DIC - RH006' },
@@ -124,6 +121,8 @@ export class ShipmentBlDetailsComponent {
   previewUrl = signal<string | null>(null);
   previewTitle = signal('');
   previewIsImage = signal(false);
+  previewZoom = signal(1);
+  previewTransformOrigin = signal('center center');
   previewSafeUrl = computed(() => {
     const url = this.previewUrl();
     if (!url || this.previewIsImage()) return null;
@@ -210,6 +209,7 @@ export class ShipmentBlDetailsComponent {
     this.previewUrl.set(url);
     this.previewTitle.set(title);
     this.previewIsImage.set(/\.(png|jpe?g|gif|webp)(\?|$)/i.test(url));
+    this.resetPreviewZoom();
     this.showPreviewModal.set(true);
   }
 
@@ -218,6 +218,7 @@ export class ShipmentBlDetailsComponent {
     this.previewUrl.set(url);
     this.previewTitle.set(title);
     this.previewIsImage.set(file.type.startsWith('image/'));
+    this.resetPreviewZoom();
     this.showPreviewModal.set(true);
   }
 
@@ -226,11 +227,35 @@ export class ShipmentBlDetailsComponent {
     if (url) URL.revokeObjectURL(url);
     this.previewUrl.set(null);
     this.previewTitle.set('');
+    this.resetPreviewZoom();
     this.showPreviewModal.set(false);
   }
 
   onPreviewVisibleChange(visible: boolean): void {
     if (!visible) this.closeDocumentPreview();
+  }
+
+  zoomInPreview(): void {
+    this.previewZoom.update((zoom) => Math.min(zoom + 0.25, 4));
+  }
+
+  zoomOutPreview(): void {
+    this.previewZoom.update((zoom) => Math.max(zoom - 0.25, 1));
+  }
+
+  resetPreviewZoom(): void {
+    this.previewZoom.set(1);
+    this.previewTransformOrigin.set('center center');
+  }
+
+  onPreviewImageDoubleClick(event: MouseEvent): void {
+    const target = event.currentTarget as HTMLElement | null;
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    this.previewTransformOrigin.set(`${x}% ${y}%`);
+    this.previewZoom.update((zoom) => (zoom > 1 ? 1 : 2));
   }
 
   openStatusModal(index: number): void {
@@ -297,8 +322,8 @@ export class ShipmentBlDetailsComponent {
     const costSheetBookings = this.getCostSheetRows(row).getRawValue().map((entry: any) => ({
       sn: Number(entry.sn) || 0,
       description: entry.description || '',
-      requestAmount: Number(entry.requestAmount) || 0,
-      paidAmount: Number(entry.paidAmount) || 0,
+      requestAmount: Number(entry.requestAmount ?? 0),
+      paidAmount: Number(entry.paidAmount ?? 0),
     }));
 
     this.savingKey.set(`cost-${index}`);
@@ -338,6 +363,7 @@ export class ShipmentBlDetailsComponent {
     const storageAllocations = this.getStorageRows(row).getRawValue().map((entry: any) => ({
       sn: Number(entry.sn) || 0,
       containerSerialNo: entry.containerSerialNo || '',
+      bags: Number(entry.bags ?? 0) || 0,
       warehouse: entry.warehouse || '',
       storageAvailability: Number(entry.storageAvailability) || 0,
     }));
@@ -357,6 +383,31 @@ export class ShipmentBlDetailsComponent {
         this.notificationService.error('Save failed', error.error?.message || 'Could not save storage allocations.');
       }
     });
+  }
+
+  generateCostSheetReport(index: number): void {
+    const row = this.formArray.at(index);
+    if (!row) return;
+
+    const rows = this.getCostSheetRows(row).getRawValue();
+    const header = ['SN', 'Description', 'Request Amount', 'Paid Amount'];
+    const csv = [
+      header.join(','),
+      ...rows.map((entry: any) => ([
+        Number(entry.sn) || 0,
+        `"${String(entry.description || '').replace(/"/g, '""')}"`,
+        Number(entry.requestAmount ?? 0).toFixed(2),
+        Number(entry.paidAmount ?? 0).toFixed(2),
+      ].join(',')))
+    ].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${this.getShipmentNoLabel(index)}-cost-sheet-booking.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
   onStatusModalVisibleChange(visible: boolean): void {

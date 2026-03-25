@@ -5,10 +5,12 @@ import { DomSanitizer } from '@angular/platform-browser';
 import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { AccordionModule } from 'primeng/accordion';
+import { TableModule } from 'primeng/table';
 import { DatePickerModule } from 'primeng/datepicker';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
+
 import { selectShipmentData } from '../../../../../../store/shipment/shipment.selectors';
 import {
   selectIsPlannedLocked,
@@ -34,6 +36,7 @@ import * as ShipmentActions from '../../../../../../store/shipment/shipment.acti
     DialogModule,
     InputNumberModule,
     InputTextModule,
+    TableModule,
   ],
   templateUrl: './shipment-payment-costing.component.html',
 })
@@ -83,6 +86,8 @@ export class ShipmentPaymentCostingComponent {
   previewUrl = signal<string | null>(null);
   previewTitle = signal('');
   previewIsImage = signal(false);
+  previewZoom = signal(1);
+  previewTransformOrigin = signal('center center');
   previewSafeUrl = computed(() => {
     const url = this.previewUrl();
     if (!url || this.previewIsImage()) return null;
@@ -293,6 +298,7 @@ export class ShipmentPaymentCostingComponent {
     this.previewUrl.set(url);
     this.previewTitle.set(title);
     this.previewIsImage.set(/\.(png|jpe?g|gif|webp)(\?|$)/i.test(url));
+    this.resetPreviewZoom();
     this.showPreviewModal.set(true);
   }
 
@@ -300,6 +306,7 @@ export class ShipmentPaymentCostingComponent {
     this.previewUrl.set(URL.createObjectURL(file));
     this.previewTitle.set(title);
     this.previewIsImage.set(file.type.startsWith('image/'));
+    this.resetPreviewZoom();
     this.showPreviewModal.set(true);
   }
 
@@ -308,11 +315,35 @@ export class ShipmentPaymentCostingComponent {
     if (url) URL.revokeObjectURL(url);
     this.previewUrl.set(null);
     this.previewTitle.set('');
+    this.resetPreviewZoom();
     this.showPreviewModal.set(false);
   }
 
   onPreviewVisibleChange(visible: boolean): void {
     if (!visible) this.closeDocumentPreview();
+  }
+
+  zoomInPreview(): void {
+    this.previewZoom.update((zoom) => Math.min(zoom + 0.25, 4));
+  }
+
+  zoomOutPreview(): void {
+    this.previewZoom.update((zoom) => Math.max(zoom - 0.25, 1));
+  }
+
+  resetPreviewZoom(): void {
+    this.previewZoom.set(1);
+    this.previewTransformOrigin.set('center center');
+  }
+
+  onPreviewImageDoubleClick(event: MouseEvent): void {
+    const target = event.currentTarget as HTMLElement | null;
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    this.previewTransformOrigin.set(`${x}% ${y}%`);
+    this.previewZoom.update((zoom) => (zoom > 1 ? 1 : 2));
   }
 
   saveRow(index: number): void {

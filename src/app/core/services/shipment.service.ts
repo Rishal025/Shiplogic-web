@@ -11,6 +11,7 @@ import {
   ShipmentDetailsResponse,
   ExtractShipmentFromDocumentsResponse,
   ExtractBillNoResponse,
+  ExtractArrivalNoticeResponse,
   DashboardSummaryResponse
 } from '../models/shipment.model';
 
@@ -68,6 +69,7 @@ export interface BLDetailsPayload {
   storageAllocations: Array<{
     sn: number;
     containerSerialNo: string;
+    bags?: number;
     warehouse: string;
     storageAvailability: number;
   }>;
@@ -108,6 +110,7 @@ export interface LogisticsPayload {
   arrivalOn: string;
   shipmentFreeRetentionDate: string;
   portRetentionWithPenaltyDate: string;
+  maximumRetentionDate?: string;
   arrivalNoticeDate: string;
   arrivalNoticeDocumentUrl: string;
   advanceRequestDate: string;
@@ -161,6 +164,7 @@ export interface GRNPayload {
 export interface StorageDetailsPayload {
   storageSplits: Array<{
     containerSerialNo: string;
+    bags?: number;
     warehouse: string;
     storageAvailability: number | null;
     receivedOnDate: string;
@@ -171,7 +175,11 @@ export interface StorageDetailsPayload {
     productionDate: string;
     expiryDate: string;
     remarks: string;
+    documentUrl?: string;
+    documentName?: string;
   }>;
+  storageDocumentUrl?: string;
+  storageDocumentName?: string;
 }
 
 @Injectable({
@@ -216,6 +224,10 @@ export class ShipmentService {
    */
   extractBillNoFromDocument(formData: FormData): Observable<ExtractBillNoResponse> {
     return this.http.post<ExtractBillNoResponse>(`${this.apiUrl}/extract-bill-no`, formData);
+  }
+
+  extractArrivalNoticeFromDocument(formData: FormData): Observable<ExtractArrivalNoticeResponse> {
+    return this.http.post<ExtractArrivalNoticeResponse>(`${this.apiUrl}/extract-arrival-notice`, formData);
   }
 
   updateShipment(id: string, shipment: Partial<ShipmentDetail>): Observable<ShipmentDetail> {

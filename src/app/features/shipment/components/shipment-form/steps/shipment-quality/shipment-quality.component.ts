@@ -10,12 +10,13 @@ import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectModule } from 'primeng/select';
+import { TableModule } from 'primeng/table';
 import { selectShipmentData } from '../../../../../../store/shipment/shipment.selectors';
 import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
 import { NotificationService } from '../../../../../../core/services/notification.service';
 
-type QualityDocKind = 'inhouse' | 'strategic' | 'thirdParty' | 'report';
+type QualityDocKind = 'inhouse' | 'strategic' | 'thirdParty' | 'attachment' | 'report';
 
 @Component({
   selector: 'app-shipment-quality',
@@ -29,6 +30,7 @@ type QualityDocKind = 'inhouse' | 'strategic' | 'thirdParty' | 'report';
     InputTextModule,
     InputNumberModule,
     SelectModule,
+    TableModule,
   ],
   templateUrl: './shipment-quality.component.html',
   styleUrls: ['./shipment-quality.component.scss'],
@@ -102,6 +104,9 @@ export class ShipmentQualityComponent {
         thirdPartyReportDate: [null],
         thirdPartyReportDocumentUrl: [''],
         thirdPartyReportDocumentName: [''],
+        remarks: [''],
+        attachmentDocumentUrl: [''],
+        attachmentDocumentName: [''],
       })
     );
   }
@@ -173,7 +178,9 @@ export class ShipmentQualityComponent {
         ? 'inhouseReportDocumentUrl'
         : kind === 'strategic'
           ? 'strategicReportDocumentUrl'
-          : 'thirdPartyReportDocumentUrl';
+          : kind === 'thirdParty'
+            ? 'thirdPartyReportDocumentUrl'
+            : 'attachmentDocumentUrl';
     return row.get(controlName)?.value || '';
   }
 
@@ -186,7 +193,9 @@ export class ShipmentQualityComponent {
         ? 'inhouseReportDocumentName'
         : kind === 'strategic'
           ? 'strategicReportDocumentName'
-          : 'thirdPartyReportDocumentName';
+          : kind === 'thirdParty'
+            ? 'thirdPartyReportDocumentName'
+            : 'attachmentDocumentName';
     return row.get(controlName)?.value || '';
   }
 
@@ -247,31 +256,24 @@ export class ShipmentQualityComponent {
       thirdPartyReportDate: toDate(row.get('thirdPartyReportDate')?.value),
       thirdPartyReportDocumentUrl: row.get('thirdPartyReportDocumentUrl')?.value || '',
       thirdPartyReportDocumentName: row.get('thirdPartyReportDocumentName')?.value || '',
-    }));
-
-    const qualityReports = this.getQualityReports(group).controls.map((row) => ({
-      phase: row.get('phase')?.value || 'S1',
-      reportDate: toDate(row.get('reportDate')?.value),
       remarks: row.get('remarks')?.value || '',
-      documentUrl: row.get('documentUrl')?.value || '',
-      documentName: row.get('documentName')?.value || '',
+      attachmentDocumentUrl: row.get('attachmentDocumentUrl')?.value || '',
+      attachmentDocumentName: row.get('attachmentDocumentName')?.value || '',
     }));
 
     const formData = new FormData();
     formData.append('qualityRows', JSON.stringify(qualityRows));
-    formData.append('qualityReports', JSON.stringify(qualityReports));
+    formData.append('qualityReports', JSON.stringify([]));
 
     this.getQualityRows(group).controls.forEach((row, rowIndex) => {
       const inhouse = this.getFile(index, rowIndex, 'inhouse', 'qualityRows');
       const strategic = this.getFile(index, rowIndex, 'strategic', 'qualityRows');
       const thirdParty = this.getFile(index, rowIndex, 'thirdParty', 'qualityRows');
+      const attachment = this.getFile(index, rowIndex, 'attachment', 'qualityRows');
       if (inhouse) formData.append(`qualityRows_${rowIndex}_inhouse`, inhouse, inhouse.name);
       if (strategic) formData.append(`qualityRows_${rowIndex}_strategic`, strategic, strategic.name);
       if (thirdParty) formData.append(`qualityRows_${rowIndex}_thirdParty`, thirdParty, thirdParty.name);
-    });
-    this.getQualityReports(group).controls.forEach((row, rowIndex) => {
-      const file = this.getFile(index, rowIndex, 'report', 'qualityReports');
-      if (file) formData.append(`qualityReports_${rowIndex}_report`, file, file.name);
+      if (attachment) formData.append(`qualityRows_${rowIndex}_attachment`, attachment, attachment.name);
     });
 
     this.savingRowIndex.set(index);

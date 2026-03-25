@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormGroup, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
@@ -43,6 +43,7 @@ import { ItemService } from '../../../../core/services/item.service';
   styleUrls: ['./create-shipment.component.scss']
 })
 export class CreateShipmentComponent implements OnInit, OnDestroy {
+  readonly appDateFormat = 'dd/mm/yy';
   shipmentForm!: FormGroup;
   submitting = signal(false);
 
@@ -173,6 +174,8 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
       expectedETD: [null],
       expectedETA: [null],
       s1QualityReport: [null, Validators.required]
+    }, {
+      validators: this.dateOrderValidator('expectedETD', 'expectedETA', 'etaBeforeEtd')
     });
 
     // Reactive Financial Calculation (Total USD = Planned Containers * FC per Unit)
@@ -403,6 +406,23 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     return isNaN(parsed.getTime()) ? null : parsed;
   }
 
+  private dateOrderValidator(startControlName: string, endControlName: string, errorKey: string): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const startValue = control.get(startControlName)?.value;
+      const endValue = control.get(endControlName)?.value;
+      if (!startValue || !endValue) return null;
+
+      const startDate = new Date(startValue);
+      const endDate = new Date(endValue);
+
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+        return null;
+      }
+
+      return endDate <= startDate ? { [errorKey]: true } : null;
+    };
+  }
+
   private lookupItemMetadata(itemCode: string): void {
     const normalizedItemCode = itemCode.trim();
     if (!normalizedItemCode) return;
@@ -439,10 +459,13 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
 
   onSubmit(): void {
     if (this.shipmentForm.invalid || !this.hasAllRequiredDocuments()) {
+      const detail = this.shipmentForm.hasError('etaBeforeEtd')
+        ? 'ETA must be later than ETD.'
+        : 'Please fill all required fields and upload all 3 required documents';
       this.messageService.add({
         severity: 'warn',
         summary: 'Validation Error',
-        detail: 'Please fill all required fields and upload all 3 required documents'
+        detail
       });
       return;
     }
@@ -479,6 +502,11 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
       plannedETD: formValue.expectedETD ? new Date(formValue.expectedETD).toISOString().split('T')[0] : '',
       plannedETA: formValue.expectedETA ? new Date(formValue.expectedETA).toISOString().split('T')[0] : '',
       piNo: formValue.piNo || '',
+      piDate: formValue.piDate ? new Date(formValue.piDate).toISOString().split('T')[0] : '',
+      fpoNo: formValue.fpoNo || '',
+      fcl: formValue.fcl?.toString() || '0',
+      pallet: formValue.pallet?.toString() || '0',
+      bags: formValue.bags?.toString() || '0',
       fcPerUnit: formValue.fcPerUnit?.toString() || '0',
       totalFC: formValue.totalUSD?.toString() || '0',
       amountAED: formValue.totalAED?.toString() || '0',

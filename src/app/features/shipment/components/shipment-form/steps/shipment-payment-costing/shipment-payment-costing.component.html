@@ -107,7 +107,7 @@
                 }
               </div>
             } @else {
-              <div class="rounded-2xl border border-slate-200 overflow-hidden">
+              <div class="rounded-2xl border border-slate-200 overflow-hidden payment-costing-shell">
                 <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-slate-50 border-b border-slate-100">
                   <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Payment Costing</span>
                   <div class="flex flex-wrap items-center gap-2">
@@ -166,45 +166,54 @@
                     </button>
                   </div>
                 </div>
-                <div class="p-3 sm:p-4 flex flex-col gap-3" formArrayName="paymentCostings">
-                  @for (row of getVisiblePaymentCostings(group, i); track $index; let r = $index) {
-                    <div [formGroupName]="r" class="rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
-                      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-3 items-end">
-                        <div class="xl:col-span-1 flex flex-col gap-1.5">
-                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">SN</label>
-                          <div class="table-input-text bg-slate-50">{{ row.get('sn')?.value }}</div>
-                        </div>
-                        <div class="xl:col-span-5 flex flex-col gap-1.5">
-                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Description</label>
+
+                <!-- Scrollable table — same pattern as Quality table -->
+                <div class="payment-costing-scroll-viewport">
+                  <p-table
+                    [value]="getPaymentCostings(group).controls"
+                    styleClass="p-datatable-sm custom-tracker-table payment-costing-scroll-table"
+                    [tableStyle]="{ 'min-width': '1600px' }"
+                    formArrayName="paymentCostings"
+                  >
+                    <ng-template pTemplate="header">
+                      <tr>
+                        <th class="min-w-[64px]">SN</th>
+                        <th class="min-w-[320px]">DESCRIPTION</th>
+                        <th class="min-w-[160px]">REQUEST AMOUNT</th>
+                        <th class="min-w-[160px]">PAID AMOUNT</th>
+                        <th class="min-w-[160px]">ACTUAL PAID</th>
+                        <th class="min-w-[160px]">REF BILL NO</th>
+                        <th class="min-w-[160px]">REF BILL DATE</th>
+                        <th class="min-w-[180px]">REF BILL VENDOR</th>
+                        <th class="min-w-[120px] text-center">DOCUMENT</th>
+                      </tr>
+                    </ng-template>
+                    <ng-template pTemplate="body" let-row let-r="rowIndex">
+                      <tr [formGroupName]="r">
+                        <td class="text-slate-700 font-semibold text-xs">{{ row.get('sn')?.value }}</td>
+                        <td>
                           <input pInputText formControlName="description" class="table-input-text w-full bg-slate-50" readonly />
-                        </div>
-                        <div class="xl:col-span-2 flex flex-col gap-1.5">
-                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Request Amount</label>
+                        </td>
+                        <td>
                           <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full bg-slate-50" [readonly]="true" />
-                        </div>
-                        <div class="xl:col-span-2 flex flex-col gap-1.5">
-                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Paid Amount</label>
+                        </td>
+                        <td>
                           <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full bg-slate-50" [readonly]="true" />
-                        </div>
-                        <div class="xl:col-span-2 flex flex-col gap-1.5">
-                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Actual Paid</label>
+                        </td>
+                        <td>
                           <p-inputNumber formControlName="actualPaid" styleClass="w-full" inputStyleClass="table-input w-full" />
-                        </div>
-                        <div class="xl:col-span-2 flex flex-col gap-1.5">
-                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ref Bill No</label>
+                        </td>
+                        <td>
                           <input pInputText formControlName="refBillNo" class="table-input-text w-full" placeholder="Ref bill no" />
-                        </div>
-                        <div class="xl:col-span-2 flex flex-col gap-1.5">
-                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ref Bill Date</label>
-                          <p-datepicker formControlName="refBillDate" appendTo="body" inputStyleClass="table-input w-full" styleClass="w-full" placeholder="Date"></p-datepicker>
-                        </div>
-                        <div class="xl:col-span-2 flex flex-col gap-1.5">
-                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ref Bill Vendor</label>
+                        </td>
+                        <td>
+                          <p-datepicker formControlName="refBillDate" appendTo="body" inputStyleClass="table-input w-full" styleClass="w-full" placeholder="Date" dateFormat="dd/mm/yy"></p-datepicker>
+                        </td>
+                        <td>
                           <input pInputText formControlName="refBillVendor" class="table-input-text w-full" placeholder="Vendor" />
-                        </div>
-                        <div class="xl:col-span-2 flex flex-col gap-1.5">
-                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Document</label>
-                          <div class="flex items-center gap-2">
+                        </td>
+                        <td class="text-center">
+                          <div class="flex justify-center gap-2">
                             <button type="button" (click)="clickRefBillUpload(i, r)" class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><i class="pi pi-upload"></i></button>
                             @if (getRefBillFile(i, r)) {
                               <button type="button" (click)="openDocumentPreview(getRefBillFile(i, r)!, 'Ref Bill Document')" class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"><i class="pi pi-eye"></i></button>
@@ -215,11 +224,12 @@
                               <div class="w-9 h-9 rounded-lg border border-slate-200 bg-slate-50 text-slate-300 flex items-center justify-center"><i class="pi pi-eye"></i></div>
                             }
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                  }
+                        </td>
+                      </tr>
+                    </ng-template>
+                  </p-table>
                 </div>
+
                 @if (hasHiddenPaymentCostings(group)) {
                   <div class="border-t border-slate-100 px-4 py-3 flex justify-center sm:justify-start">
                     <button
@@ -255,10 +265,23 @@
   [draggable]="false"
   [resizable]="true"
   appendTo="body">
-  <div class="document-preview-content flex items-center justify-center min-h-[70vh] bg-slate-100 p-4">
+  <div class="flex items-center justify-end gap-2 border-b border-slate-200 bg-white px-4 py-3">
+    <button type="button" (click)="zoomOutPreview()" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600">
+      <i class="pi pi-minus"></i>
+    </button>
+    <button type="button" (click)="zoomInPreview()" class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600">
+      <i class="pi pi-plus"></i>
+    </button>
+    <button type="button" (click)="resetPreviewZoom()" class="inline-flex rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-blue-600">
+      Reset
+    </button>
+  </div>
+  <div class="document-preview-content flex items-center justify-center min-h-[70vh] bg-slate-100 p-4 overflow-auto">
     @if (previewUrl(); as url) {
       @if (previewIsImage()) {
-        <img [src]="url" [alt]="previewTitle()" class="max-w-full max-h-[80vh] object-contain rounded shadow-lg" />
+        <div class="overflow-auto rounded-xl border-2 border-dashed border-blue-100 bg-white/70 p-2">
+          <img [src]="url" [alt]="previewTitle()" class="max-w-full max-h-[80vh] object-contain rounded shadow-lg transition-transform duration-200 cursor-zoom-in" [style.transform]="'scale(' + previewZoom() + ')'" [style.transformOrigin]="previewTransformOrigin()" (dblclick)="onPreviewImageDoubleClick($event)" />
+        </div>
       } @else {
         <iframe [src]="previewSafeUrl()" class="w-full h-[80vh] min-h-[500px] rounded border-0 bg-white shadow-lg" title="Document preview"></iframe>
       }

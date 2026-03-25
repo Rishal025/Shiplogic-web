@@ -20,6 +20,13 @@
             [class]="activeSplitTab() === 'actual' ? 'bg-emerald-600 text-white' : 'text-slate-400'"
             class="flex-1 sm:flex-none px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >Actual</button>
+          <button
+            (click)="setTab('history')"
+            role="tab"
+            [attr.aria-selected]="activeSplitTab() === 'history'"
+            [class]="activeSplitTab() === 'history' ? 'bg-amber-500 text-slate-950' : 'text-slate-400'"
+            class="flex-1 sm:flex-none px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all"
+          >History</button>
         </div>
         @if (activeSplitTab() === 'planned') {
           <div class="split-toolbar-shipments flex flex-col sm:flex-row sm:items-center gap-3 border-t sm:border-t-0 sm:border-l border-slate-700 pt-4 sm:pt-0 sm:pl-4 min-w-0">
@@ -90,6 +97,16 @@
             >
               @if (submittingPlanned()) { Submitting... } @else { Lock Baseline }
             </button>
+          } @else if (hasPendingPlannedEdits()) {
+            <button
+              type="button"
+              (click)="confirmPlannedSubmission()"
+              [disabled]="plannedSplits.invalid || submittingPlanned()"
+              aria-label="Save scheduled changes"
+              class="w-full sm:w-auto px-4 py-1.5 bg-amber-500 text-slate-950 rounded-lg text-[9px] font-black uppercase disabled:opacity-50"
+            >
+              @if (submittingPlanned()) { Saving... } @else { Save Changes }
+            </button>
           } @else {
             <span class="text-[9px] font-black text-blue-600 flex items-center gap-1">
               <i class="pi pi-lock text-xs"></i> LOCKED
@@ -108,9 +125,7 @@
             <th scope="col" class="planned-col-date">ETA</th>
             <th scope="col" class="planned-col-month">Month</th>
             <th scope="col" class="planned-col-week">Week</th>
-            @if (!isPlannedLocked()) {
-              <th scope="col" class="planned-col-action text-center">Action</th>
-            }
+            <th scope="col" class="planned-col-action text-center">Action</th>
           </tr>
         </ng-template>
         <ng-template pTemplate="body" let-group let-i="rowIndex">
@@ -138,11 +153,14 @@
             <td class="planned-col-date">
               <p-datepicker formControlName="etd" appendTo="body"
                 inputStyleClass="table-input" ariaLabel="Scheduled ETD" placeholder="ETD"
+                [dateFormat]="appDateFormat"
               ></p-datepicker>
             </td>
             <td class="planned-col-date">
               <p-datepicker formControlName="eta" appendTo="body"
                 inputStyleClass="table-input" ariaLabel="Scheduled ETA" placeholder="ETA"
+                [dateFormat]="appDateFormat"
+                [minDate]="group.get('etd')?.value ? getStrictMinDate($any(group), 'etd') : undefined"
                 (onSelect)="onEtaSelect($any(group), $event)"
               ></p-datepicker>
             </td>
@@ -153,9 +171,9 @@
               {{ getWeekLabelForRow($any(group)) }}
               <input pInputText formControlName="weekWiseShipment" class="hidden" readonly />
             </td>
-            @if (!isPlannedLocked()) {
-              <td class="planned-col-action text-center">
-                <div class="flex justify-center gap-1.5">
+            <td class="planned-col-action text-center">
+              <div class="flex justify-center gap-1.5">
+                @if (!isPlannedLocked()) {
                   <button
                     type="button"
                     (click)="removePlannedRow.emit(i)"
@@ -163,14 +181,35 @@
                     class="w-8 h-8 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
                     [attr.aria-label]="'Remove row ' + (i + 1)"
                   ><i class="pi pi-trash text-xs"></i></button>
-                </div>
-              </td>
-            }
+                } @else if (!isPlannedRowEditable(i)) {
+                  <button
+                    type="button"
+                    (click)="startPlannedRowEdit(i)"
+                    class="w-8 h-8 rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50 flex items-center justify-center"
+                    [attr.aria-label]="'Edit scheduled row ' + (i + 1)"
+                  ><i class="pi pi-pencil text-xs"></i></button>
+                } @else {
+                  <button
+                    type="button"
+                    (click)="cancelPlannedRowEdit(i)"
+                    class="w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center"
+                    [attr.aria-label]="'Stop editing scheduled row ' + (i + 1)"
+                  ><i class="pi pi-times text-xs"></i></button>
+                }
+              </div>
+            </td>
           </tr>
+          @if (getPlannedDateError($any(group)); as errorMessage) {
+            <tr class="bg-amber-50/60">
+              <td colspan="9" class="px-4 py-2 text-[11px] font-medium text-amber-700">
+                <i class="pi pi-exclamation-triangle mr-2"></i>{{ errorMessage }}
+              </td>
+            </tr>
+          }
         </ng-template>
         <ng-template pTemplate="emptymessage">
           <tr>
-            <td [attr.colspan]="isPlannedLocked() ? 8 : 9" class="p-8 text-center bg-slate-50 text-slate-500 text-sm">
+            <td colspan="9" class="p-8 text-center bg-slate-50 text-slate-500 text-sm">
               Enter <strong>No of Shipments</strong> above and click <strong>Confirm</strong> to create rows.
             </td>
           </tr>
@@ -185,6 +224,69 @@
           ><i class="pi pi-plus"></i> Add row</button>
         </div>
       }
+    </div>
+  }
+
+  @if (activeSplitTab() === 'history') {
+    <div class="sl-card overflow-hidden" role="tabpanel">
+      <div class="sl-card-header bg-amber-50/70 flex justify-between items-center py-2.5 px-4">
+        <h2 class="text-[10px] font-black text-amber-700 uppercase">Scheduled History</h2>
+        <span class="text-[10px] font-bold text-amber-700/80">{{ scheduledHistory.length }} log(s)</span>
+      </div>
+      <div class="p-4 space-y-4">
+        @if (scheduledHistory.length > 0) {
+          @for (entry of scheduledHistory; track entry.id) {
+            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+                <div class="space-y-1">
+                  <div class="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                    {{ entry.action === 'ScheduledBaselineCreated' ? 'Baseline Created' : 'Baseline Updated' }}
+                  </div>
+                  <div class="text-sm font-semibold text-slate-700">{{ summarizeHistoryChange(entry) }}</div>
+                  <div class="text-xs text-slate-500">
+                    {{ entry.user?.name || entry.user?.email || 'System' }} • {{ formatHistoryTimestamp(entry.createdAt) }}
+                  </div>
+                  @if (entry.remarks) {
+                    <div class="text-xs text-slate-500">{{ entry.remarks }}</div>
+                  }
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0 lg:min-w-[24rem]">
+                  <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <div class="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Before</div>
+                    <div class="space-y-2">
+                      @for (row of entry.before; track $index) {
+                        <div class="rounded-lg bg-white px-3 py-2 text-xs text-slate-600">
+                          <span class="font-semibold">{{ getScheduledShipmentId($index) }}</span>
+                          • {{ row.qtyMT || 0 }} MT • FCL {{ row.FCL || 0 }} • ETA {{ row.eta ? formatHistoryTimestamp(row.eta).split(',')[0] : '—' }}
+                        </div>
+                      } @empty {
+                        <div class="text-xs text-slate-400">No previous baseline.</div>
+                      }
+                    </div>
+                  </div>
+                  <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                    <div class="mb-2 text-[10px] font-black uppercase tracking-widest text-emerald-700">After</div>
+                    <div class="space-y-2">
+                      @for (row of entry.after; track $index) {
+                        <div class="rounded-lg bg-white px-3 py-2 text-xs text-slate-600">
+                          <span class="font-semibold">{{ getScheduledShipmentId($index) }}</span>
+                          • {{ row.qtyMT || 0 }} MT • FCL {{ row.FCL || 0 }} • ETA {{ row.eta ? formatHistoryTimestamp(row.eta).split(',')[0] : '—' }}
+                        </div>
+                      } @empty {
+                        <div class="text-xs text-slate-400">No saved rows.</div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        } @else {
+          <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
+            Scheduled history will appear here after the baseline is created or updated.
+          </div>
+        }
+      </div>
     </div>
   }
 
@@ -299,18 +401,21 @@
             <td class="actual-col-date">
               <p-datepicker formControlName="shipOnBoardDate" appendTo="body"
                 inputStyleClass="date-mini" ariaLabel="Ship Onboard Date" placeholder="Ship Onboard"
+                [dateFormat]="appDateFormat"
               ></p-datepicker>
             </td>
             <td class="actual-col-date">
               <p-datepicker formControlName="updatedETD" appendTo="body"
                 inputStyleClass="date-mini" ariaLabel="ETD" placeholder="ETD"
+                [dateFormat]="appDateFormat"
                 [minDate]="getStrictMinDate($any(group), 'shipOnBoardDate')"
               ></p-datepicker>
             </td>
             <td class="actual-col-date">
               <p-datepicker formControlName="updatedETA" appendTo="body"
                 inputStyleClass="date-mini" ariaLabel="ETA" placeholder="ETA"
-                [minDate]="getStrictMinDate($any(group), 'shipOnBoardDate')"
+                [dateFormat]="appDateFormat"
+                [minDate]="getStrictMinDate($any(group), group.get('updatedETD')?.value ? 'updatedETD' : 'shipOnBoardDate')"
               ></p-datepicker>
             </td>
             <td class="actual-col-action text-center">
@@ -385,20 +490,27 @@
         <p class="text-sm text-slate-500">
           All ETA dates from the scheduled shipment rows are highlighted here.
         </p>
-        <button
-          type="button"
-          (click)="shareEtaCalendarDates()"
-          class="inline-flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-black uppercase text-slate-600 hover:bg-slate-50"
-        >
-          <i class="pi pi-share-alt"></i>
-          Share
-        </button>
+        <div class="flex shrink-0 flex-wrap gap-2">
+          <button
+            type="button"
+            (click)="openEtaShareModal()"
+            class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-black uppercase text-slate-600 hover:bg-slate-50"
+          >
+            <i class="pi pi-share-alt"></i>
+            Share
+          </button>
+        </div>
+      </div>
+      <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+        <div class="text-[11px] font-black uppercase tracking-widest text-slate-500">Shipment Tracker ID</div>
+        <div class="mt-1 text-sm font-semibold text-slate-700">{{ getShipmentTrackerId() || '—' }}</div>
       </div>
       <p-datepicker
         [ngModel]="etaCalendarDates()"
         selectionMode="multiple"
         [inline]="true"
         [readonlyInput]="true"
+        [dateFormat]="appDateFormat"
         inputId="etaCalendarOverview"
         styleClass="w-full">
       </p-datepicker>
@@ -423,6 +535,52 @@
         } @else {
           <p class="text-sm text-slate-400">No ETA dates selected yet.</p>
         }
+      </div>
+    </div>
+  </p-dialog>
+}
+
+@if (showEtaShareModal()) {
+  <p-dialog
+    header="Share ETA Calendar"
+    [visible]="true"
+    (visibleChange)="closeEtaShareModal()"
+    [modal]="true"
+    [dismissableMask]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{ width: 'min(92vw, 26rem)' }"
+    appendTo="body">
+    <div class="flex flex-col gap-4">
+      <div class="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+        <div class="mb-2 text-[11px] font-black uppercase tracking-widest text-slate-500">Share Details</div>
+        <pre class="whitespace-pre-wrap break-words text-xs leading-5 text-slate-700 font-medium m-0">{{ getEtaShareText() }}</pre>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <button
+          type="button"
+          (click)="shareEtaCalendarDates()"
+          class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-[11px] font-black uppercase text-slate-600 hover:bg-slate-50"
+        >
+          <i class="pi pi-copy"></i>
+          Copy Detail
+        </button>
+        <button
+          type="button"
+          (click)="shareEtaCalendarOnWhatsApp()"
+          class="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-[11px] font-black uppercase text-emerald-600 hover:bg-emerald-50"
+        >
+          <i class="pi pi-whatsapp"></i>
+          WhatsApp
+        </button>
+        <button
+          type="button"
+          (click)="shareEtaCalendarViaEmail()"
+          class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-3 py-3 text-[11px] font-black uppercase text-blue-600 hover:bg-blue-50"
+        >
+          <i class="pi pi-envelope"></i>
+          Email
+        </button>
       </div>
     </div>
   </p-dialog>
