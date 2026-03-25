@@ -233,3 +233,27 @@
   min-width: 1600px;
   width: max-content;
 }
+
+/*
+ * Storage Allocation & Arrival Table Scroll Fix (Global)
+ * Constrains PrimeNG accordion wrappers so the table can overflow-x:auto properly.
+ */
+.p-accordioncontent-wrapper:has(.storage-arrival-shell),
+.p-accordioncontent-wrapper:has(.storage-allocation-shell),
+.storage-arrival-shell,
+.storage-allocation-shell {
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.storage-allocation-shell .storage-allocation-viewport,
+.storage-arrival-shell .storage-arrival-viewport {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}

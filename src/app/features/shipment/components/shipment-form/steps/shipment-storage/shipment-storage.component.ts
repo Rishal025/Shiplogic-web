@@ -104,6 +104,15 @@ export class ShipmentStorageComponent {
     return this.activeTabs()[key] ?? 'allocation';
   }
 
+  /** Per-shipment tab (single toggle for all containers in that shipment) */
+  setShipmentTab(shipmentIndex: number, tab: 'allocation' | 'arrival'): void {
+    this.activeTabs.update((current) => ({ ...current, [`s-${shipmentIndex}`]: tab }));
+  }
+
+  getShipmentTab(shipmentIndex: number): 'allocation' | 'arrival' {
+    return (this.activeTabs()[`s-${shipmentIndex}`] as 'allocation' | 'arrival') ?? 'allocation';
+  }
+
   private rowFileKey(shipmentIndex: number, containerIndex: number): string {
     return `${shipmentIndex}:${containerIndex}`;
   }

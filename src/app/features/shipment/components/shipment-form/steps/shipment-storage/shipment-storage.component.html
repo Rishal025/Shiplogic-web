@@ -63,211 +63,187 @@
           </div>
         </p-accordion-header>
         <p-accordion-content styleClass="bg-white">
-          <div class="px-5 pb-5 pt-2 flex flex-col gap-5">
+          <div class="px-5 pb-5 pt-3 flex flex-col gap-4">
 
-            <!-- Loop containers inside this shipment -->
-            @for (cGroup of getVisibleContainers(group, i); track $index; let c = $index) {
-              <div class="border border-slate-100 rounded-xl overflow-hidden">
+            <!-- Single tab toggle for the whole shipment -->
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                (click)="setShipmentTab(i, 'allocation')"
+                class="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                [class.bg-slate-900]="getShipmentTab(i) === 'allocation'"
+                [class.text-white]="getShipmentTab(i) === 'allocation'"
+                [class.bg-slate-100]="getShipmentTab(i) !== 'allocation'"
+                [class.text-slate-500]="getShipmentTab(i) !== 'allocation'"
+              >
+                Storage Allocation
+              </button>
+              <button
+                type="button"
+                (click)="setShipmentTab(i, 'arrival')"
+                class="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                [class.bg-slate-900]="getShipmentTab(i) === 'arrival'"
+                [class.text-white]="getShipmentTab(i) === 'arrival'"
+                [class.bg-slate-100]="getShipmentTab(i) !== 'arrival'"
+                [class.text-slate-500]="getShipmentTab(i) !== 'arrival'"
+              >
+                Storage Arrival
+              </button>
+            </div>
 
-                <!-- Container Header -->
-                <div class="flex items-center gap-2.5 px-4 py-2.5 bg-slate-50 border-b border-slate-100">
-                  <span class="w-5 h-5 rounded-full bg-slate-700 text-white text-[9px] font-black flex items-center justify-center shrink-0">
-                    {{ c + 1 }}
-                  </span>
-                  <span class="text-[10px] font-black text-slate-700 uppercase tracking-wider">
-                    Container {{ c + 1 }}
-                    @if ($any(cGroup).get('containerSerialNo')?.value) {
-                      <span class="font-medium text-slate-400 ml-1 normal-case">— {{ $any(cGroup).get('containerSerialNo')?.value }}</span>
-                    }
-                  </span>
-                </div>
-
-                <!-- Tab Buttons for this container -->
-                <div class="flex flex-wrap gap-2 px-4 pt-3 pb-3 border-b border-slate-100">
-                  <button
-                    type="button"
-                    (click)="setActiveTab(i, c, 'allocation')"
-                    class="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
-                    [class.bg-slate-900]="getActiveTab(i, c) === 'allocation'"
-                    [class.text-white]="getActiveTab(i, c) === 'allocation'"
-                    [class.bg-slate-100]="getActiveTab(i, c) !== 'allocation'"
-                    [class.text-slate-500]="getActiveTab(i, c) !== 'allocation'"
-                  >
-                    Storage Allocation
-                  </button>
-                  <button
-                    type="button"
-                    (click)="setActiveTab(i, c, 'arrival')"
-                    class="px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
-                    [class.bg-slate-900]="getActiveTab(i, c) === 'arrival'"
-                    [class.text-white]="getActiveTab(i, c) === 'arrival'"
-                    [class.bg-slate-100]="getActiveTab(i, c) !== 'arrival'"
-                    [class.text-slate-500]="getActiveTab(i, c) !== 'arrival'"
-                  >
-                    Storage Arrival
-                  </button>
-                </div>
-
-                <!-- Tab Content -->
-                <div [formGroup]="$any(cGroup)" class="p-4">
-                  @if (getActiveTab(i, c) === 'allocation') {
-                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 animate-in fade-in duration-200">
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Container Serial No</label>
-                        <input pInputText formControlName="containerSerialNo" class="table-input-text w-full bg-slate-50" readonly placeholder="Container Serial No" />
-                      </div>
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bags</label>
-                        <input
-                          pInputText
-                          class="table-input-text w-full bg-slate-50"
-                          [value]="$any(cGroup).get('bags')?.value ?? ''"
-                          readonly
-                          placeholder="0"
-                        />
-                      </div>
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Warehouse</label>
-                        <input
-                          pInputText
-                          class="table-input-text w-full bg-slate-50"
-                          [value]="$any(cGroup).get('warehouse')?.value || ''"
-                          readonly
-                          placeholder="Warehouse"
-                        />
-                      </div>
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Storage Availability</label>
-                        <input
-                          pInputText
-                          class="table-input-text w-full bg-slate-50"
-                          [value]="$any(cGroup).get('storageAvailability')?.value ?? ''"
-                          readonly
-                          placeholder="0"
-                        />
-                      </div>
-                    </div>
-                  } @else {
-                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 animate-in fade-in duration-200">
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Container Serial No</label>
-                        <input pInputText formControlName="containerSerialNo" class="table-input-text w-full bg-slate-50" readonly placeholder="Container Serial No" />
-                      </div>
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bags</label>
-                        <input
-                          pInputText
-                          class="table-input-text w-full bg-slate-50"
-                          [value]="$any(cGroup).get('bags')?.value ?? ''"
-                          readonly
-                          placeholder="0"
-                        />
-                      </div>
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Warehouse</label>
-                        <input
-                          pInputText
-                          class="table-input-text w-full bg-slate-50"
-                          [value]="$any(cGroup).get('warehouse')?.value || ''"
-                          readonly
-                          placeholder="Warehouse"
-                        />
-                      </div>
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Storage Availability</label>
-                        <input
-                          pInputText
-                          class="table-input-text w-full bg-slate-50"
-                          [value]="$any(cGroup).get('storageAvailability')?.value ?? ''"
-                          readonly
-                          placeholder="0"
-                        />
-                      </div>
-
-                      <!-- Arrival-specific fields -->
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Received On Date</label>
-                        <p-datepicker formControlName="receivedOnDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
-                      </div>
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Received On Time</label>
-                        <p-datepicker formControlName="receivedOnTime" appendTo="body" inputStyleClass="table-input" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" />
-                      </div>
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Customs Inspection</label>
-                        <div class="flex items-center gap-3 h-10">
-                          <p-toggleswitch
-                            formControlName="customsInspection"
-                            trueValue="Yes"
-                            falseValue="No">
-                          </p-toggleswitch>
-                          <span class="text-xs font-bold"
-                            [class.text-green-600]="$any(cGroup).get('customsInspection')?.value === 'Yes'"
-                            [class.text-slate-500]="$any(cGroup).get('customsInspection')?.value !== 'Yes'">
-                            {{ $any(cGroup).get('customsInspection')?.value || 'No' }}
-                          </span>
-                        </div>
-                      </div>
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">GRN #</label>
-                        <input pInputText formControlName="grn" class="table-input-text w-full" placeholder="Enter GRN Number" />
-                      </div>
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Batch #</label>
-                        <input pInputText formControlName="batch" class="table-input-text w-full" placeholder="Enter Batch Number" />
-                      </div>
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Production Date</label>
-                        <p-datepicker formControlName="productionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
-                      </div>
-                      <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Expiry Date</label>
-                        <p-datepicker formControlName="expiryDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
-                      </div>
-                      <div class="flex flex-col gap-1.5 md:col-span-2 xl:col-span-3">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Remarks</label>
-                        <input pInputText formControlName="remarks" class="table-input-text w-full" placeholder="Any remarks" />
-                      </div>
-                      <div class="flex flex-col gap-1.5 md:col-span-2 xl:col-span-3">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Row Document</label>
-                        <div class="flex flex-wrap items-center gap-2">
-                          <button type="button" (click)="clickRowFileInput(i, c)" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600">
-                            <i class="pi pi-upload"></i>
-                          </button>
-                          @if (getRowFile(i, c)) {
-                            <button type="button" (click)="openDocumentPreview(getRowFile(i, c)!, 'Storage Row Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600">
-                              <i class="pi pi-eye"></i>
-                            </button>
-                            <button type="button" (click)="clearRowFile(i, c)" class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100">
-                              <i class="pi pi-trash"></i>
-                            </button>
-                            <span class="text-[11px] text-slate-400 break-all">{{ getRowFile(i, c)?.name }}</span>
-                          } @else if (getSavedRowDocumentUrl(cGroup)) {
-                            <button type="button" (click)="openRemoteDocumentPreview(getSavedRowDocumentUrl(cGroup), getSavedRowDocumentName(cGroup) || 'Storage Row Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600">
-                              <i class="pi pi-eye"></i>
-                            </button>
-                            <span class="text-[11px] text-slate-400 break-all">{{ getSavedRowDocumentName(cGroup) }}</span>
-                          }
-                        </div>
-                      </div>
-                    </div>
-                  }
+            <!-- ===== STORAGE ALLOCATION TABLE ===== -->
+            @if (getShipmentTab(i) === 'allocation') {
+              <div class="storage-allocation-shell rounded-xl border border-slate-200 overflow-hidden">
+                <div class="storage-allocation-viewport overflow-x-auto">
+                  <table class="w-full border-separate border-spacing-0" style="min-width: 900px;">
+                    <thead>
+                      <tr class="bg-slate-50 border-b border-slate-200">
+                        <th class="px-4 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-10">#</th>
+                        <th class="px-4 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-48">Container Serial No</th>
+                        <th class="px-4 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-36">Bags</th>
+                        <th class="px-4 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-56">Warehouse</th>
+                        <th class="px-4 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-40">Storage Availability</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (cGroup of getContainersArray(group); track $index; let c = $index) {
+                        <tr [formGroup]="$any(cGroup)" class="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/50 transition-colors">
+                          <td class="px-4 py-2.5 text-xs font-bold text-slate-500">{{ c + 1 }}</td>
+                          <td class="px-4 py-2.5">
+                            <input pInputText formControlName="containerSerialNo" class="table-input-text w-full bg-slate-50" readonly placeholder="Container Serial No" />
+                          </td>
+                          <td class="px-4 py-2.5">
+                            <input
+                              pInputText
+                              class="table-input-text w-full bg-slate-50"
+                              [value]="$any(cGroup).get('bags')?.value ?? ''"
+                              readonly
+                              placeholder="0"
+                            />
+                          </td>
+                          <td class="px-4 py-2.5">
+                            <input
+                              pInputText
+                              class="table-input-text w-full bg-slate-50"
+                              [value]="$any(cGroup).get('warehouse')?.value || ''"
+                              readonly
+                              placeholder="Warehouse"
+                            />
+                          </td>
+                          <td class="px-4 py-2.5">
+                            <input
+                              pInputText
+                              class="table-input-text w-full bg-slate-50"
+                              [value]="$any(cGroup).get('storageAvailability')?.value ?? ''"
+                              readonly
+                              placeholder="0"
+                            />
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
                 </div>
               </div>
             }
 
-            @if (hasHiddenContainers(group)) {
-              <div class="pt-1">
-                <button
-                  type="button"
-                  (click)="toggleContainers(i)"
-                  class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50"
-                >
-                  <i class="pi" [class.pi-angle-down]="!expandedContainers()[i]" [class.pi-angle-up]="expandedContainers()[i]"></i>
-                  {{ expandedContainers()[i] ? 'Show Less Containers' : 'Show More Containers' }}
-                </button>
+            <!-- ===== STORAGE ARRIVAL TABLE ===== -->
+            @if (getShipmentTab(i) === 'arrival') {
+              <div class="storage-arrival-shell rounded-xl border border-slate-200 overflow-hidden">
+                <div class="storage-arrival-viewport overflow-x-auto">
+                  <table class="w-full border-separate border-spacing-0" style="min-width: 1600px;">
+                    <thead>
+                      <tr class="bg-slate-50 border-b border-slate-200">
+                        <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-10">#</th>
+                        <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-44">Container No</th>
+                        <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-28">Bags</th>
+                        <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-52">Warehouse</th>
+                        <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-40">Received On Date</th>
+                        <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-36">Received On Time</th>
+                        <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-36">Customs Inspection</th>
+                        <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-36">GRN #</th>
+                        <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-36">Batch #</th>
+                        <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-40">Production Date</th>
+                        <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-40">Expiry Date</th>
+                        <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-44">Remarks</th>
+                        <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-24">Document</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (cGroup of getContainersArray(group); track $index; let c = $index) {
+                        <tr [formGroup]="$any(cGroup)" class="border-b border-slate-100 last:border-b-0 hover:bg-slate-50/30 transition-colors">
+                          <td class="px-3 py-2 text-xs font-bold text-slate-500">{{ c + 1 }}</td>
+                          <td class="px-3 py-2">
+                            <input pInputText formControlName="containerSerialNo" class="table-input-text w-full bg-slate-50" readonly placeholder="Container No" />
+                          </td>
+                          <td class="px-3 py-2">
+                            <input pInputText class="table-input-text w-full bg-slate-50" [value]="$any(cGroup).get('bags')?.value ?? ''" readonly placeholder="0" />
+                          </td>
+                          <td class="px-3 py-2">
+                            <input pInputText class="table-input-text w-full bg-slate-50" [value]="$any(cGroup).get('warehouse')?.value || ''" readonly placeholder="Warehouse" />
+                          </td>
+                          <td class="px-3 py-2">
+                            <p-datepicker formControlName="receivedOnDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                          </td>
+                          <td class="px-3 py-2">
+                            <p-datepicker formControlName="receivedOnTime" appendTo="body" inputStyleClass="table-input" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" />
+                          </td>
+                          <td class="px-3 py-2">
+                            <div class="flex items-center gap-2 h-10">
+                              <p-toggleswitch
+                                formControlName="customsInspection"
+                                trueValue="Yes"
+                                falseValue="No">
+                              </p-toggleswitch>
+                              <span class="text-xs font-bold"
+                                [class.text-green-600]="$any(cGroup).get('customsInspection')?.value === 'Yes'"
+                                [class.text-slate-500]="$any(cGroup).get('customsInspection')?.value !== 'Yes'">
+                                {{ $any(cGroup).get('customsInspection')?.value || 'No' }}
+                              </span>
+                            </div>
+                          </td>
+                          <td class="px-3 py-2">
+                            <input pInputText formControlName="grn" class="table-input-text w-full" placeholder="GRN #" />
+                          </td>
+                          <td class="px-3 py-2">
+                            <input pInputText formControlName="batch" class="table-input-text w-full" placeholder="Batch #" />
+                          </td>
+                          <td class="px-3 py-2">
+                            <p-datepicker formControlName="productionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                          </td>
+                          <td class="px-3 py-2">
+                            <p-datepicker formControlName="expiryDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                          </td>
+                          <td class="px-3 py-2">
+                            <input pInputText formControlName="remarks" class="table-input-text w-full" placeholder="Remarks" />
+                          </td>
+                          <td class="px-3 py-2">
+                            <div class="flex items-center gap-1">
+                              <button type="button" (click)="clickRowFileInput(i, c)" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600">
+                                <i class="pi pi-upload text-[10px]"></i>
+                              </button>
+                              @if (getRowFile(i, c)) {
+                                <button type="button" (click)="openDocumentPreview(getRowFile(i, c)!, 'Storage Row Document')" class="h-8 w-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 inline-flex items-center justify-center">
+                                  <i class="pi pi-eye text-[10px]"></i>
+                                </button>
+                                <button type="button" (click)="clearRowFile(i, c)" class="h-8 w-8 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 inline-flex items-center justify-center">
+                                  <i class="pi pi-trash text-[10px]"></i>
+                                </button>
+                              } @else if (getSavedRowDocumentUrl(cGroup)) {
+                                <button type="button" (click)="openRemoteDocumentPreview(getSavedRowDocumentUrl(cGroup), getSavedRowDocumentName(cGroup) || 'Storage Row Document')" class="h-8 w-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 inline-flex items-center justify-center">
+                                  <i class="pi pi-eye text-[10px]"></i>
+                                </button>
+                              }
+                            </div>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
               </div>
             }
+
           </div>
         </p-accordion-content>
       </p-accordion-panel>
