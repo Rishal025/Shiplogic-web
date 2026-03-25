@@ -60,13 +60,18 @@ export class ShipmentListComponent implements OnInit {
         }
     }
 
-    getSeverity(status: string) {
+    getSeverity(status: string): 'success' | 'info' | 'warn' | 'danger' | 'secondary' {
         if (!status) return 'secondary';
         const s = status.toLowerCase();
+        if (s.includes('completed') || s === 'payment costing') return 'success';
+        if (s.includes('quality')) return 'success';
+        if (s.includes('storage')) return 'info';
+        if (s.includes('port') || s.includes('customs')) return 'warn';
+        if (s.includes('documentation')) return 'warn';
+        if (s.includes('b/l') || s.includes('bl ')) return 'warn';
         if (s.includes('split')) return 'info';
-        if (s.includes('delivered') || s.includes('completed')) return 'success';
-        if (s.includes('pending') || s.includes('processing')) return 'warn';
-        if (s.includes('customs') || s.includes('clearance') || s.includes('delayed')) return 'danger';
+        if (s.includes('entry')) return 'secondary';
+        if (s.includes('delayed') || s.includes('error')) return 'danger';
         return 'secondary';
     }
 }
