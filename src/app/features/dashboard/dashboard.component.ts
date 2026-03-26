@@ -209,6 +209,36 @@ export class DashboardComponent implements OnInit {
     return { labels, datasets };
   });
 
+  readonly comparisonChartConfig = computed<ChartData<'bar'>>(() => {
+    const data = this.dashboard()?.chartData;
+    if (!data || !data.supplierAvgFc || data.supplierAvgFc.length === 0) return { labels: [], datasets: [] };
+
+    const matrix = data.supplierAvgFc;
+    const labels = matrix.map((row: any) => row.rowLabel);
+    
+    // Collect all columns across all rows excluding 'rowLabel'
+    const columnsSet = new Set<string>();
+    matrix.forEach((row: any) => {
+      Object.keys(row).forEach(k => {
+        if (k !== 'rowLabel') columnsSet.add(k);
+      });
+    });
+    
+    const columns = Array.from(columnsSet);
+    // Use alternate palette to differentiate from primary chart
+    const colors = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4'];
+
+    const datasets = columns.map((col, index) => {
+      return {
+        data: matrix.map((row: any) => Number(row[col]) || 0),
+        label: col,
+        backgroundColor: colors[index % colors.length]
+      };
+    });
+
+    return { labels, datasets };
+  });
+
   ngOnInit(): void {
     this.dashboardService.getSummary().subscribe({
       next: (summary) => {

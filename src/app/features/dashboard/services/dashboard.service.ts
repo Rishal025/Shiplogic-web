@@ -149,7 +149,7 @@ export class DashboardService {
         underClearanceShipments: summary.kpis.underClearanceShipments || underClearanceShipments,
         totalPaymentExposure:
           summary.kpis.totalPaymentExposure ||
-          shipments.reduce((total, shipment) => total + (shipment.totalAmount || 0), 0)
+          shipments.reduce((total, shipment) => total + (shipment.totalFC || 0), 0)
       },
       stageBreakdown:
         summary.stageBreakdown.length > 0
@@ -170,9 +170,9 @@ export class DashboardService {
               orderDate: shipment.orderDate,
               plannedETA: undefined,
               status: shipment.status,
-              totalAmount: shipment.totalAmount,
+              totalAmount: shipment.totalFC,
               supplier: shipment.supplier,
-              item: shipment.item
+              item: shipment.description
             }))
     };
   }

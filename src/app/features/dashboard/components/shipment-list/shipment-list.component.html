@@ -52,20 +52,20 @@
                 <dd class="mt-1 text-xs font-semibold text-slate-700">{{ shipment.orderDate | date:'dd/MM/yyyy' }}</dd>
               </div>
               <div class="rounded-xl border border-slate-200 bg-white p-3">
-                <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount</dt>
-                <dd class="mt-1 text-xs font-semibold text-slate-700">{{ shipment.totalAmount | currency:'USD':'symbol':'1.0-0' }}</dd>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Buying Qty</dt>
+                <dd class="mt-1 text-xs font-semibold text-slate-700">{{ shipment.buyingQty | number }}</dd>
               </div>
               <div class="rounded-xl border border-slate-200 bg-white p-3">
-                <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">PI No.</dt>
-                <dd class="mt-1 text-xs font-semibold text-slate-700">{{ shipment.piNo || '-' }}</dd>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">FC / Unit</dt>
+                <dd class="mt-1 text-xs font-semibold text-slate-700">{{ shipment.fcPerUnit | currency:'USD':'symbol':'1.0-2' }}</dd>
               </div>
               <div class="rounded-xl border border-slate-200 bg-white p-3">
-                <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Split</dt>
-                <dd class="mt-1 text-xs font-semibold text-slate-700">{{ shipment.split }}</dd>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total FC</dt>
+                <dd class="mt-1 text-xs font-semibold text-slate-700">{{ shipment.totalFC | currency:'USD':'symbol':'1.0-0' }}</dd>
               </div>
               <div class="col-span-2 rounded-xl border border-slate-200 bg-white p-3">
-                <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Item</dt>
-                <dd class="mt-1 text-xs font-semibold text-slate-700">{{ shipment.item || '-' }}</dd>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Description</dt>
+                <dd class="mt-1 text-xs font-semibold text-slate-700">{{ shipment.description || '-' }}</dd>
               </div>
             </dl>
 
@@ -106,10 +106,11 @@
             <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Shipment No.</th>
             <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Order Date</th>
             <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Supplier</th>
-            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Item</th>
-            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">PI No.</th>
-            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Split</th>
-            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Total Amount</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Description</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Buying Qty</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">FC / Unit</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Total FC</th>
+            <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">No. Shipments</th>
             <th scope="col" class="p-4 border-b border-slate-200 text-left font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Status</th>
             <th scope="col" class="p-4 border-b border-slate-200 text-center font-semibold text-slate-400 uppercase text-[10px] tracking-widest whitespace-nowrap bg-slate-50">Action</th>
           </tr>
@@ -125,8 +126,9 @@
                 <td class="p-4"><p-skeleton width="8rem" height="1rem" styleClass="bg-slate-200"></p-skeleton></td>
                 <td class="p-4"><p-skeleton width="10rem" height="1rem" styleClass="bg-slate-200"></p-skeleton></td>
                 <td class="p-4"><p-skeleton width="4rem" height="1rem" styleClass="bg-slate-200"></p-skeleton></td>
-                <td class="p-4"><p-skeleton width="2rem" height="1rem" styleClass="bg-slate-200 mx-auto"></p-skeleton></td>
+                <td class="p-4"><p-skeleton width="4rem" height="1rem" styleClass="bg-slate-200"></p-skeleton></td>
                 <td class="p-4"><p-skeleton width="5rem" height="1rem" styleClass="bg-slate-200"></p-skeleton></td>
+                <td class="p-4"><p-skeleton width="4rem" height="1rem" styleClass="bg-slate-200"></p-skeleton></td>
                 <td class="p-4"><p-skeleton width="4rem" height="1.25rem" styleClass="bg-slate-200 rounded"></p-skeleton></td>
                 <td class="p-4">
                   <div class="flex justify-center gap-2">
@@ -144,10 +146,11 @@
             <td class="p-4 text-xs font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{{shipment.shipmentNo}}</td>
             <td class="p-4 text-xs text-slate-600">{{shipment.orderDate | date:'dd/MM/yyyy'}}</td>
             <td class="p-4 text-xs text-slate-600 truncate max-w-[200px]" [title]="shipment.supplier">{{shipment.supplier}}</td>
-            <td class="p-4 text-xs text-slate-600 truncate max-w-[250px]" [title]="shipment.item">{{shipment.item}}</td>
-            <td class="p-4 text-xs text-slate-600">{{shipment.piNo}}</td>
-            <td class="p-4 text-xs text-slate-600 text-center">{{shipment.split}}</td>
-            <td class="p-4 text-xs text-slate-600 font-semibold">{{shipment.totalAmount | currency:'USD':'symbol':'1.0-0'}}</td>
+            <td class="p-4 text-xs text-slate-600 truncate max-w-[250px]" [title]="shipment.description">{{shipment.description || '-'}}</td>
+            <td class="p-4 text-xs text-slate-600">{{shipment.buyingQty | number}}</td>
+            <td class="p-4 text-xs text-slate-600">{{shipment.fcPerUnit | currency:'USD':'symbol':'1.0-2'}}</td>
+            <td class="p-4 text-xs text-slate-600 font-semibold">{{shipment.totalFC | currency:'USD':'symbol':'1.0-0'}}</td>
+            <td class="p-4 text-xs text-slate-600 text-center">{{shipment.noOfShipments | number}}</td>
             <td class="p-4 text-xs">
               <span 
                 [class]="'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ' + 
@@ -179,7 +182,7 @@
           }
  @empty {
           <tr role="row">
-            <td colspan="11" class="p-20 text-center">
+            <td colspan="12" class="p-20 text-center">
               <div class="flex flex-col items-center gap-4">
                 <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center">
                   <i class="pi pi-inbox text-2xl text-slate-300"></i>

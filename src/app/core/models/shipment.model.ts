@@ -4,11 +4,12 @@ export interface Shipment {
   shipmentNo: string;
   orderDate: string;
   supplier: string;
-  item: string;
-  piNo: string;
-  split: number;
+  description: string;
+  buyingQty: number;
+  fcPerUnit: number;
+  totalFC: number;
+  noOfShipments: number;
   status: string;
-  totalAmount: number;
 }
 
 export interface ShipmentListResponse {
