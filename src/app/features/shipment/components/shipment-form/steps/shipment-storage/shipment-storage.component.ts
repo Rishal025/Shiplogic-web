@@ -10,7 +10,6 @@ import { AccordionModule } from 'primeng/accordion';
 import { DatePickerModule } from 'primeng/datepicker';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
-import { ToggleSwitch } from 'primeng/toggleswitch';
 import { SelectModule } from 'primeng/select';
 import { DialogModule } from 'primeng/dialog';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
@@ -26,7 +25,6 @@ import { NotificationService } from '../../../../../../core/services/notificatio
     DatePickerModule,
     InputNumberModule,
     InputTextModule,
-    ToggleSwitch,
     SelectModule,
     DialogModule,
   ],
