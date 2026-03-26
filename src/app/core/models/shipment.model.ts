@@ -69,6 +69,19 @@ export interface DashboardRecentShipment {
   item?: string;
 }
 
+export interface ChartMappingRow {
+  rowLabel: string;
+  [key: string]: any;
+}
+
+export interface DashboardChartData {
+  qtyMapping: ChartMappingRow[];
+  valueMapping: ChartMappingRow[];
+  yearlyQtyMapping: ChartMappingRow[];
+  supplierAvgFc: ChartMappingRow[];
+  supplierYearlyQty: ChartMappingRow[];
+}
+
 export interface DashboardSummaryResponse {
   kpis: DashboardKpis;
   stageBreakdown: DashboardStageBreakdown[];
@@ -77,6 +90,7 @@ export interface DashboardSummaryResponse {
   paymentSummary: DashboardPaymentSummary;
   recentShipments: DashboardRecentShipment[];
   shippingStatus?: DashboardShippingStatus;
+  chartData?: DashboardChartData;
 }
 
 export interface DashboardShippingStatusOrder {

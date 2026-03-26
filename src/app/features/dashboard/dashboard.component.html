@@ -30,11 +30,64 @@
             </div>
         </header>
 
-        <section class="shipping-status-card">
-            <div class="shipping-status-head">
-                <h2>Shipping Status Dashboard</h2>
+        <section class="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
+            <!-- Left Side Column -->
+            <div class="flex flex-col gap-6 lg:col-span-1">
+                <!-- Main Total Shipments KPI -->
+                <article class="sl-panel flex flex-col items-center justify-center p-6 bg-emerald-50 border border-emerald-100 rounded-xl shadow-sm">
+                    <div class="w-12 h-12 flex flex-shrink-0 items-center justify-center bg-emerald-100 text-emerald-600 rounded-full mb-4">
+                        <i class="pi pi-box text-xl"></i>
+                    </div>
+                    <h3 class="text-emerald-900 font-bold text-lg mb-1">Total Shipments</h3>
+                    <p class="text-4xl font-black text-emerald-600">{{ totalShipmentsMetric() }}</p>
+                </article>
+
+                <!-- Volume Today Metrics -->
+                <article class="status-panel border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm flex flex-col flex-1">
+                    <div class="status-panel-title bg-slate-50/50 py-3 px-6 border-b border-slate-100 font-bold text-slate-700">Volume Today</div>
+                    <div class="p-4 flex flex-col gap-4 flex-1">
+                        @for (metric of volumeTodayStats(); track metric.label) {
+                            <div class="status-metric p-4 bg-slate-50/50 border border-slate-100 rounded-lg flex flex-col justify-center text-center">
+                                <span class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">{{ metric.label }}</span>
+                                <strong class="text-3xl font-black text-slate-900">{{ metric.value }}</strong>
+                            </div>
+                        }
+                    </div>
+                </article>
             </div>
 
+            <!-- Right Side: Dynamic Metrics Explorer -->
+            <article class="sl-panel flex flex-col p-6 bg-white border border-slate-200 rounded-xl shadow-sm lg:col-span-3">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
+                    <h3 class="font-bold text-slate-800 text-lg">Dynamic Metrics Explorer</h3>
+                    <div class="flex items-center gap-2">
+                        <label for="chartType" class="text-sm font-medium text-slate-500">Metric:</label>
+                        <select id="chartType" class="sl-input py-2 pl-3 pr-8 text-sm w-full sm:w-auto"
+                            [value]="selectedChartType()"
+                            (change)="onChartTypeChange($event)">
+                            <option value="qtyMapping">Quantity by Status (MT)</option>
+                            <option value="valueMapping">Total Value by Status (FC)</option>
+                            <option value="yearlyQtyMapping">Quantity by Status (Yearly)</option>
+                            <option value="supplierAvgFc">Average FC per Unit (by Supplier)</option>
+                            <option value="supplierYearlyQty">Supplier Quantity (Yearly)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="relative w-full h-[400px] flex-1">
+                    @if (chartDataConfig().labels?.length) {
+                        <canvas baseChart [data]="chartDataConfig()" [options]="chartOptions" [type]="'bar'">
+                        </canvas>
+                    } @else {
+                        <div class="absolute inset-0 flex items-center justify-center text-slate-400">
+                            No data available for the selected metric.
+                        </div>
+                    }
+                </div>
+            </article>
+        </section>
+
+        <section class="shipping-status-card mt-6">
             <div class="shipping-status-grid">
                 <article class="status-panel">
                     <div class="status-panel-title">Orders</div>
@@ -72,18 +125,6 @@
                                 }
                             </tbody>
                         </table>
-                    </div>
-                </article>
-
-                <article class="status-panel">
-                    <div class="status-panel-title">Volume Today</div>
-                    <div class="status-metric-grid">
-                        @for (metric of volumeTodayStats(); track metric.label) {
-                            <div class="status-metric">
-                                <span>{{ metric.label }}</span>
-                                <strong>{{ metric.value }}</strong>
-                            </div>
-                        }
                     </div>
                 </article>
 
@@ -182,6 +223,42 @@
                         </table>
                     </div>
                 </article>
+            </div>
+        </section>
+
+        <section class="sl-panel p-6 bg-white border-slate-200 rounded-xl shadow-sm mt-6">
+            <h3 class="font-bold text-slate-800 text-lg mb-4">Recent Shipments</h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm whitespace-nowrap">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-600 border-b border-slate-200">
+                            <th class="py-3 px-4 font-semibold rounded-tl-lg">Shipment No</th>
+                            <th class="py-3 px-4 font-semibold">Supplier</th>
+                            <th class="py-3 px-4 font-semibold">Item</th>
+                            <th class="py-3 px-4 font-semibold">Status</th>
+                            <th class="py-3 px-4 font-semibold rounded-tr-lg text-right">Order Date</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @for (row of recentShipments().slice(0, 10); track row._id) {
+                            <tr class="hover:bg-slate-50/50 transition-colors">
+                                <td class="py-3 px-4 font-medium text-slate-900">{{ row.shipmentNo || '-' }}</td>
+                                <td class="py-3 px-4 text-slate-600 truncate max-w-[200px]" [title]="row.supplier || ''">{{ row.supplier || '-' }}</td>
+                                <td class="py-3 px-4 text-slate-600 truncate max-w-[200px]" [title]="row.item || ''">{{ row.item || '-' }}</td>
+                                <td class="py-3 px-4">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                        {{ row.status || 'Unknown' }}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 text-slate-500 text-right">{{ row.orderDate | date:'MMM d, y' }}</td>
+                            </tr>
+                        } @empty {
+                            <tr>
+                                <td colspan="5" class="py-8 text-center text-slate-500">No recent shipments recorded.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         </section>
     }

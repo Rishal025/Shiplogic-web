@@ -66,7 +66,8 @@ export class DashboardService {
             ? response.shippingStatus.financialPerformance
             : [],
           monthlyKpis: Array.isArray(response?.shippingStatus?.monthlyKpis) ? response.shippingStatus.monthlyKpis : []
-        }
+        },
+        chartData: response?.chartData
       };
   }
 

@@ -1,6 +1,8 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { BaseChartDirective } from 'ng2-charts';
+import { ChartConfiguration, ChartData } from 'chart.js';
 import {
   DashboardArrivalSummary,
   DashboardMonthlyTrend,
@@ -12,7 +14,7 @@ import { DashboardService } from './services/dashboard.service';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, BaseChartDirective],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss']
 })
@@ -23,6 +25,17 @@ export class DashboardComponent implements OnInit {
   loading = signal(true);
   error = signal<string | null>(null);
   orderStatusFilter = signal('All');
+
+  // New Chart Implementation Setup
+  selectedChartType = signal('qtyMapping');
+
+  chartOptions: ChartConfiguration['options'] = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom' }
+    }
+  };
 
   readonly statCards = computed(() => {
     const summary = this.dashboard();
@@ -149,6 +162,53 @@ export class DashboardComponent implements OnInit {
     });
   });
 
+  readonly recentShipments = computed(() => {
+    return this.dashboard()?.recentShipments ?? [];
+  });
+
+  readonly totalShipmentsMetric = computed(() => {
+    return this.dashboard()?.kpis.totalShipments ?? 0;
+  });
+
+  readonly chartDataConfig = computed<ChartData<'bar'>>(() => {
+    const data = this.dashboard()?.chartData;
+    if (!data) return { labels: [], datasets: [] };
+
+    const type = this.selectedChartType();
+    let matrix: any[] = [];
+    if (type === 'qtyMapping') matrix = data.qtyMapping;
+    else if (type === 'valueMapping') matrix = data.valueMapping;
+    else if (type === 'yearlyQtyMapping') matrix = data.yearlyQtyMapping;
+    else if (type === 'supplierAvgFc') matrix = data.supplierAvgFc;
+    else if (type === 'supplierYearlyQty') matrix = data.supplierYearlyQty;
+
+    if (!matrix || matrix.length === 0) return { labels: [], datasets: [] };
+
+    const labels = matrix.map(row => row.rowLabel);
+    
+    // Collect all columns across all rows excluding 'rowLabel'
+    const columnsSet = new Set<string>();
+    matrix.forEach(row => {
+      Object.keys(row).forEach(k => {
+        if (k !== 'rowLabel') columnsSet.add(k);
+      });
+    });
+    
+    // To match excel, we might hardcode or let it be dynamic
+    const columns = Array.from(columnsSet);
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+
+    const datasets = columns.map((col, index) => {
+      return {
+        data: matrix.map(row => Number(row[col]) || 0),
+        label: col,
+        backgroundColor: colors[index % colors.length]
+      };
+    });
+
+    return { labels, datasets };
+  });
+
   ngOnInit(): void {
     this.dashboardService.getSummary().subscribe({
       next: (summary) => {
@@ -191,6 +251,11 @@ export class DashboardComponent implements OnInit {
   onOrderStatusChange(event: Event): void {
     const value = (event.target as HTMLSelectElement).value || 'All';
     this.orderStatusFilter.set(value);
+  }
+
+  onChartTypeChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value || 'qtyMapping';
+    this.selectedChartType.set(value);
   }
 
   getStagePieGradient(): string {
