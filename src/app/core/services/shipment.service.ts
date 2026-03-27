@@ -13,6 +13,8 @@ import {
   ExtractBillNoResponse,
   ExtractArrivalNoticeResponse,
   DashboardSummaryResponse
+  ,
+  ShipmentReportExportResponse
 } from '../models/shipment.model';
 
 // Payload interfaces for container operations
@@ -204,6 +206,18 @@ export class ShipmentService {
 
   getDashboardSummary(): Observable<DashboardSummaryResponse> {
     return this.http.get<DashboardSummaryResponse>(`${this.apiUrl}/dashboard`);
+  }
+
+  getShipmentReportExportData(): Observable<ShipmentReportExportResponse> {
+    return this.http.get<ShipmentReportExportResponse>(`${this.apiUrl}/reports/export-data`);
+  }
+
+  downloadShipmentReportExcel(): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/reports/export/excel`, { responseType: 'blob' });
+  }
+
+  downloadShipmentReportPdf(): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/reports/export/pdf`, { responseType: 'blob' });
   }
 
   createShipment(payload: CreateShipmentPayload | FormData): Observable<CreateShipmentResponse> {

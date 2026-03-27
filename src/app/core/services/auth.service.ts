@@ -21,6 +21,11 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -54,6 +59,10 @@ export class AuthService {
         this.currentUserSubject.next(response.user);
       })
     );
+  }
+
+  changePassword(payload: ChangePasswordPayload): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>('auth/change-password', payload);
   }
 
   logout(): void {

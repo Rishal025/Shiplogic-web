@@ -108,7 +108,8 @@ export class DashboardComponent implements OnInit {
     const dashboard = this.dashboard();
     if (!dashboard) return [];
     return [
-      { label: 'Orders to Ship', value: dashboard.kpis.inProgressShipments },
+      { label: 'Total Shipments', value: dashboard.kpis.totalShipments },
+      { label: 'Total Shipments', value: dashboard.kpis.inProgressShipments },
       { label: 'Overdue Shipments', value: dashboard.arrivalSummary.overdueShipments },
       { label: 'Open POs', value: dashboard.kpis.totalShipments },
       { label: 'Late Vendor Shipments', value: dashboard.arrivalSummary.pendingArrivalContainers },
@@ -164,10 +165,6 @@ export class DashboardComponent implements OnInit {
 
   readonly recentShipments = computed(() => {
     return this.dashboard()?.recentShipments ?? [];
-  });
-
-  readonly totalShipmentsMetric = computed(() => {
-    return this.dashboard()?.kpis.totalShipments ?? 0;
   });
 
   readonly chartDataConfig = computed<ChartData<'bar'>>(() => {

@@ -323,9 +323,15 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
       );
   }
 
-  getShipmentTrackerId(): string {
+  private getShipmentTrackerBase(): string {
     const shipment = this.shipmentData()?.shipment as any;
-    return shipment?.poNumber || shipment?.orderNumber || String(shipment?.shipmentNo || '').split('-')[0] || shipment?._id || '';
+    const shipmentNo = String(shipment?.shipmentNo || '').trim();
+    const trackerPrefix = shipmentNo.match(/^(RHST-\d+\/[A-Z0-9]+)/i)?.[1];
+    return trackerPrefix || shipment?.poNumber || shipment?.fpoNo || shipment?.orderNumber || shipmentNo || shipment?._id || '';
+  }
+
+  getShipmentTrackerId(): string {
+    return this.getShipmentTrackerBase();
   }
 
   getEtaShareText(): string {
@@ -447,18 +453,12 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   }
 
   getScheduledShipmentId(index: number): string {
-    const shipment = this.shipmentData()?.shipment as any;
-    const poFromPayload = shipment?.poNumber || shipment?.fpoNo || shipment?.orderNumber || '';
-    const poFromShipmentNo = String(shipment?.shipmentNo || '').split('-')[0] || '';
-    const base = poFromPayload || poFromShipmentNo || 'RHST';
+    const base = this.getShipmentTrackerBase() || 'RHST';
     return `${base}/SCG${String(index + 1).padStart(2, '0')}`;
   }
 
   getActualShipmentId(index: number): string {
-    const shipment = this.shipmentData()?.shipment as any;
-    const poFromPayload = shipment?.poNumber || shipment?.fpoNo || shipment?.orderNumber || '';
-    const poFromShipmentNo = String(shipment?.shipmentNo || '').split('-')[0] || '';
-    const base = poFromPayload || poFromShipmentNo || 'RHST';
+    const base = this.getShipmentTrackerBase() || 'RHST';
     return `${base}/ACT${String(index + 1).padStart(2, '0')}`;
   }
 

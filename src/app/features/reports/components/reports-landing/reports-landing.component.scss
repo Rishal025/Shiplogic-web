@@ -1,0 +1,39 @@
+:host {
+  display: block;
+}
+
+.report-scroll {
+  overflow-x: auto;
+  padding: 0 1.5rem 1.5rem;
+}
+
+.report-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.report-table th,
+.report-table td {
+  border: 1px solid rgb(226 232 240);
+  padding: 0.85rem 0.9rem;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.report-table th {
+  position: sticky;
+  top: 0;
+  background: rgb(248 250 252);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(71 85 105);
+  z-index: 1;
+}
+
+.report-table tbody tr:nth-child(even) {
+  background: rgba(248, 250, 252, 0.9);
+}

@@ -3,6 +3,7 @@ import { MainLayoutComponent } from './layouts/main-layout/main-layout.component
 import { AuthLayoutComponent } from './layouts/auth-layout/auth-layout.component';
 import { NotFoundComponent } from './features/not-found/not-found.component';
 import { ForbiddenComponent } from './shared/components/forbidden/forbidden.component';
+import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
     {
@@ -15,10 +16,12 @@ export const routes: Routes = [
     {
         path: '',
         component: MainLayoutComponent,
+        canActivate: [authGuard],
         children: [
             { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
             { path: 'dashboard', loadChildren: () => import('./features/dashboard/dashboard.routes').then(m => m.DASHBOARD_ROUTES) },
-            { path: 'shipments', loadChildren: () => import('./features/shipment/shipment.routes').then(m => m.SHIPMENT_ROUTES) }
+            { path: 'shipments', loadChildren: () => import('./features/shipment/shipment.routes').then(m => m.SHIPMENT_ROUTES) },
+            { path: 'reports', loadChildren: () => import('./features/reports/reports.routes').then(m => m.REPORTS_ROUTES) }
 
         ]
     },

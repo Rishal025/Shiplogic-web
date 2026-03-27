@@ -20,6 +20,47 @@ export interface ShipmentListResponse {
   shipments: Shipment[];
 }
 
+export interface ShipmentReportExportRow {
+  sn: number;
+  year: number | string;
+  shipmentNo: string;
+  date: string;
+  supplier: string;
+  country: string;
+  variant: string;
+  itemDescription: string;
+  riceName: string;
+  packing: string | number;
+  piNo: string;
+  ciNo: string;
+  fcl: number | string;
+  containerSize: number | string;
+  buyingUnit: string;
+  buyingQtyMT: number | string;
+  fcPerUnit: number | string;
+  totalFC: number | string;
+  incoterms: string;
+  poNumber: string;
+  fpoNo: string;
+  bankName: string;
+  paymentTerms: string;
+  currentStage: string;
+  noOfShipments: number | string;
+  portOfLoading: string;
+  portOfDischarge: string;
+  plannedETD: string;
+  plannedETA: string;
+  advanceAmount: number | string;
+  bags: number | string;
+  pallet: number | string;
+}
+
+export interface ShipmentReportExportResponse {
+  rows: ShipmentReportExportRow[];
+  totalRecords: number;
+  generatedAt: string;
+}
+
 export interface DashboardKpis {
   totalShipments: number;
   completedShipments: number;

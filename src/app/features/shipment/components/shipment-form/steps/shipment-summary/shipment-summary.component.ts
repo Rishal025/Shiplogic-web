@@ -80,4 +80,9 @@ export class ShipmentSummaryComponent {
     const clean = url.split('?')[0].toLowerCase();
     return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/.test(clean);
   }
+
+  getNoOfShipmentsLabel(): string {
+    const value = this.shipmentData()?.shipment?.noOfShipments ?? 0;
+    return value > 0 ? String(value) : 'Not Created Yet';
+  }
 }
