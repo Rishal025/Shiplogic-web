@@ -46,19 +46,6 @@
                   </button>
                 }
               </div>
-              <button
-                type="button"
-                (click)="$event.stopPropagation(); saveRow(i)"
-                class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100"
-              >
-                @if (savingRowIndex() === i) {
-                  <i class="pi pi-spin pi-spinner text-[10px]"></i>
-                  Saving...
-                } @else {
-                  <i class="pi pi-check text-[10px]"></i>
-                  Save
-                }
-              </button>
             </div>
           </div>
         </p-accordion-header>
@@ -144,6 +131,7 @@
                         <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-40">Expiry Date</th>
                         <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-56">Remarks</th>
                         <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-24">Document</th>
+                        <th class="px-3 py-2.5 text-left text-[9px] font-black text-slate-400 uppercase tracking-wider whitespace-nowrap border-b border-slate-200 w-28">Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -198,6 +186,21 @@
                                 </button>
                               }
                             </div>
+                          </td>
+                          <td class="px-3 py-2">
+                            <button
+                              type="button"
+                              (click)="saveArrivalRow(i, c)"
+                              class="inline-flex min-w-[5.75rem] items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100"
+                            >
+                              @if (isSavingArrivalRow(i, c)) {
+                                <i class="pi pi-spin pi-spinner text-[10px]"></i>
+                                Saving...
+                              } @else {
+                                <i class="pi pi-check text-[10px]"></i>
+                                Save
+                              }
+                            </button>
                           </td>
                         </tr>
                       }

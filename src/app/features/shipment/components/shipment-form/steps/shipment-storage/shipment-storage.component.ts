@@ -45,7 +45,7 @@ export class ShipmentStorageComponent {
   // Tab state uses compound key "shipmentIndex-containerIndex"
   readonly activeTabs = signal<Record<string, 'allocation' | 'arrival'>>({});
   readonly expandedContainers = signal<Record<number, boolean>>({});
-  readonly savingRowIndex = signal<number | null>(null);
+  readonly savingRowKey = signal<string | null>(null);
   readonly rowFiles = signal<Record<string, File | null>>({});
   readonly globalFiles = signal<Record<number, File | null>>({});
   readonly previewUrl = signal<string | null>(null);
@@ -112,6 +112,10 @@ export class ShipmentStorageComponent {
   }
 
   private rowFileKey(shipmentIndex: number, containerIndex: number): string {
+    return `${shipmentIndex}:${containerIndex}`;
+  }
+
+  private saveRowKey(shipmentIndex: number, containerIndex: number): string {
     return `${shipmentIndex}:${containerIndex}`;
   }
 
@@ -254,7 +258,11 @@ export class ShipmentStorageComponent {
     return String(value);
   }
 
-  saveRow(index: number): void {
+  isSavingArrivalRow(shipmentIndex: number, containerIndex: number): boolean {
+    return this.savingRowKey() === this.saveRowKey(shipmentIndex, containerIndex);
+  }
+
+  saveArrivalRow(index: number, containerIndex: number): void {
     const group = this.formArray.at(index) as FormGroup | null;
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!group || !shipmentId) return;
@@ -265,51 +273,40 @@ export class ShipmentStorageComponent {
       return;
     }
 
+    const row = this.getContainersArray(group)[containerIndex] as FormGroup | undefined;
+    if (!row) return;
+
     const formData = new FormData();
-    const containers = this.getContainersArray(group).map((control, containerIndex) => {
-      const row = control as FormGroup;
-      const rowFile = this.getRowFile(index, containerIndex);
-      if (rowFile) {
-        formData.append(`storageSplits_${containerIndex}_document`, rowFile, rowFile.name);
-      }
-      return {
-        containerSerialNo: row.get('containerSerialNo')?.value || '',
-        bags: Number(row.get('bags')?.value) || 0,
-        warehouse: row.get('warehouse')?.value || '',
-        storageAvailability: Number(row.get('storageAvailability')?.value) || 0,
-        receivedOnDate: this.toDate(row.get('receivedOnDate')?.value),
-        receivedOnTime: this.toTime(row.get('receivedOnTime')?.value),
-        customsInspection: row.get('customsInspection')?.value || 'No',
-        grn: row.get('grn')?.value || '',
-        batch: row.get('batch')?.value || '',
-        productionDate: this.toDate(row.get('productionDate')?.value),
-        expiryDate: this.toDate(row.get('expiryDate')?.value),
-        remarks: row.get('remarks')?.value || '',
-        documentUrl: row.get('documentUrl')?.value || '',
-        documentName: row.get('documentName')?.value || '',
-      };
-    });
-
-    const globalFile = this.getGlobalFile(index);
-    if (globalFile) {
-      formData.append('storageDocument', globalFile, globalFile.name);
+    const rowFile = this.getRowFile(index, containerIndex);
+    if (rowFile) {
+      formData.append('storageRowDocument', rowFile, rowFile.name);
     }
-    formData.append('storageSplits', JSON.stringify(containers));
+    formData.append('containerSerialNo', row.get('containerSerialNo')?.value || '');
+    formData.append('bags', String(Number(row.get('bags')?.value) || 0));
+    formData.append('warehouse', row.get('warehouse')?.value || '');
+    formData.append('storageAvailability', String(Number(row.get('storageAvailability')?.value) || 0));
+    formData.append('receivedOnDate', this.toDate(row.get('receivedOnDate')?.value));
+    formData.append('receivedOnTime', this.toTime(row.get('receivedOnTime')?.value));
+    formData.append('customsInspection', row.get('customsInspection')?.value || 'No');
+    formData.append('grn', row.get('grn')?.value || '');
+    formData.append('batch', row.get('batch')?.value || '');
+    formData.append('productionDate', this.toDate(row.get('productionDate')?.value));
+    formData.append('expiryDate', this.toDate(row.get('expiryDate')?.value));
+    formData.append('remarks', row.get('remarks')?.value || '');
+    formData.append('documentUrl', row.get('documentUrl')?.value || '');
+    formData.append('documentName', row.get('documentName')?.value || '');
 
-    this.savingRowIndex.set(index);
-    this.shipmentService.submitStorageDetails(containerId, formData).subscribe({
+    this.savingRowKey.set(this.saveRowKey(index, containerIndex));
+    this.shipmentService.submitStorageArrivalRow(containerId, containerIndex, formData).subscribe({
       next: () => {
-        this.savingRowIndex.set(null);
-        this.getContainersArray(group).forEach((control, containerIndex) => {
-          if (this.getRowFile(index, containerIndex)) this.clearRowFile(index, containerIndex);
-        });
-        if (globalFile) this.clearGlobalFile(index);
-        this.notificationService.success('Saved', 'Storage details saved successfully.');
+        this.savingRowKey.set(null);
+        if (rowFile) this.clearRowFile(index, containerIndex);
+        this.notificationService.success('Saved', `Storage arrival row ${containerIndex + 1} saved successfully.`);
         this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
       },
       error: (error) => {
-        this.savingRowIndex.set(null);
-        this.notificationService.error('Save failed', error.error?.message || 'Could not save storage details.');
+        this.savingRowKey.set(null);
+        this.notificationService.error('Save failed', error.error?.message || 'Could not save storage arrival row.');
       }
     });
   }

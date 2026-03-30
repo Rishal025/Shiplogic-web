@@ -323,6 +323,10 @@ export class ShipmentService {
     return this.http.patch(`${this.apiUrl}/container/storage/${containerId}`, payload);
   }
 
+  submitStorageArrivalRow(containerId: string, rowIndex: number, payload: FormData): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/container/storage-row/${containerId}/${rowIndex}`, payload);
+  }
+
   submitQualityDetails(containerId: string, payload: FormData): Observable<any> {
     return this.http.patch(`${this.apiUrl}/container/quality/${containerId}`, payload);
   }
