@@ -131,7 +131,7 @@
                       {{ entry.actorType }}{{ entry.actorName ? ' • ' + entry.actorName : '' }} • {{ formatDate(entry.createdAt) }}
                     </span>
                   </div>
-                  @if (entry.changes?.length) {
+                  @if (entry.changes.length) {
                     <div class="mt-3 space-y-2">
                       @for (change of entry.changes; track $index) {
                         <p class="text-sm text-slate-700">

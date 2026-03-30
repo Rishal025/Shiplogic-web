@@ -1,4 +1,5 @@
 export const environment = {
   production: true,
-  apiUrl: 'http://api.shipmenttracker.rhutility.com:5000/api/v1'
+  apiUrl: 'http://api.shipmenttracker.rhutility.com:5000/api/v1',
+  socketUrl: 'http://api.shipmenttracker.rhutility.com:5000'
 };
