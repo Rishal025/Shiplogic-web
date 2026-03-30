@@ -185,6 +185,11 @@ export class ShipmentFormComponent implements OnDestroy {
     });
   }
 
+  getDisplayShipmentNo(): string {
+    const shipmentNo = this.shipmentForm.get('shipmentNo')?.value;
+    return typeof shipmentNo === 'string' ? shipmentNo.replace(/\([^)]*\)/g, '').trim() : '';
+  }
+
   // --- Form Accessors ---
   get plannedSplits(): FormArray {
     return this.shipmentForm.get('plannedSplits') as FormArray;
@@ -294,24 +299,50 @@ export class ShipmentFormComponent implements OnDestroy {
     return rows;
   }
 
+  /**
+   * Distribute shipment-level FCL across n rows using whole numbers only.
+   * The remainder is assigned to the last row so no row gets a decimal.
+   */
+  private distributeFcl(totalFcl: number, n: number): number[] {
+    if (n <= 0 || totalFcl <= 0) return Array.from({ length: n }, () => 0);
+    const base = Math.ceil(totalFcl / n);
+    const rows: number[] = [];
+    let allocated = 0;
+
+    for (let i = 0; i < n; i++) {
+      const remainingRows = n - i;
+      const remainingFcl = totalFcl - allocated;
+      const nextValue = remainingRows === 1 ? remainingFcl : Math.min(base, remainingFcl);
+      rows.push(nextValue);
+      allocated += nextValue;
+    }
+
+    return rows;
+  }
+
   /** Sync planned rows from "No of Shipments" and set each row qtyMT = totalQtyMT / no. */
   syncPlannedSplitsByNoOfShipments(no: number, totalQtyMT: number): void {
     if (no <= 0 || totalQtyMT <= 0) return;
     this.plannedSplits.clear();
     const qtyPerRow = this.distributeQtyMT(totalQtyMT, no);
+    const totalFcl = Number(this.shipmentData()?.shipment?.fcl) || 0;
+    const fclPerRow = this.distributeFcl(totalFcl, no);
     for (let i = 0; i < no; i++) {
-      this.plannedSplits.push(this.createPlannedGroup(qtyPerRow[i], false));
+      this.plannedSplits.push(this.createPlannedGroup(qtyPerRow[i], false, fclPerRow[i]));
     }
     this.shipmentForm.get('noOfShipments')?.setValue(no, { emitEvent: false });
   }
 
   addPlannedRow(): void {
     const totalQtyMT = this.shipmentData()?.shipment?.plannedQtyMT ?? 0;
+    const totalFcl = Number(this.shipmentData()?.shipment?.fcl) || 0;
     this.plannedSplits.push(this.createPlannedGroup(undefined, true));
     const n = this.plannedSplits.length;
     const qtyPerRow = this.distributeQtyMT(totalQtyMT, n);
+    const fclPerRow = this.distributeFcl(totalFcl, n);
     this.plannedSplits.controls.forEach((c, i) => {
       c.get('qtyMT')?.setValue(qtyPerRow[i], { emitEvent: false });
+      c.get('FCL')?.setValue(fclPerRow[i], { emitEvent: false });
     });
     this.shipmentForm.get('noOfShipments')?.setValue(n, { emitEvent: false });
   }
@@ -322,21 +353,24 @@ export class ShipmentFormComponent implements OnDestroy {
     const isManualRow = !!row?.get('isManualRow')?.value;
     if (!isManualRow) return;
     const totalQtyMT = this.shipmentData()?.shipment?.plannedQtyMT ?? 0;
+    const totalFcl = Number(this.shipmentData()?.shipment?.fcl) || 0;
     this.plannedSplits.removeAt(index);
     const n = this.plannedSplits.length;
     const qtyPerRow = this.distributeQtyMT(totalQtyMT, n);
+    const fclPerRow = this.distributeFcl(totalFcl, n);
     this.plannedSplits.controls.forEach((c, i) => {
       c.get('qtyMT')?.setValue(qtyPerRow[i], { emitEvent: false });
+      c.get('FCL')?.setValue(fclPerRow[i], { emitEvent: false });
     });
     this.shipmentForm.get('noOfShipments')?.setValue(n, { emitEvent: false });
   }
 
-  private createPlannedGroup(qtyMT?: number, isManualRow = false): FormGroup {
+  private createPlannedGroup(qtyMT?: number, isManualRow = false, fcl?: number): FormGroup {
     return this.fb.group({
       size: [this.shipmentForm.get('containerSize')?.value, Validators.required],
       qtyMT: [qtyMT ?? null, Validators.required],
       weekWiseShipment: ['', Validators.required],
-      FCL: [null, Validators.required],
+      FCL: [fcl ?? null, Validators.required],
       etd: [null, Validators.required],
       eta: [null, Validators.required],
       isManualRow: [isManualRow],
@@ -574,6 +608,7 @@ export class ShipmentFormComponent implements OnDestroy {
                 ? (actualData as any).paymentAllocations
                 : (actualData as any)?.costSheetBookings
             ),
+            packagingExpenses: this.createPackagingExpenseRows((actualData as any)?.packagingExpenses),
             paymentCostingDocumentUrl: [(actualData as any)?.paymentCostingDocumentUrl || ''],
             paymentCostingDocumentName: [(actualData as any)?.paymentCostingDocumentName || ''],
           })
@@ -785,6 +820,7 @@ export class ShipmentFormComponent implements OnDestroy {
           containerId: [null],
           paymentAllocations: this.createPaymentAllocationRows(),
           paymentCostings: this.createPaymentCostingRows(),
+          packagingExpenses: this.createPackagingExpenseRows(),
           paymentCostingDocumentUrl: [''],
           paymentCostingDocumentName: [''],
         });
@@ -857,6 +893,8 @@ export class ShipmentFormComponent implements OnDestroy {
       freeDetentionDays: [actualData?.freeDetentionDays ?? null],
       maximumDetentionDays: [actualData?.maximumDetentionDays ?? null],
       freightPrepared: [actualData?.freightPrepared || 'No'],
+      blDocumentUrl: [actualData?.blDocumentUrl || ''],
+      blDocumentName: [actualData?.blDocumentName || ''],
       costSheetBookingDocumentUrl: [actualData?.costSheetBookingDocumentUrl || ''],
       costSheetBookingDocumentName: [actualData?.costSheetBookingDocumentName || ''],
       costSheetBookings: this.createCostSheetBookingRows(actualData?.costSheetBookings),
@@ -1009,6 +1047,7 @@ export class ShipmentFormComponent implements OnDestroy {
               description: existing?.description || description,
               requestAmount: existing?.requestAmount ?? null,
               paidAmount: existing?.paidAmount ?? null,
+              reference: existing?.reference ?? '',
             };
           })
         : COST_SHEET_DESCRIPTIONS.map((description, index) => ({
@@ -1016,6 +1055,7 @@ export class ShipmentFormComponent implements OnDestroy {
             description,
             requestAmount: null,
             paidAmount: null,
+            reference: '',
           }));
     return this.fb.array(
       source.map((row: any, index: number) =>
@@ -1024,6 +1064,7 @@ export class ShipmentFormComponent implements OnDestroy {
           description: [row?.description || ''],
           requestAmount: [row?.requestAmount ?? null],
           paidAmount: [row?.paidAmount ?? null],
+          reference: [row?.reference ?? ''],
         })
       )
     );
@@ -1088,6 +1129,48 @@ export class ShipmentFormComponent implements OnDestroy {
           refBillVendor: [row?.refBillVendor || ''],
           refBillDocumentUrl: [row?.refBillDocumentUrl || ''],
           refBillDocumentName: [row?.refBillDocumentName || ''],
+        })
+      )
+    );
+  }
+
+  private createPackagingExpenseRows(existingRows: any[] = []): FormArray {
+    const source = existingRows.length > 0
+      ? existingRows
+      : [{
+          sn: 1,
+          item: '',
+          packing: '',
+          qty: null,
+          uom: '',
+          unitCostFC: null,
+          unitCostDH: null,
+          totalCostFC: null,
+          totalCostDH: null,
+          expenseAllocationFactor: null,
+          expensesAllocated: null,
+          totalValueWithExpenses: null,
+          landedCostPerUnit: null,
+          reference: '',
+        }];
+
+    return this.fb.array(
+      source.map((row: any, index: number) =>
+        this.fb.group({
+          sn: [row?.sn ?? index + 1],
+          item: [row?.item || ''],
+          packing: [row?.packing || ''],
+          qty: [row?.qty ?? null],
+          uom: [row?.uom || ''],
+          unitCostFC: [row?.unitCostFC ?? null],
+          unitCostDH: [row?.unitCostDH ?? null],
+          totalCostFC: [row?.totalCostFC ?? null],
+          totalCostDH: [row?.totalCostDH ?? null],
+          expenseAllocationFactor: [row?.expenseAllocationFactor ?? null],
+          expensesAllocated: [row?.expensesAllocated ?? null],
+          totalValueWithExpenses: [row?.totalValueWithExpenses ?? null],
+          landedCostPerUnit: [row?.landedCostPerUnit ?? null],
+          reference: [row?.reference || ''],
         })
       )
     );

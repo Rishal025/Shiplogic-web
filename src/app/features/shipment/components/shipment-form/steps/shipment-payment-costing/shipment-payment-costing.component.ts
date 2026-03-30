@@ -10,6 +10,8 @@ import { DatePickerModule } from 'primeng/datepicker';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 import { selectShipmentData } from '../../../../../../store/shipment/shipment.selectors';
 import {
@@ -64,6 +66,8 @@ export class ShipmentPaymentCostingComponent {
   readonly expandedAllocations = signal<Record<number, boolean>>({});
   readonly expandedCostings = signal<Record<number, boolean>>({});
   readonly savingRowIndex = signal<number | null>(null);
+  readonly packagingModalVisible = signal(false);
+  readonly packagingModalShipmentIndex = signal<number | null>(null);
 
   private pendingUpload: { shipmentIndex: number; rowIndex: number } | null = null;
   readonly refBillFiles = signal<Record<string, File | null>>({});
@@ -96,8 +100,147 @@ export class ShipmentPaymentCostingComponent {
 
   getShipmentNoLabel(index: number): string {
     if (this.formArray?.controls[index] == null) return '–';
-    const base = this.shipmentData()?.shipment?.shipmentNo;
+    const base = this.shipmentData()?.shipment?.shipmentNo?.replace(/\([^)]*\)/g, '').trim();
     return base?.trim() ? `${base}-${index + 1}` : '–';
+  }
+
+  private formatCurrency(value: unknown): string {
+    return Number(value ?? 0).toFixed(2);
+  }
+
+  private escapeHtml(value: unknown): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private formatDateForReport(value: unknown): string {
+    if (!value) return '—';
+    const date = new Date(value as string | Date);
+    if (Number.isNaN(date.getTime())) return '—';
+    return new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(date);
+  }
+
+  private downloadCostingSheetPdf(config: {
+    shipmentNo: string;
+    metadataRows: [string, string][];
+    clearingRows: Array<{
+      sn: number | string;
+      description: string;
+      requestAmount: string;
+      paidAmount: string;
+      actualAmount?: string;
+      remarks?: string;
+    }>;
+    packagingRows?: Array<{
+      sn: number | string;
+      item: string;
+      packing: string;
+      qty: string;
+      uom: string;
+      unitCostFC: string;
+      unitCostDH: string;
+      totalCostFC: string;
+      totalCostDH: string;
+      expenseAllocationFactor: string;
+      expensesAllocated: string;
+      totalValueWithExpenses: string;
+      landedCostPerUnit: string;
+      reference?: string;
+    }>;
+  }): void {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+
+    doc.setFontSize(18);
+    doc.text('Royal Horizon Costing Sheet', 40, 36);
+    doc.setFontSize(11);
+    doc.text(`Shipment: ${config.shipmentNo}`, 40, 54);
+
+    autoTable(doc, {
+      startY: 70,
+      body: config.metadataRows.map(([label, value]) => [label, value || '—']),
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 4 },
+      columnStyles: {
+        0: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 150 },
+        1: { cellWidth: 250 },
+      },
+      margin: { left: 40, right: 40 },
+    });
+
+    const clearingRows = config.clearingRows.map((row) => [
+      row.sn,
+      row.description,
+      row.requestAmount,
+      row.paidAmount,
+      row.actualAmount || '0.00',
+      row.remarks || '',
+    ]);
+    clearingRows.push([
+      '',
+      'Total',
+      config.clearingRows.reduce((sum, row) => sum + Number(row.requestAmount || 0), 0).toFixed(2),
+      config.clearingRows.reduce((sum, row) => sum + Number(row.paidAmount || 0), 0).toFixed(2),
+      config.clearingRows.reduce((sum, row) => sum + Number(row.actualAmount || 0), 0).toFixed(2),
+      '',
+    ]);
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 18,
+      head: [['SN', 'Description', 'Request Amount', 'Paid Amount', 'Actual Amount', 'Payment Ref / Remarks']],
+      body: clearingRows,
+      theme: 'grid',
+      styles: { fontSize: 8.5, cellPadding: 4 },
+      headStyles: { fillColor: [241, 245, 249], textColor: 17, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 34 },
+        1: { cellWidth: 250 },
+        2: { halign: 'right', cellWidth: 85 },
+        3: { halign: 'right', cellWidth: 85 },
+        4: { halign: 'right', cellWidth: 85 },
+        5: { cellWidth: 170 },
+      },
+      margin: { left: 40, right: 40 },
+    });
+
+    if (config.packagingRows?.length) {
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 18,
+        head: [[
+          'SN', 'Item', 'Packing', 'Qty', 'UOM', 'Unit Cost FC', 'Unit Cost DH', 'Total Cost FC', 'Total Cost DH',
+          'Allocation Factor', 'Expenses Allocated', 'Total Value With Expenses', 'Landed Cost / Unit', 'Reference'
+        ]],
+        body: config.packagingRows.map((row) => [
+          row.sn,
+          row.item,
+          row.packing,
+          row.qty,
+          row.uom,
+          row.unitCostFC,
+          row.unitCostDH,
+          row.totalCostFC,
+          row.totalCostDH,
+          row.expenseAllocationFactor,
+          row.expensesAllocated,
+          row.totalValueWithExpenses,
+          row.landedCostPerUnit,
+          row.reference || '',
+        ]),
+        theme: 'grid',
+        styles: { fontSize: 7.5, cellPadding: 3 },
+        headStyles: { fillColor: [241, 245, 249], textColor: 17, fontStyle: 'bold' },
+        margin: { left: 40, right: 40 },
+      });
+    }
+
+    doc.save(`${config.shipmentNo.replace(/[^a-z0-9_-]/gi, '_')}-costing-sheet.pdf`);
   }
 
   openStatusModal(index: number): void {
@@ -154,13 +297,17 @@ export class ShipmentPaymentCostingComponent {
     return (group as FormGroup).get('paymentCostings') as FormArray;
   }
 
+  getPackagingExpenses(group: AbstractControl): FormArray {
+    return (group as FormGroup).get('packagingExpenses') as FormArray;
+  }
+
   getVisiblePaymentAllocations(group: AbstractControl, shipmentIndex: number): AbstractControl[] {
     const rows = this.getPaymentAllocations(group).controls;
-    return this.expandedAllocations()[shipmentIndex] ? rows : rows.slice(0, 3);
+    return this.expandedAllocations()[shipmentIndex] ? rows : rows.slice(0, 5);
   }
 
   hasHiddenPaymentAllocations(group: AbstractControl): boolean {
-    return this.getPaymentAllocations(group).length > 3;
+    return this.getPaymentAllocations(group).length > 5;
   }
 
   togglePaymentAllocations(shipmentIndex: number): void {
@@ -169,11 +316,11 @@ export class ShipmentPaymentCostingComponent {
 
   getVisiblePaymentCostings(group: AbstractControl, shipmentIndex: number): AbstractControl[] {
     const rows = this.getPaymentCostings(group).controls;
-    return this.expandedCostings()[shipmentIndex] ? rows : rows.slice(0, 3);
+    return this.expandedCostings()[shipmentIndex] ? rows : rows.slice(0, 5);
   }
 
   hasHiddenPaymentCostings(group: AbstractControl): boolean {
-    return this.getPaymentCostings(group).length > 3;
+    return this.getPaymentCostings(group).length > 5;
   }
 
   togglePaymentCostings(shipmentIndex: number): void {
@@ -201,6 +348,59 @@ export class ShipmentPaymentCostingComponent {
         refBillVendor: [''],
       })
     );
+  }
+
+  addPackagingExpenseRow(group: AbstractControl): void {
+    const rows = this.getPackagingExpenses(group);
+    rows.push(
+      this.fb.group({
+        sn: [rows.length + 1],
+        item: [''],
+        packing: [''],
+        qty: [null],
+        uom: [''],
+        unitCostFC: [null],
+        unitCostDH: [null],
+        totalCostFC: [null],
+        totalCostDH: [null],
+        expenseAllocationFactor: [null],
+        expensesAllocated: [null],
+        totalValueWithExpenses: [null],
+        landedCostPerUnit: [null],
+        reference: [''],
+      })
+    );
+  }
+
+  openPackagingExpensesModal(index: number): void {
+    this.packagingModalShipmentIndex.set(index);
+    this.packagingModalVisible.set(true);
+  }
+
+  closePackagingExpensesModal(): void {
+    this.packagingModalVisible.set(false);
+    this.packagingModalShipmentIndex.set(null);
+  }
+
+  onPackagingModalVisibleChange(visible: boolean): void {
+    this.packagingModalVisible.set(visible);
+    if (!visible) this.packagingModalShipmentIndex.set(null);
+  }
+
+  addPackagingExpenseRowForShipment(index: number): void {
+    const group = this.formArray.at(index);
+    if (!group) return;
+    this.addPackagingExpenseRow(group);
+  }
+
+  getPackagingModalShipmentGroup(): AbstractControl | null {
+    const index = this.packagingModalShipmentIndex();
+    if (index == null) return null;
+    return this.formArray.at(index) ?? null;
+  }
+
+  getPackagingModalShipmentIndexValue(): number {
+    return this.packagingModalShipmentIndex() ?? 0;
   }
 
   clickPaymentCostingUpload(shipmentIndex: number): void {
@@ -346,7 +546,43 @@ export class ShipmentPaymentCostingComponent {
     this.previewZoom.update((zoom) => (zoom > 1 ? 1 : 2));
   }
 
-  saveRow(index: number): void {
+  saveAllocation(index: number): void {
+    const group = this.formArray.at(index) as FormGroup | null;
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    if (!group || !shipmentId) return;
+
+    const containerId = group.get('containerId')?.value;
+    if (!containerId) {
+      this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
+      return;
+    }
+
+    const paymentAllocations = this.getPaymentAllocations(group).controls.map((row, rowIndex) => ({
+      sn: Number(row.get('sn')?.value) || rowIndex + 1,
+      description: row.get('description')?.value || '',
+      requestAmount: Number(row.get('requestAmount')?.value) || 0,
+      paidAmount: Number(row.get('paidAmount')?.value) || 0,
+      reference: row.get('reference')?.value || '',
+    }));
+
+    const formData = new FormData();
+    formData.append('paymentAllocations', JSON.stringify(paymentAllocations));
+
+    this.savingRowIndex.set(index);
+    this.shipmentService.submitPaymentCostingDetails(containerId, formData).subscribe({
+      next: () => {
+        this.savingRowIndex.set(null);
+        this.notificationService.success('Saved', 'Payment allocation saved successfully.');
+        this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+      },
+      error: (error) => {
+        this.savingRowIndex.set(null);
+        this.notificationService.error('Save failed', error.error?.message || 'Could not save payment allocation.');
+      }
+    });
+  }
+
+  saveCosting(index: number): void {
     const group = this.formArray.at(index) as FormGroup | null;
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!group || !shipmentId) return;
@@ -359,13 +595,6 @@ export class ShipmentPaymentCostingComponent {
 
     const toDate = (value: unknown) =>
       value ? new Date(value as string | Date).toISOString().split('T')[0] : '';
-
-    const paymentAllocations = this.getPaymentAllocations(group).controls.map((row, rowIndex) => ({
-      sn: Number(row.get('sn')?.value) || rowIndex + 1,
-      description: row.get('description')?.value || '',
-      requestAmount: Number(row.get('requestAmount')?.value) || 0,
-      paidAmount: Number(row.get('paidAmount')?.value) || 0,
-    }));
 
     const paymentCostings = this.getPaymentCostings(group).controls.map((row, rowIndex) => ({
       sn: Number(row.get('sn')?.value) || rowIndex + 1,
@@ -380,9 +609,26 @@ export class ShipmentPaymentCostingComponent {
       refBillDocumentName: row.get('refBillDocumentName')?.value || '',
     }));
 
+    const packagingExpenses = this.getPackagingExpenses(group).controls.map((row, rowIndex) => ({
+      sn: Number(row.get('sn')?.value) || rowIndex + 1,
+      item: row.get('item')?.value || '',
+      packing: row.get('packing')?.value || '',
+      qty: Number(row.get('qty')?.value) || 0,
+      uom: row.get('uom')?.value || '',
+      unitCostFC: Number(row.get('unitCostFC')?.value) || 0,
+      unitCostDH: Number(row.get('unitCostDH')?.value) || 0,
+      totalCostFC: Number(row.get('totalCostFC')?.value) || 0,
+      totalCostDH: Number(row.get('totalCostDH')?.value) || 0,
+      expenseAllocationFactor: Number(row.get('expenseAllocationFactor')?.value) || 0,
+      expensesAllocated: Number(row.get('expensesAllocated')?.value) || 0,
+      totalValueWithExpenses: Number(row.get('totalValueWithExpenses')?.value) || 0,
+      landedCostPerUnit: Number(row.get('landedCostPerUnit')?.value) || 0,
+      reference: row.get('reference')?.value || '',
+    }));
+
     const formData = new FormData();
-    formData.append('paymentAllocations', JSON.stringify(paymentAllocations));
     formData.append('paymentCostings', JSON.stringify(paymentCostings));
+    formData.append('packagingExpenses', JSON.stringify(packagingExpenses));
 
     this.getPaymentCostings(group).controls.forEach((row, rowIndex) => {
       const refFile = this.getRefBillFile(index, rowIndex);
@@ -410,47 +656,110 @@ export class ShipmentPaymentCostingComponent {
     });
   }
 
+  generateAllocationReport(index: number): void {
+    const group = this.formArray.at(index) as FormGroup | null;
+    if (!group) return;
+    const shipmentNo = this.getShipmentNoLabel(index);
+    const shipment = this.shipmentData()?.shipment;
+    const metadataRows: [string, string][] = [
+      ['Shipment No', shipmentNo],
+      ['Supplier', shipment?.supplier || ''],
+      ['PO No', shipment?.poNumber || ''],
+      ['PI No', shipment?.piNo || ''],
+      ['Incoterms', shipment?.incoterms || ''],
+      ['Payment Terms', shipment?.paymentTerms || ''],
+    ];
+    this.downloadCostingSheetPdf({
+      shipmentNo,
+      metadataRows,
+      clearingRows: this.getPaymentAllocations(group).controls.map((row) => ({
+        sn: row.get('sn')?.value ?? '',
+        description: row.get('description')?.value ?? '',
+        requestAmount: this.formatCurrency(row.get('requestAmount')?.value ?? 0),
+        paidAmount: this.formatCurrency(row.get('paidAmount')?.value ?? 0),
+        actualAmount: '0.00',
+        remarks: row.get('reference')?.value ?? '',
+      })),
+    });
+  }
+
   generateReport(index: number): void {
     const group = this.formArray.at(index) as FormGroup | null;
     if (!group) return;
 
     const shipmentNo = this.getShipmentNoLabel(index);
-    const rows = this.getPaymentCostings(group).controls.map((row) => ({
-      sn: row.get('sn')?.value ?? '',
-      description: row.get('description')?.value ?? '',
-      requestAmount: row.get('requestAmount')?.value ?? '',
-      paidAmount: row.get('paidAmount')?.value ?? '',
-      actualPaid: row.get('actualPaid')?.value ?? '',
-      refBillNo: row.get('refBillNo')?.value ?? '',
-      refBillDate: row.get('refBillDate')?.value ? new Date(row.get('refBillDate')?.value).toLocaleDateString('en-GB') : '',
-      refBillVendor: row.get('refBillVendor')?.value ?? '',
-    }));
-
-    const headers = ['SN', 'Description', 'Request Amount', 'Paid Amount', 'Actual Paid', 'Ref Bill No', 'Ref Bill Date', 'Ref Bill Vendor'];
-    const csvLines = [
-      [`Shipment`, `"${shipmentNo}"`].join(','),
-      headers.join(','),
-      ...rows.map((row) =>
-        [
-          row.sn,
-          `"${String(row.description).replace(/"/g, '""')}"`,
-          row.requestAmount,
-          row.paidAmount,
-          row.actualPaid,
-          `"${String(row.refBillNo).replace(/"/g, '""')}"`,
-          `"${String(row.refBillDate).replace(/"/g, '""')}"`,
-          `"${String(row.refBillVendor).replace(/"/g, '""')}"`,
-        ].join(',')
-      ),
+    const shipment = this.shipmentData()?.shipment;
+    const firstCostingRow = this.getPaymentCostings(group).at(0) as FormGroup | null;
+    const metadataRows: [string, string][] = [
+      ['Shipment No', shipmentNo],
+      ['Supplier', shipment?.supplier || ''],
+      ['PO No', shipment?.poNumber || ''],
+      ['PI No', shipment?.piNo || ''],
+      ['Incoterms', shipment?.incoterms || ''],
+      ['Payment Terms', shipment?.paymentTerms || ''],
+      ['Ref Bill No', firstCostingRow?.get('refBillNo')?.value || ''],
+      ['Ref Bill Date', this.formatDateForReport(firstCostingRow?.get('refBillDate')?.value)],
+      ['Ref Bill Vendor', firstCostingRow?.get('refBillVendor')?.value || ''],
     ];
+    this.downloadCostingSheetPdf({
+      shipmentNo,
+      metadataRows,
+      clearingRows: this.getPaymentCostings(group).controls.map((row) => ({
+        sn: row.get('sn')?.value ?? '',
+        description: row.get('description')?.value ?? '',
+        requestAmount: this.formatCurrency(row.get('requestAmount')?.value ?? 0),
+        paidAmount: this.formatCurrency(row.get('paidAmount')?.value ?? 0),
+        actualAmount: this.formatCurrency(row.get('actualPaid')?.value ?? 0),
+        remarks: [row.get('refBillNo')?.value, this.formatDateForReport(row.get('refBillDate')?.value), row.get('refBillVendor')?.value]
+          .filter(Boolean)
+          .join(' / '),
+      })),
+      packagingRows: this.getPackagingExpenses(group).controls.map((row) => ({
+        sn: row.get('sn')?.value ?? '',
+        item: row.get('item')?.value ?? '',
+        packing: row.get('packing')?.value ?? '',
+        qty: this.formatCurrency(row.get('qty')?.value ?? 0),
+        uom: row.get('uom')?.value ?? '',
+        unitCostFC: this.formatCurrency(row.get('unitCostFC')?.value ?? 0),
+        unitCostDH: this.formatCurrency(row.get('unitCostDH')?.value ?? 0),
+        totalCostFC: this.formatCurrency(row.get('totalCostFC')?.value ?? 0),
+        totalCostDH: this.formatCurrency(row.get('totalCostDH')?.value ?? 0),
+        expenseAllocationFactor: this.formatCurrency(row.get('expenseAllocationFactor')?.value ?? 0),
+        expensesAllocated: this.formatCurrency(row.get('expensesAllocated')?.value ?? 0),
+        totalValueWithExpenses: this.formatCurrency(row.get('totalValueWithExpenses')?.value ?? 0),
+        landedCostPerUnit: this.formatCurrency(row.get('landedCostPerUnit')?.value ?? 0),
+        reference: row.get('reference')?.value ?? '',
+      })),
+    });
+  }
 
-    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${shipmentNo.replace(/[^a-z0-9_-]/gi, '_')}-payment-costing-report.csv`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+  getAllocationTotal(group: AbstractControl, field: 'requestAmount' | 'paidAmount'): string {
+    return this.sumFormArrayField(this.getPaymentAllocations(group), field);
+  }
+
+  getPaymentCostingTotal(group: AbstractControl, field: 'requestAmount' | 'paidAmount' | 'actualPaid'): string {
+    return this.sumFormArrayField(this.getPaymentCostings(group), field);
+  }
+
+  getPackagingExpenseTotal(
+    group: AbstractControl,
+    field:
+      | 'qty'
+      | 'unitCostFC'
+      | 'unitCostDH'
+      | 'totalCostFC'
+      | 'totalCostDH'
+      | 'expenseAllocationFactor'
+      | 'expensesAllocated'
+      | 'totalValueWithExpenses'
+      | 'landedCostPerUnit'
+  ): string {
+    return this.sumFormArrayField(this.getPackagingExpenses(group), field);
+  }
+
+  private sumFormArrayField(formArray: FormArray, field: string): string {
+    const total = formArray.controls.reduce((sum, row) => sum + (Number(row.get(field)?.value) || 0), 0);
+    return total.toFixed(2);
   }
 
 }

@@ -154,12 +154,14 @@
               <p-datepicker formControlName="etd" appendTo="body"
                 inputStyleClass="table-input" ariaLabel="Scheduled ETD" placeholder="ETD"
                 [dateFormat]="appDateFormat"
+                [readonlyInput]="true"
               ></p-datepicker>
             </td>
             <td class="planned-col-date">
               <p-datepicker formControlName="eta" appendTo="body"
                 inputStyleClass="table-input" ariaLabel="Scheduled ETA" placeholder="ETA"
                 [dateFormat]="appDateFormat"
+                [readonlyInput]="true"
                 [minDate]="group.get('etd')?.value ? getStrictMinDate($any(group), 'etd') : undefined"
                 (onSelect)="onEtaSelect($any(group), $event)"
               ></p-datepicker>
@@ -182,12 +184,19 @@
                     [attr.aria-label]="'Remove row ' + (i + 1)"
                   ><i class="pi pi-trash text-xs"></i></button>
                 } @else if (!isPlannedRowEditable(i)) {
-                  <button
-                    type="button"
-                    (click)="startPlannedRowEdit(i)"
-                    class="w-8 h-8 rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50 flex items-center justify-center"
-                    [attr.aria-label]="'Edit scheduled row ' + (i + 1)"
-                  ><i class="pi pi-pencil text-xs"></i></button>
+                  @if (isPlannedRowLocked(i)) {
+                    <span
+                      class="inline-flex w-8 h-8 rounded-lg border border-slate-200 bg-slate-50 text-slate-400 items-center justify-center"
+                      [attr.aria-label]="'Scheduled row ' + (i + 1) + ' is locked after actual save'"
+                    ><i class="pi pi-lock text-xs"></i></span>
+                  } @else {
+                    <button
+                      type="button"
+                      (click)="startPlannedRowEdit(i)"
+                      class="w-8 h-8 rounded-lg border border-amber-200 text-amber-600 hover:bg-amber-50 flex items-center justify-center"
+                      [attr.aria-label]="'Edit scheduled row ' + (i + 1)"
+                    ><i class="pi pi-pencil text-xs"></i></button>
+                  }
                 } @else {
                   <button
                     type="button"
@@ -396,18 +405,39 @@
                     />
                   </label>
                 }
+                @if (getBillDocumentFile(i)) {
+                  <button
+                    type="button"
+                    (click)="openLocalBillDocumentPreview(i)"
+                    class="flex-shrink-0 w-8 h-8 rounded border border-slate-200 bg-white hover:bg-blue-50 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-colors"
+                    title="Preview BL document"
+                  >
+                    <i class="pi pi-eye text-xs" aria-hidden="true"></i>
+                  </button>
+                } @else if (getSavedBillDocumentUrl(i)) {
+                  <button
+                    type="button"
+                    (click)="openSavedBillDocumentPreview(i)"
+                    class="flex-shrink-0 w-8 h-8 rounded border border-slate-200 bg-white hover:bg-blue-50 flex items-center justify-center text-slate-500 hover:text-blue-600 transition-colors"
+                    title="Preview saved BL document"
+                  >
+                    <i class="pi pi-eye text-xs" aria-hidden="true"></i>
+                  </button>
+                }
               </div>
             </td>
             <td class="actual-col-date">
               <p-datepicker formControlName="shipOnBoardDate" appendTo="body"
                 inputStyleClass="date-mini" ariaLabel="Ship Onboard Date" placeholder="Ship Onboard"
                 [dateFormat]="appDateFormat"
+                [readonlyInput]="true"
               ></p-datepicker>
             </td>
             <td class="actual-col-date">
               <p-datepicker formControlName="updatedETD" appendTo="body"
                 inputStyleClass="date-mini" ariaLabel="ETD" placeholder="ETD"
                 [dateFormat]="appDateFormat"
+                [readonlyInput]="true"
                 [minDate]="getStrictMinDate($any(group), 'shipOnBoardDate')"
               ></p-datepicker>
             </td>
@@ -415,6 +445,7 @@
               <p-datepicker formControlName="updatedETA" appendTo="body"
                 inputStyleClass="date-mini" ariaLabel="ETA" placeholder="ETA"
                 [dateFormat]="appDateFormat"
+                [readonlyInput]="true"
                 [minDate]="getStrictMinDate($any(group), group.get('updatedETD')?.value ? 'updatedETD' : 'shipOnBoardDate')"
               ></p-datepicker>
             </td>

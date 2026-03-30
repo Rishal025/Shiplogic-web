@@ -47,12 +47,13 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
   shipmentForm!: FormGroup;
   submitting = signal(false);
 
-  // Document extraction: document1 = Purchase order, document2 = Pro-forma Invoice
+  // Document handling: document1 = Purchase order, document2 = optional Pro-forma Invoice
   document1File = signal<File | null>(null);
   document2File = signal<File | null>(null);
   s1QualityReportFile = signal<File | null>(null);
   extracting = signal(false);
   extractedQ1Report = signal<Record<string, unknown> | null>(null);
+  extractedFclPerUnit = signal<number | null>(null);
   /** Set after extract & autopopulate when response includes shipment_calculations; used for price-mismatch warning. */
   extractionPriceMismatch = signal<{ isPriceMatching: boolean; diffPercent?: number } | null>(null);
   private subscriptions = new Subscription();
@@ -136,7 +137,7 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     this.shipmentForm = this.fb.group({
       // Shipment Info
       commodity: [''],
-      piNo: [''],
+      piNo: ['', Validators.required],
       piDate: [null],
       fpoNo: [''],
       purchaseDate: [null],
@@ -152,7 +153,8 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
 
       // Supplier Details
       supplier: ['', Validators.required],
-      countryOfOrigin: [''],
+      supplierEmail: ['', [Validators.required, Validators.email]],
+      countryOfOrigin: ['', Validators.required],
 
       // Quantity of Packaging
       packagingType: [''],
@@ -262,7 +264,7 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
   }
 
   hasAllRequiredDocuments(): boolean {
-    return !!this.document1File() && !!this.document2File() && !!this.s1QualityReportFile();
+    return !!this.document1File() && !!this.s1QualityReportFile();
   }
 
   openDocumentPreview(file: File, title: string): void {
@@ -299,17 +301,16 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
 
   onExtractAndAutopopulate(): void {
     const file1 = this.document1File();
-    const file2 = this.document2File();
     const quality = this.s1QualityReportFile();
-    if (!file1 || !file2 || !quality) return;
+    if (!file1 || !quality) return;
 
     const formData = new FormData();
     formData.append('document1', file1, file1.name);
-    formData.append('document2', file2, file2.name);
     formData.append('s1QualityReport', quality, quality.name);
 
     this.extracting.set(true);
     this.extractionPriceMismatch.set(null);
+    this.extractedFclPerUnit.set(null);
     this.shipmentService.extractShipmentFromDocuments(formData).subscribe({
       next: (response) => {
         this.extracting.set(false);
@@ -344,6 +345,7 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
       const d = data as Record<string, unknown>;
       const patch: Record<string, unknown> = {};
       this.extractedQ1Report.set((data.q1Report as Record<string, unknown>) ?? null);
+      this.extractedFclPerUnit.set(typeof data.fclPerUnit === 'number' ? data.fclPerUnit : null);
 
       const dateKeys = ['piDate', 'purchaseDate', 'expectedETD', 'expectedETA'];
       for (const key of dateKeys) {
@@ -388,6 +390,9 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
 
       const sc = data.shipmentCalculations;
       if (sc) {
+        if (this.extractedFclPerUnit() == null && typeof sc.fcl_per_unit === 'number') {
+          this.extractedFclPerUnit.set(sc.fcl_per_unit);
+        }
         this.extractionPriceMismatch.set({
           isPriceMatching: sc.is_price_matching === true,
           diffPercent: sc.diff_percent
@@ -459,9 +464,19 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
 
   onSubmit(): void {
     if (this.shipmentForm.invalid || !this.hasAllRequiredDocuments()) {
+      const piNoControl = this.shipmentForm.get('piNo');
+      const supplierEmailControl = this.shipmentForm.get('supplierEmail');
       const detail = this.shipmentForm.hasError('etaBeforeEtd')
         ? 'ETA must be later than ETD.'
-        : 'Please fill all required fields and upload all 3 required documents';
+        : piNoControl?.hasError('required')
+          ? 'PI No. is required before saving the shipment.'
+          : supplierEmailControl?.hasError('required')
+            ? 'Supplier email is required before saving the shipment.'
+            : supplierEmailControl?.hasError('email')
+              ? 'Enter a valid supplier email address.'
+              : this.shipmentForm.get('countryOfOrigin')?.hasError('required')
+                ? 'Country of origin is required before saving the shipment.'
+          : 'Please fill all required fields and upload Purchase Order plus S1 Quality Report.';
       this.messageService.add({
         severity: 'warn',
         summary: 'Validation Error',
@@ -485,6 +500,7 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
       year: new Date().getFullYear().toString(),
       orderDate: formValue.purchaseDate ? new Date(formValue.purchaseDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0], // YYYY-MM-DD
       supplierName: formValue.supplier || '',
+      supplierEmail: formValue.supplierEmail || '',
       itemCode: formValue.itemCode || '',
       itemDescription: formValue.itemDescription || '',
       commodity: formValue.commodity || '',
@@ -529,10 +545,9 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     });
 
     const lpo = this.document1File();
-    const proforma = this.document2File();
     const s1 = this.s1QualityReportFile();
     if (lpo) createFormData.append('lpoDocument', lpo, lpo.name);
-    if (proforma) createFormData.append('proformaDocument', proforma, proforma.name);
+    if (this.document2File()) createFormData.append('proformaDocument', this.document2File()!, this.document2File()!.name);
     if (s1) createFormData.append('s1QualityReport', s1, s1.name);
 
     this.shipmentService.createShipment(createFormData).subscribe({
@@ -541,7 +556,7 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
         this.messageService.add({
           severity: 'success',
           summary: 'Success',
-          detail: 'Shipment created successfully'
+          detail: response.message || 'Shipment created successfully'
         });
         // Navigate to dashboard after 1 second
         setTimeout(() => {

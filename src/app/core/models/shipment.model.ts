@@ -184,6 +184,7 @@ export interface CreateShipmentPayload {
   orderDate: string;             // Order Date (YYYY-MM-DD)
   supplierId?: string;           // Optional supplier master ID
   supplierName: string;          // Supplier text
+  supplierEmail?: string;
   itemId?: string;               // Item ID from dropdown (optional)
   itemCode?: string;
   itemDescription?: string;
@@ -224,6 +225,9 @@ export interface CreateShipmentPayload {
 // Create Shipment Response
 export interface CreateShipmentResponse {
   message: string;
+  supplierCreated?: boolean;
+  inviteSent?: boolean;
+  inviteStatusMessage?: string;
   data: {
     poNumber: string;
     year: number;
@@ -273,9 +277,12 @@ export interface CreateShipmentResponse {
 export interface ShipmentCalculations {
   fcl?: number;
   bags?: number;
+  quantity_in_mt?: number;
   container_size?: string;
   bags_per_container?: number;
+  fcl_per_unit?: number;
   pallets?: number;
+  price_per_mt?: number;
   is_price_matching?: boolean;
   lpo_price_per_mt?: number;
   pi_price_per_mt?: number;
@@ -285,7 +292,7 @@ export interface ShipmentCalculations {
 
 /**
  * Response from document extraction API (POST /shipment/extract-documents).
- * Used to autopopulate shipment form from uploaded PI/PO documents.
+ * Used to autopopulate shipment form from uploaded Purchase Order and S1 Quality Report documents.
  * Keys match Create New Shipment form controls; supplier/item are resolved from supplierCode/itemCode.
  */
 export interface ExtractedShipmentData {
@@ -316,6 +323,7 @@ export interface ExtractedShipmentData {
   noOfShipments?: number;
   // Price & payment
   buyingUnit?: string;
+  fclPerUnit?: number;
   fcPerUnit?: number;
   totalUSD?: number;
   totalAED?: number;
@@ -535,6 +543,8 @@ export interface ActualContainer {
       pkgCt?: number;
     }>;
   };
+  blDocumentUrl?: string;
+  blDocumentName?: string;
   extractedContainers?: Array<{
     containerNo?: string;
     pkgCt?: number;
@@ -728,6 +738,7 @@ export interface ActualContainer {
     description?: string;
     requestAmount?: number;
     paidAmount?: number;
+    reference?: string;
   }[];
   paymentCostings?: {
     sn?: number;
@@ -740,6 +751,22 @@ export interface ActualContainer {
     refBillVendor?: string;
     refBillDocumentUrl?: string;
     refBillDocumentName?: string;
+  }[];
+  packagingExpenses?: {
+    sn?: number;
+    item?: string;
+    packing?: string;
+    qty?: number;
+    uom?: string;
+    unitCostFC?: number;
+    unitCostDH?: number;
+    totalCostFC?: number;
+    totalCostDH?: number;
+    expenseAllocationFactor?: number;
+    expensesAllocated?: number;
+    totalValueWithExpenses?: number;
+    landedCostPerUnit?: number;
+    reference?: string;
   }[];
   paymentCostingDocumentUrl?: string;
   paymentCostingDocumentName?: string;

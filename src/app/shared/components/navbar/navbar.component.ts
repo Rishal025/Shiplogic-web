@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Store } from '@ngrx/store';
 import { Observable } from 'rxjs';
+import { Router } from '@angular/router';
 import { selectUser, selectUserName, selectUserRole } from '../../../store/auth/auth.selectors';
 import { logout } from '../../../store/auth/auth.actions';
 import { AuthService, User } from '../../../core/services/auth.service';
@@ -11,6 +12,7 @@ import { AppNotification } from '../../../core/models/notification.model';
 import { NotificationService } from '../../../core/services/notification.service';
 import { DialogModule } from 'primeng/dialog';
 import { BadgeModule } from 'primeng/badge';
+import { RealtimeService } from '../../../core/services/realtime.service';
 
 @Component({
   selector: 'app-navbar',
@@ -25,6 +27,8 @@ export class NavbarComponent {
   private authService = inject(AuthService);
   private notificationInboxService = inject(NotificationInboxService);
   private notificationService = inject(NotificationService);
+  private realtimeService = inject(RealtimeService);
+  private router = inject(Router);
   
   user$: Observable<User | null> = this.store.select(selectUser);
   userName$: Observable<string | undefined> = this.store.select(selectUserName);
@@ -46,6 +50,14 @@ export class NavbarComponent {
 
   constructor() {
     this.loadNotifications();
+    this.setupRealtimeListeners();
+  }
+
+  private setupRealtimeListeners(): void {
+    this.realtimeService.notification$.subscribe((event: any) => {
+      this.loadNotifications();
+      this.notificationService.info(event.title || 'Notification', event.message || 'Activity detected');
+    });
   }
 
   loadNotifications(): void {
@@ -71,8 +83,18 @@ export class NavbarComponent {
     }
   }
 
-  markNotificationAsRead(notification: AppNotification): void {
-    if (notification.isRead) return;
+  openNotification(notification: AppNotification): void {
+    const finishNavigation = () => {
+      if (notification.entity === 'Shipment' && notification.entityId) {
+        this.showNotificationPanel.set(false);
+        this.router.navigate(['/shipments/track', notification.entityId]);
+      }
+    };
+
+    if (notification.isRead) {
+      finishNavigation();
+      return;
+    }
 
     this.notificationInboxService.markAsRead(notification._id).subscribe({
       next: ({ unreadCount }) => {
@@ -82,6 +104,10 @@ export class NavbarComponent {
           )
         );
         this.unreadCount.set(unreadCount);
+        finishNavigation();
+      },
+      error: () => {
+        finishNavigation();
       },
     });
   }

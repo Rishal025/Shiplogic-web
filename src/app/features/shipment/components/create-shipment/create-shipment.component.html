@@ -1,5 +1,5 @@
 <p-toast />
-<div class="page-transition-wrapper flex flex-col gap-6 px-4 sm:px-6 md:px-10 lg:px-16 xl:px-24">
+<div class="page-transition-wrapper create-shipment-shell flex flex-col gap-4 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 2xl:px-12">
   <!-- Top Navigation/Header -->
   <header class="flex flex-col gap-4 md:flex-row md:justify-between md:items-center shrink-0">
     <div class="flex items-start sm:items-center gap-4">
@@ -24,11 +24,11 @@
   </header>
 
   <!-- Form Content -->
-  <form [formGroup]="shipmentForm" class="pb-20">
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+  <form [formGroup]="shipmentForm" class="pb-14">
+    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] gap-5 xl:gap-6">
       
       <!-- Left Column -->
-      <div class="flex flex-col gap-8">
+      <div class="flex flex-col gap-5">
         
         <!-- Shipment Info Group -->
         <section class="sl-card">
@@ -38,10 +38,10 @@
             </div>
             <h2>Shipment Info</h2>
           </div>
-          <div class="sl-card-body grid grid-cols-1 md:grid-cols-2 gap-5">
-            <!-- Document upload row: Purchase order + Pro-forma Invoice + S1 Quality Report + Extract button -->
+          <div class="sl-card-body grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Document upload row: Purchase order + optional Pro-forma Invoice + S1 Quality Report + Extract button -->
             <div class="flex flex-col md:col-span-2">
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-4">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
                 <div class="flex flex-col gap-2">
                   <label class="sl-label">Purchase order *</label>
                   <div class="relative flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl p-5 bg-slate-50/50 hover:bg-slate-50 hover:border-blue-300 transition-colors group">
@@ -63,7 +63,7 @@
                   }
                 </div>
                 <div class="flex flex-col gap-2">
-                  <label class="sl-label">Pro-forma Invoice *</label>
+                  <label class="sl-label">Pro-forma Invoice</label>
                   <div class="relative flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl p-5 bg-slate-50/50 hover:bg-slate-50 hover:border-blue-300 transition-colors group">
                     <button type="button" class="absolute top-2 right-2 w-8 h-8 rounded-lg bg-white/90 border border-slate-200 flex items-center justify-center cursor-pointer text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm" *ngIf="document2File()" (click)="openDocumentPreview(document2File()!, 'Pro-forma Invoice')" title="Preview document">
                       <i class="pi pi-eye text-sm"></i>
@@ -108,9 +108,9 @@
                 (click)="onExtractAndAutopopulate()"
                 appButton
                 class="shadow-sm w-full md:w-auto"
-                [disabled]="!document1File() || !document2File() || !s1QualityReportFile() || extracting()">
+                [disabled]="!document1File() || !s1QualityReportFile() || extracting()">
                 <i [class]="extracting() ? 'pi pi-spin pi-spinner mr-2' : 'pi pi-download mr-2'"></i>
-                <span>{{ extracting() ? 'Extracting...' : 'Extract & autopopulate' }}</span>
+                <span>{{ extracting() ? 'Extracting...' : 'Extract from 2 documents' }}</span>
               </button>
             </div>
 
@@ -125,6 +125,9 @@
             <div class="flex flex-col">
               <label class="sl-label">PI No.</label>
               <input pInputText formControlName="piNo" placeholder="Pro-forma Invoice #" class="w-full" />
+              @if (shipmentForm.get('piNo')?.invalid && shipmentForm.get('piNo')?.touched) {
+                <span class="mt-1 text-xs font-semibold text-rose-600">PI No. is required.</span>
+              }
             </div>
             <div class="flex flex-col">
               <label class="sl-label">PI Date</label>
@@ -195,8 +198,21 @@
               <input pInputText formControlName="supplier" placeholder="Enter supplier name" class="w-full" />
             </div>
             <div class="flex flex-col">
+              <label class="sl-label">Supplier Email *</label>
+              <input pInputText formControlName="supplierEmail" type="email" placeholder="Enter supplier email" class="w-full" />
+              @if (shipmentForm.get('supplierEmail')?.hasError('required') && shipmentForm.get('supplierEmail')?.touched) {
+                <span class="mt-1 text-xs font-semibold text-rose-600">Supplier email is required.</span>
+              }
+              @if (shipmentForm.get('supplierEmail')?.hasError('email') && shipmentForm.get('supplierEmail')?.touched) {
+                <span class="mt-1 text-xs font-semibold text-rose-600">Enter a valid email address.</span>
+              }
+            </div>
+            <div class="flex flex-col">
               <label class="sl-label">Country of Origin</label>
               <input pInputText formControlName="countryOfOrigin" placeholder="Enter Country" class="w-full" />
+              @if (shipmentForm.get('countryOfOrigin')?.hasError('required') && shipmentForm.get('countryOfOrigin')?.touched) {
+                <span class="mt-1 text-xs font-semibold text-rose-600">Country of origin is required.</span>
+              }
             </div>
           </div>
         </section>
@@ -204,7 +220,7 @@
       </div>
 
       <!-- Right Column -->
-      <div class="flex flex-col gap-8">
+      <div class="flex flex-col gap-5">
 
         <!-- Quantity of Packaging -->
         <section class="sl-card">
@@ -214,7 +230,7 @@
             </div>
             <h2>Quantity of Packaging</h2>
           </div>
-          <div class="sl-card-body grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div class="sl-card-body grid grid-cols-1 md:grid-cols-2 gap-4">
             @if (extractionPriceMismatch() && !extractionPriceMismatch()?.isPriceMatching) {
               <div class="md:col-span-2 flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
                 <i class="pi pi-exclamation-triangle text-amber-600 text-xl shrink-0 mt-0.5"></i>
@@ -270,8 +286,8 @@
             </div>
             <h2>Price</h2>
           </div>
-          <div class="sl-card-body flex flex-col gap-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div class="sl-card-body flex flex-col gap-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div class="flex flex-col">
                 <label class="sl-label">Buying Unit (UOM)</label>
                 <p-select 
@@ -290,6 +306,14 @@
                 <p-inputNumber formControlName="fcPerUnit" mode="currency" currency="USD" locale="en-US" placeholder="$0.00" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
               </div>
             </div>
+            @if (extractedFclPerUnit() !== null) {
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="financial-total-box">
+                  <label class="text-[10px] font-bold text-violet-500 uppercase tracking-wider">Extracted FCL per Unit</label>
+                  <div class="text-xl font-black text-violet-900">{{ extractedFclPerUnit() | number:'1.0-0' }}</div>
+                </div>
+              </div>
+            }
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div class="financial-total-box">
                 <label class="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Total USD (Auto)</label>
@@ -300,7 +324,7 @@
                 <div class="text-xl font-black text-emerald-900">{{ (shipmentForm.get('totalAED')?.value || 0) | number:'1.2-2' }} AED</div>
               </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div class="flex flex-col">
                 <label class="sl-label">Payment Terms</label>
                 <p-select 

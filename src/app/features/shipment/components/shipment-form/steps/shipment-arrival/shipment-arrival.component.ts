@@ -84,6 +84,11 @@ export class ShipmentArrivalComponent {
   readonly municipalityFile = signal<Record<number, File | null>>({});
 
   readonly expandedTransportation = signal<Record<number, boolean>>({});
+  readonly extractingArrivalNoticeRowIndex = signal<number | null>(null);
+  readonly sectionSavingKey = signal<string | null>(null);
+  readonly lockedSections = signal<Record<string, boolean>>({});
+  readonly lockedPortCustomsSections = signal<Record<number, boolean>>({});
+  readonly lockedTransportationSections = signal<Record<number, boolean>>({});
 
   showPreviewModal = signal(false);
   previewUrl = signal<string | null>(null);
@@ -119,13 +124,15 @@ export class ShipmentArrivalComponent {
       this.formArray.controls.forEach((_, index) => {
         this.updateDerivedDates(index);
         this.updateDelayHours(index);
+        this.initializeSectionLocks(index);
+        this.applySectionLocks(index);
       });
     });
   }
 
   getShipmentNoLabel(index: number): string {
     if (this.formArray?.controls[index] == null) return '–';
-    const base = this.shipmentData()?.shipment?.shipmentNo;
+    const base = this.shipmentData()?.shipment?.shipmentNo?.replace(/\([^)]*\)/g, '').trim();
     return base?.trim() ? `${base}-${index + 1}` : '–';
   }
 
@@ -368,6 +375,108 @@ export class ShipmentArrivalComponent {
     });
   }
 
+  isSectionSaving(index: number, section: 'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'): boolean {
+    return this.sectionSavingKey() === `${section}-${index}`;
+  }
+
+  private sectionKey(index: number, section: 'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'): string {
+    return `${index}:${section}`;
+  }
+
+  isLogisticsSectionLocked(index: number, section: 'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'): boolean {
+    return this.isRowSubmitted(index) || !!this.lockedSections()[this.sectionKey(index, section)];
+  }
+
+  isPortCustomsLocked(index: number): boolean {
+    return this.isLogisticsSectionLocked(index, 'arrivalNotice');
+  }
+
+  isTransportationLocked(index: number): boolean {
+    return this.isLogisticsSectionLocked(index, 'transportation');
+  }
+
+  saveLogisticsSection(index: number, section: 'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'): void {
+    const group = this.formArray.at(index);
+    const containerId = group?.get('containerId')?.value;
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    if (!group || !containerId || !shipmentId || this.isLogisticsSectionLocked(index, section)) return;
+
+    const toDate = (val: unknown) => (val ? new Date(val as Date).toISOString().split('T')[0] : '');
+    const payload = new FormData();
+    payload.append('sectionKey', section);
+
+    if (section === 'transportation') {
+      this.updateDelayHours(index);
+      const transportationBooked = this.getTransportationRows(group).getRawValue().map((tb: any) => ({
+        containerSerialNo: tb.containerSerialNo || '',
+        transportCompanyName: tb.transportCompanyName || '',
+        bookedDate: toDate(tb.bookedDate),
+        bookingTime: this.toTimeString(tb.bookingTime),
+        transportDate: toDate(tb.transportDate),
+        transportTime: this.toTimeString(tb.transportTime),
+        delayHours: tb.delayHours ?? null,
+      }));
+      payload.append('transportationBooked', JSON.stringify(transportationBooked));
+    } else if (section === 'arrivalNotice') {
+      this.updateDerivedDates(index);
+      payload.append('arrivalOn', toDate(group.get('arrivalOn')?.value));
+      payload.append('shipmentFreeRetentionDate', toDate(group.get('shipmentFreeRetentionDate')?.value));
+      payload.append('portRetentionWithPenaltyDate', toDate(group.get('portRetentionWithPenaltyDate')?.value));
+      payload.append('maximumRetentionDate', toDate(group.get('maximumRetentionDate')?.value));
+      payload.append('arrivalNoticeDate', toDate(group.get('arrivalNoticeDate')?.value));
+      payload.append('arrivalNoticeFreeRetentionDays', String(group.get('arrivalNoticeFreeRetentionDays')?.value ?? ''));
+      const file = this.getFile(index, 'arrivalNotice');
+      if (file) payload.append('arrivalNoticeDocument', file, file.name);
+    } else {
+      const sectionMap = {
+        advanceRequest: { date: 'advanceRequestDate', remarks: null, file: 'advanceRequestDocument' },
+        doReleased: { date: 'doReleasedDate', remarks: 'doReleasedRemarks', file: 'doReleasedDocument' },
+        dpApproval: { date: 'dpApprovalDate', remarks: 'dpApprovalRemarks', file: 'dpApprovalDocument' },
+        customsClearance: { date: 'customsClearanceDate', remarks: 'customsClearanceRemarks', file: 'customsClearanceDocument' },
+        municipality: { date: 'municipalityDate', remarks: 'municipalityRemarks', file: 'municipalityDocument' },
+      } as const;
+      const config = sectionMap[section];
+      payload.append(config.date, toDate(group.get(config.date)?.value));
+      if (config.remarks) payload.append(config.remarks, group.get(config.remarks)?.value || '');
+      if (section === 'customsClearance') {
+        payload.append('tokenReceivedDate', toDate(group.get('tokenReceivedDate')?.value));
+      }
+      const file = this.getFile(index, section);
+      if (file) payload.append(config.file, file, file.name);
+    }
+
+    this.sectionSavingKey.set(`${section}-${index}`);
+    this.shipmentService.submitLogistics(containerId, payload).subscribe({
+      next: () => {
+        this.sectionSavingKey.set(null);
+        this.lockedSections.update((current) => ({ ...current, [this.sectionKey(index, section)]: true }));
+        this.applySectionLocks(index);
+        this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Saved',
+          detail: `${section === 'transportation' ? 'Transportation arranged' : this.step5DocConfig.find((doc) => doc.kind === section)?.label || 'Section'} saved successfully.`,
+        });
+      },
+      error: (error) => {
+        this.sectionSavingKey.set(null);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Save failed',
+          detail: error.error?.message || 'Could not save this section.',
+        });
+      }
+    });
+  }
+
+  savePortCustomsSection(index: number): void {
+    this.saveLogisticsSection(index, 'arrivalNotice');
+  }
+
+  saveTransportationSection(index: number): void {
+    this.saveLogisticsSection(index, 'transportation');
+  }
+
   private updateDerivedDates(index: number): void {
     const group = this.formArray.at(index);
     const arrivalOn = group?.get('arrivalOn')?.value;
@@ -384,10 +493,11 @@ export class ShipmentArrivalComponent {
       Number(actualData?.freeDetentionDays ?? 0) ||
       0;
     const maxDays = Number(actualData?.maximumDetentionDays ?? 0) || 0;
-    group.get('shipmentFreeRetentionDate')?.patchValue(this.addDays(arrivalOn, freeDays), { emitEvent: false });
-    const maximumRetentionDate = this.addDays(arrivalOn, maxDays);
+    const freeRetentionDate = this.addDays(arrivalOn, freeDays);
+    group.get('shipmentFreeRetentionDate')?.patchValue(freeRetentionDate, { emitEvent: false });
+    const maximumRetentionDate = maxDays > 0 ? this.addDays(arrivalOn, maxDays) : null;
     group.get('maximumRetentionDate')?.patchValue(maximumRetentionDate, { emitEvent: false });
-    group.get('portRetentionWithPenaltyDate')?.patchValue(maximumRetentionDate, { emitEvent: false });
+    group.get('portRetentionWithPenaltyDate')?.patchValue(freeRetentionDate, { emitEvent: false });
   }
 
   private updateDelayHours(index: number): void {
@@ -409,8 +519,10 @@ export class ShipmentArrivalComponent {
   private extractArrivalNotice(index: number, file: File): void {
     const formData = new FormData();
     formData.append('file', file, file.name);
+    this.extractingArrivalNoticeRowIndex.set(index);
     this.shipmentService.extractArrivalNoticeFromDocument(formData).subscribe({
       next: (res) => {
+        this.extractingArrivalNoticeRowIndex.set(null);
         const group = this.formArray.at(index);
         if (!group) return;
         if (res.arrival_on) {
@@ -432,6 +544,7 @@ export class ShipmentArrivalComponent {
         });
       },
       error: (err) => {
+        this.extractingArrivalNoticeRowIndex.set(null);
         this.messageService.add({
           severity: 'warn',
           summary: 'Arrival notice extraction failed',
@@ -492,5 +605,64 @@ export class ShipmentArrivalComponent {
     if (Number.isNaN(date.getTime())) return null;
     date.setDate(date.getDate() + days);
     return date;
+  }
+
+  private initializeSectionLocks(index: number): void {
+    const actual = this.shipmentData()?.actual?.[index] as Record<string, any> | undefined;
+    if (!actual) return;
+    const sectionStates: Array<[Parameters<typeof this.sectionKey>[1], boolean]> = [
+      ['arrivalNotice', !!(actual['arrivalOn'] || actual['arrivalNoticeDate'] || actual['arrivalNoticeDocumentUrl'])],
+      ['advanceRequest', !!(actual['advanceRequestDate'] || actual['advanceRequestDocumentUrl'])],
+      ['doReleased', !!(actual['doReleasedDate'] || actual['doReleasedDocumentUrl'] || actual['doReleasedRemarks'])],
+      ['dpApproval', !!(actual['dpApprovalDate'] || actual['dpApprovalDocumentUrl'] || actual['dpApprovalRemarks'])],
+      ['customsClearance', !!(actual['customsClearanceDate'] || actual['customsClearanceDocumentUrl'] || actual['customsClearanceRemarks'] || actual['tokenReceivedDate'])],
+      ['municipality', !!(actual['municipalityDate'] || actual['municipalityDocumentUrl'] || actual['municipalityRemarks'])],
+      ['transportation', (actual['transportationBooked']?.length ?? 0) > 0],
+    ];
+
+    this.lockedSections.update((current) => {
+      const next = { ...current };
+      sectionStates.forEach(([section, locked]) => {
+        const key = this.sectionKey(index, section);
+        next[key] = current[key] ?? locked;
+      });
+      return next;
+    });
+  }
+
+  private applySectionLocks(index: number): void {
+    const group = this.formArray.at(index);
+    if (!group) return;
+
+    const sectionControls: Record<string, string[]> = {
+      arrivalNotice: ['arrivalNoticeDate', 'arrivalOn', 'shipmentFreeRetentionDate', 'maximumRetentionDate', 'portRetentionWithPenaltyDate', 'arrivalNoticeFreeRetentionDays'],
+      advanceRequest: ['advanceRequestDate'],
+      doReleased: ['doReleasedDate', 'doReleasedRemarks'],
+      dpApproval: ['dpApprovalDate', 'dpApprovalRemarks'],
+      customsClearance: ['customsClearanceDate', 'customsClearanceRemarks', 'tokenReceivedDate'],
+      municipality: ['municipalityDate', 'municipalityRemarks'],
+    };
+
+    Object.entries(sectionControls).forEach(([section, controls]) => {
+      controls.forEach((controlName) => {
+        const control = group.get(controlName);
+        if (!control) return;
+        if (this.isLogisticsSectionLocked(index, section as any)) {
+          control.disable({ emitEvent: false });
+        } else if (!this.isRowSubmitted(index)) {
+          control.enable({ emitEvent: false });
+        }
+      });
+    });
+
+    const transportation = group.get('transportationBooked') as FormArray | null;
+    transportation?.controls.forEach((row) => {
+      if (this.isLogisticsSectionLocked(index, 'transportation')) {
+        row.disable({ emitEvent: false });
+      } else if (!this.isRowSubmitted(index)) {
+        row.enable({ emitEvent: false });
+        row.get('delayHours')?.disable({ emitEvent: false });
+      }
+    });
   }
 }

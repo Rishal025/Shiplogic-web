@@ -225,8 +225,8 @@ export class ShipmentService {
   }
 
   /**
-   * Extract shipment data from uploaded documents (e.g. PI, PO) for autopopulating the form.
-   * POST /shipment/extract-documents with FormData containing document1 and document2 files.
+   * Extract shipment data from uploaded documents for autopopulating the form.
+   * POST /shipment/extract-documents with FormData containing document1 and s1QualityReport files.
    */
   extractShipmentFromDocuments(formData: FormData): Observable<ExtractShipmentFromDocumentsResponse> {
     return this.http.post<ExtractShipmentFromDocumentsResponse>(`${this.apiUrl}/extract-documents`, formData);
@@ -271,7 +271,7 @@ export class ShipmentService {
    * @param containerId - The container ID
    * @param containerData - The actual container data
    */
-  createActualContainer(containerId: string, containerData: ActualContainer): Observable<any> {
+  createActualContainer(containerId: string, containerData: ActualContainer | FormData): Observable<any> {
     return this.http.patch(`${this.apiUrl}/container/actual/${containerId}`, containerData);
   }
 

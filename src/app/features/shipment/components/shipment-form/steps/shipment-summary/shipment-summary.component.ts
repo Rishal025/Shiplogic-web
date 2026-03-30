@@ -85,4 +85,43 @@ export class ShipmentSummaryComponent {
     const value = this.shipmentData()?.shipment?.noOfShipments ?? 0;
     return value > 0 ? String(value) : 'Not Created Yet';
   }
+
+  getShipmentStatuses(): Array<{ shipmentNo: string; stage: string; badge: 'success' | 'info' | 'warn' }> {
+    const data = this.shipmentData();
+    const planned = data?.planned || [];
+    const actual = data?.actual || [];
+    const baseShipmentNo = data?.shipment?.shipmentNo?.replace(/\([^)]*\)/g, '').trim() || 'Shipment';
+    const shipmentCount = Math.max(
+      Number(data?.shipment?.noOfShipments) || 0,
+      planned.length,
+      actual.length
+    );
+
+    return Array.from({ length: shipmentCount }, (_, index) => {
+      const row = actual[index];
+      const plannedRow = planned[index];
+      const stage =
+        row?.paymentCostings?.length || row?.packagingExpenses?.length
+          ? 'Payment & Costing'
+          : row?.qualityRows?.length || row?.qualityReports?.length
+            ? 'Quality'
+            : row?.storageSplits?.length
+              ? 'Storage Allocation & Arrival'
+              : row?.transportationBooked?.length || row?.arrivalNoticeDate || row?.customsClearanceDate
+                ? 'Port & Customs Clearance'
+                : row?.documentsReleasedDate || row?.receiver
+                  ? 'Document Tracker'
+                  : row?.BLNo
+                    ? 'BL Details'
+                    : plannedRow
+                      ? 'Shipment Tracker'
+                      : 'Shipment Entry';
+
+      return {
+        shipmentNo: `${baseShipmentNo}-${index + 1}`,
+        stage,
+        badge: stage === 'Payment & Costing' || stage === 'Quality' ? 'success' : stage === 'Shipment Tracker' ? 'info' : 'warn',
+      };
+    });
+  }
 }

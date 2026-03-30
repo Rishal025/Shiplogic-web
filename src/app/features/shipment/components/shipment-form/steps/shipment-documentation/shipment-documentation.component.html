@@ -31,6 +31,14 @@
               </span>
             </div>
             <div class="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                (click)="$event.stopPropagation(); openStatusModal(i)"
+                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-wider bg-blue-50 text-blue-600 hover:bg-blue-100"
+              >
+                <i class="pi pi-compass text-[10px]"></i>
+                Tracker
+              </button>
               @if (isPrecedingSubmitted(i)) {
                 <button
                   type="button"
@@ -70,7 +78,19 @@
               <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               <div class="flex flex-col gap-1.5">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">B/L No</label>
-                <input pInputText formControlName="BLNo" class="table-input-text w-full" placeholder="B/L No" />
+                <div class="flex items-center gap-2">
+                  <input pInputText formControlName="BLNo" class="table-input-text w-full" placeholder="B/L No" />
+                  @if (getBlDocumentUrl(i)) {
+                    <button
+                      type="button"
+                      (click)="openRemoteDocumentPreview(getBlDocumentUrl(i), getBlDocumentName(i))"
+                      class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-blue-50 hover:text-blue-600 shrink-0"
+                      title="View BL document"
+                    >
+                      <i class="pi pi-eye"></i>
+                    </button>
+                  }
+                </div>
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Courier Track No</label>
@@ -249,4 +269,51 @@
       }
     }
   </div>
+</p-dialog>
+
+<p-dialog
+  [header]="'Shipment Tracker'"
+  [visible]="statusModalVisible()"
+  (visibleChange)="onStatusModalVisibleChange($event)"
+  [modal]="true"
+  [dismissableMask]="true"
+  [style]="{ width: '92vw', maxWidth: '520px' }"
+  [draggable]="false"
+  [resizable]="false"
+  appendTo="body">
+  @if (statusModalShipmentIndex(); as idx) {
+    <div class="flex flex-col gap-4">
+      <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Shipment</p>
+        <p class="text-sm font-bold text-slate-800 mt-1">{{ getShipmentNoLabel(idx) }}</p>
+      </div>
+      <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+        <p class="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Current Stage</p>
+        <p class="text-sm font-bold text-emerald-700 mt-1">{{ getShipmentReachedStage(idx) }}</p>
+      </div>
+      <div class="flex flex-col gap-2">
+        @for (stage of shipmentStages; track $index; let s = $index) {
+          <div
+            class="flex items-center justify-between rounded-lg border px-3 py-2"
+            [class.border-emerald-200]="isStageCompletedForShipment(idx, s)"
+            [class.bg-emerald-50]="isStageCompletedForShipment(idx, s)"
+            [class.border-blue-200]="isCurrentStageForShipment(idx, s)"
+            [class.bg-blue-50]="isCurrentStageForShipment(idx, s)"
+            [class.border-slate-200]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
+            [class.bg-white]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
+          >
+            <span class="text-xs font-semibold text-slate-700">{{ stage }}</span>
+            <span
+              class="text-[10px] font-black uppercase tracking-wider"
+              [class.text-emerald-600]="isStageCompletedForShipment(idx, s)"
+              [class.text-blue-600]="isCurrentStageForShipment(idx, s)"
+              [class.text-slate-400]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
+            >
+              {{ isCurrentStageForShipment(idx, s) ? 'Current' : (isStageCompletedForShipment(idx, s) ? 'Done' : 'Pending') }}
+            </span>
+          </div>
+        }
+      </div>
+    </div>
+  }
 </p-dialog>

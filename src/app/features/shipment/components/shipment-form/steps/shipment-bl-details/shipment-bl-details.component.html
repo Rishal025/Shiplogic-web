@@ -59,7 +59,19 @@
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               <div class="flex flex-col gap-1.5">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">B/L No</label>
-                <input pInputText formControlName="blNo" class="table-input-text w-full" placeholder="Enter B/L No" />
+                <div class="flex items-center gap-2">
+                  <input pInputText formControlName="blNo" class="table-input-text w-full" placeholder="Enter B/L No" />
+                  @if (getSavedBlDocumentUrl(group)) {
+                    <button
+                      type="button"
+                      (click)="openRemoteDocumentPreview(getSavedBlDocumentUrl(group), getSavedBlDocumentName(group) || 'BL Document')"
+                      class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-blue-50 hover:text-blue-600"
+                      title="View BL document"
+                    >
+                      <i class="pi pi-eye"></i>
+                    </button>
+                  }
+                </div>
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shipped On Board</label>
@@ -83,7 +95,7 @@
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quantity by MT</label>
-                <p-inputNumber formControlName="quantityByMt" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="0" [maxFractionDigits]="2" placeholder="0.00" />
+                <p-inputNumber formControlName="quantityByMt" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2" placeholder="0.00" />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shipping Line</label>
@@ -204,8 +216,8 @@
                         <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.8fr)_160px_160px] gap-3 items-start">
                           <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
                           <div class="flex items-center min-h-10 text-sm font-semibold text-slate-700">{{ row.get('description')?.value }}</div>
-                          <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="0" [maxFractionDigits]="2" />
-                          <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="0" [maxFractionDigits]="2" [readonly]="true" />
+                          <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" />
+                          <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" [readonly]="true" />
                         </div>
 
                         <div class="md:hidden flex flex-col gap-3">
@@ -222,17 +234,35 @@
                             <div class="grid grid-cols-2 gap-3">
                               <div class="flex flex-col gap-1.5">
                                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Request Amount</label>
-                                <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="0" [maxFractionDigits]="2" />
+                                <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" />
                               </div>
                               <div class="flex flex-col gap-1.5">
                                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Paid Amount</label>
-                                <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="0" [maxFractionDigits]="2" [readonly]="true" />
+                                <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" [readonly]="true" />
                               </div>
                             </div>
                           </div>
                         </div>
                       </div>
                     }
+                  </div>
+                  <div class="border-t border-slate-100 bg-slate-50/70 px-4 py-3">
+                    <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.8fr)_160px_160px] gap-3 items-center">
+                      <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total</span>
+                      <span></span>
+                      <span class="text-sm font-black text-slate-800">{{ getCostSheetTotal(group, 'requestAmount') }}</span>
+                      <span class="text-sm font-black text-slate-800">{{ getCostSheetTotal(group, 'paidAmount') }}</span>
+                    </div>
+                    <div class="md:hidden grid grid-cols-2 gap-3">
+                      <div class="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                        <div class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total Request</div>
+                        <div class="mt-1 text-sm font-black text-slate-800">{{ getCostSheetTotal(group, 'requestAmount') }}</div>
+                      </div>
+                      <div class="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                        <div class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total Paid</div>
+                        <div class="mt-1 text-sm font-black text-slate-800">{{ getCostSheetTotal(group, 'paidAmount') }}</div>
+                      </div>
+                    </div>
                   </div>
                   @if (hasHiddenCostSheetRows(group, i) || expandedCostSheet()[i]) {
                     <div class="border-t border-slate-100 px-4 py-3 flex justify-center sm:justify-start">
@@ -265,7 +295,7 @@
                       Save
                     </button>
                   </div>
-                  <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.3fr)_120px_minmax(0,1fr)] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
+                  <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.45fr)_140px_minmax(0,1.25fr)] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Container Serial No</span>
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Bags</span>
@@ -274,7 +304,7 @@
                   <div class="flex flex-col">
                     @for (row of getStorageRows(group).controls; track $index) {
                       <div [formGroup]="$any(row)" class="border-b last:border-b-0 border-slate-100 p-4">
-                        <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.3fr)_120px_minmax(0,1fr)] gap-3 items-start">
+                        <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.45fr)_140px_minmax(0,1.25fr)] gap-3 items-start">
                           <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
                           <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container Serial No" />
                           <p-inputNumber formControlName="bags" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />

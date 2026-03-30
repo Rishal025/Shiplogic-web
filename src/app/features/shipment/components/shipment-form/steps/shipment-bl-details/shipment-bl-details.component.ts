@@ -16,6 +16,8 @@ import { SelectModule } from 'primeng/select';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { TabsModule } from 'primeng/tabs';
 import { DialogModule } from 'primeng/dialog';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   selectIsPlannedLocked,
   selectShipmentData,
@@ -144,7 +146,7 @@ export class ShipmentBlDetailsComponent {
 
   getShipmentNoLabel(index: number): string {
     if (this.formArray?.controls[index] == null) return '–';
-    const base = this.shipmentData()?.shipment?.shipmentNo;
+    const base = this.shipmentData()?.shipment?.shipmentNo?.replace(/\([^)]*\)/g, '').trim();
     return base?.trim() ? `${base}-${index + 1}` : '–';
   }
 
@@ -203,6 +205,107 @@ export class ShipmentBlDetailsComponent {
 
   getSavedBookingName(group: AbstractControl): string {
     return group.get('costSheetBookingDocumentName')?.value || '';
+  }
+
+  getSavedBlDocumentUrl(group: AbstractControl): string {
+    return group.get('blDocumentUrl')?.value || '';
+  }
+
+  getSavedBlDocumentName(group: AbstractControl): string {
+    return group.get('blDocumentName')?.value || '';
+  }
+
+  private formatCurrency(value: unknown): string {
+    return Number(value ?? 0).toFixed(2);
+  }
+
+  private escapeHtml(value: unknown): string {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  private formatDateForReport(value: unknown): string {
+    if (!value) return '—';
+    const date = new Date(value as string | Date);
+    if (Number.isNaN(date.getTime())) return '—';
+    return new Intl.DateTimeFormat('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(date);
+  }
+
+  private downloadCostingSheetPdf(config: {
+    shipmentNo: string;
+    metadataRows: [string, string][];
+    clearingRows: Array<{
+      sn: number | string;
+      description: string;
+      requestAmount: string;
+      paidAmount: string;
+      actualAmount?: string;
+      remarks?: string;
+    }>;
+  }): void {
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+
+    doc.setFontSize(18);
+    doc.text('Royal Horizon Costing Sheet', 40, 36);
+    doc.setFontSize(11);
+    doc.text(`Shipment: ${config.shipmentNo}`, 40, 54);
+
+    autoTable(doc, {
+      startY: 70,
+      body: config.metadataRows.map(([label, value]) => [label, value || '—']),
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 4 },
+      columnStyles: {
+        0: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 150 },
+        1: { cellWidth: 250 },
+      },
+      margin: { left: 40, right: 40 },
+    });
+
+    const clearingRows = config.clearingRows.map((row) => [
+      row.sn,
+      row.description,
+      row.requestAmount,
+      row.paidAmount,
+      row.actualAmount || '0.00',
+      row.remarks || '',
+    ]);
+    clearingRows.push([
+      '',
+      'Total',
+      config.clearingRows.reduce((sum, row) => sum + Number(row.requestAmount || 0), 0).toFixed(2),
+      config.clearingRows.reduce((sum, row) => sum + Number(row.paidAmount || 0), 0).toFixed(2),
+      config.clearingRows.reduce((sum, row) => sum + Number(row.actualAmount || 0), 0).toFixed(2),
+      '',
+    ]);
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 18,
+      head: [['SN', 'Description', 'Request Amount', 'Paid Amount', 'Actual Amount', 'Payment Ref / Remarks']],
+      body: clearingRows,
+      theme: 'grid',
+      styles: { fontSize: 8.5, cellPadding: 4 },
+      headStyles: { fillColor: [241, 245, 249], textColor: 17, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 34 },
+        1: { cellWidth: 250 },
+        2: { halign: 'right', cellWidth: 85 },
+        3: { halign: 'right', cellWidth: 85 },
+        4: { halign: 'right', cellWidth: 85 },
+        5: { cellWidth: 170 },
+      },
+      margin: { left: 40, right: 40 },
+    });
+
+    doc.save(`${config.shipmentNo.replace(/[^a-z0-9_-]/gi, '_')}-costing-sheet.pdf`);
   }
 
   openRemoteDocumentPreview(url: string, title: string): void {
@@ -390,24 +493,40 @@ export class ShipmentBlDetailsComponent {
     if (!row) return;
 
     const rows = this.getCostSheetRows(row).getRawValue();
-    const header = ['SN', 'Description', 'Request Amount', 'Paid Amount'];
-    const csv = [
-      header.join(','),
-      ...rows.map((entry: any) => ([
-        Number(entry.sn) || 0,
-        `"${String(entry.description || '').replace(/"/g, '""')}"`,
-        Number(entry.requestAmount ?? 0).toFixed(2),
-        Number(entry.paidAmount ?? 0).toFixed(2),
-      ].join(',')))
-    ].join('\n');
+    const shipment = this.shipmentData()?.shipment;
+    const metadataRows: [string, string][] = [
+      ['Shipment No', this.getShipmentNoLabel(index)],
+      ['Supplier', shipment?.supplier || ''],
+      ['PO No', shipment?.poNumber || ''],
+      ['PI No', shipment?.piNo || ''],
+      ['Incoterms', shipment?.incoterms || ''],
+      ['Payment Terms', shipment?.paymentTerms || ''],
+      ['BL No', row.get('blNo')?.value || ''],
+      ['Port Of Loading', row.get('portOfLoading')?.value || ''],
+      ['Port Of Discharge', row.get('portOfDischarge')?.value || ''],
+      ['No Of Containers', this.formatCurrency(row.get('noOfContainers')?.value ?? 0)],
+      ['Quantity By MT', this.formatCurrency(row.get('quantityByMt')?.value ?? 0)],
+      ['Shipped On Board', this.formatDateForReport(row.get('shippedOnBoard')?.value)],
+    ];
+    this.downloadCostingSheetPdf({
+      shipmentNo: this.getShipmentNoLabel(index),
+      metadataRows,
+      clearingRows: rows.map((entry: any) => ({
+        sn: Number(entry.sn) || 0,
+        description: entry.description || '',
+        requestAmount: this.formatCurrency(entry.requestAmount ?? 0),
+        paidAmount: this.formatCurrency(entry.paidAmount ?? 0),
+        actualAmount: '0.00',
+        remarks: '',
+      })),
+    });
+  }
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${this.getShipmentNoLabel(index)}-cost-sheet-booking.csv`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+  getCostSheetTotal(group: AbstractControl, field: 'requestAmount' | 'paidAmount'): string {
+    const total = this.getCostSheetRows(group)
+      .getRawValue()
+      .reduce((sum: number, row: any) => sum + (Number(row?.[field]) || 0), 0);
+    return total.toFixed(2);
   }
 
   onStatusModalVisibleChange(visible: boolean): void {

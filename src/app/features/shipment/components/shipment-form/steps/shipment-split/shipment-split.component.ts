@@ -80,6 +80,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
 
   /** Row index for which bill-no extraction is in progress (show spinner). */
   readonly extractingBillNoRowIndex = signal<number | null>(null);
+  readonly billDocumentFiles = signal<Record<number, File | null>>({});
   readonly showEtaCalendar = signal(false);
   readonly etaCalendarDates = signal<Date[]>([]);
   readonly editablePlannedRows = signal<number[]>([]);
@@ -113,6 +114,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
 
     effect(() => {
       this.isPlannedLocked();
+      this.submittedActualIndices();
       this.editablePlannedRows();
       this.applyPlannedRowLockState();
     });
@@ -174,9 +176,10 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     if (!this.plannedSplits) return;
     const locked = this.isPlannedLocked();
     const editable = new Set(this.editablePlannedRows());
+    const submittedActual = new Set(this.submittedActualIndices());
 
     this.plannedSplits.controls.forEach((control, index) => {
-      if (locked && !editable.has(index)) {
+      if (submittedActual.has(index) || (locked && !editable.has(index))) {
         control.disable({ emitEvent: false });
       } else {
         control.enable({ emitEvent: false });
@@ -235,6 +238,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   }
 
   startPlannedRowEdit(index: number): void {
+    if (this.isPlannedRowLocked(index)) return;
     if (!this.isPlannedLocked() || this.isPlannedRowEditable(index)) return;
     this.editablePlannedRows.set([...this.editablePlannedRows(), index].sort((a, b) => a - b));
   }
@@ -463,10 +467,15 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   }
 
   canDeletePlannedRow(index: number): boolean {
+    if (this.isPlannedRowLocked(index)) return false;
     if (this.isPlannedLocked()) return false;
     if (this.plannedSplits.length <= 1) return false;
     const row = this.plannedSplits.at(index);
     return !!row?.get('isManualRow')?.value;
+  }
+
+  isPlannedRowLocked(index: number): boolean {
+    return this.submittedActualIndices().includes(index);
   }
 
   getActualRowDate(row: FormGroup, controlName: string): Date | null {
@@ -543,6 +552,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
 
     const formData = new FormData();
     formData.append('file', file, file.name);
+    this.billDocumentFiles.update((current) => ({ ...current, [rowIndex]: file }));
 
     this.extractingBillNoRowIndex.set(rowIndex);
     this.shipmentService.extractBillNoFromDocument(formData).subscribe({
@@ -594,6 +604,36 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
         input.value = '';
       }
     });
+  }
+
+  getBillDocumentFile(rowIndex: number): File | null {
+    return this.billDocumentFiles()[rowIndex] ?? null;
+  }
+
+  clearBillDocumentFile(rowIndex: number): void {
+    this.billDocumentFiles.update((current) => ({ ...current, [rowIndex]: null }));
+  }
+
+  openLocalBillDocumentPreview(rowIndex: number): void {
+    const file = this.getBillDocumentFile(rowIndex);
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    window.open(url, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  openSavedBillDocumentPreview(rowIndex: number): void {
+    const url = this.getSavedBillDocumentUrl(rowIndex);
+    if (!url) return;
+    window.open(url, '_blank', 'noopener');
+  }
+
+  getSavedBillDocumentUrl(index: number): string {
+    return this.shipmentData()?.actual?.[index]?.blDocumentUrl || '';
+  }
+
+  getSavedBillDocumentName(index: number): string {
+    return this.shipmentData()?.actual?.[index]?.blDocumentName || '';
   }
 
   confirmPlannedSubmission() {
@@ -662,35 +702,42 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
         const containerId = formValue['containerId'];
         if (!containerId) return;
 
-        const payload = {
-          actualSerialNo: this.getActualShipmentId(index),
-          commercialInvoiceNo: formValue['commercialInvoiceNo'] || '',
-          qtyMT: formValue['qtyMT'] || 0,
-          bags: formValue['bags'] || 0,
-          pallet: formValue['pallet'] || 0,
-          portOfLoading: formValue['portOfLoading'] || '',
-          portOfDischarge: formValue['portOfDischarge'] || '',
-          noOfContainers: formValue['noOfContainers'] || 0,
-          noOfBags: formValue['noOfBags'] || 0,
-          quantityByMt: formValue['quantityByMt'] || 0,
-          shippingLine: formValue['shippingLine'] || '',
-          freeDetentionDays: formValue['freeDetentionDays'] || 0,
-          maximumDetentionDays: formValue['maximumDetentionDays'] || 0,
-          freightPrepared: formValue['freightPrepared'] || 'No',
-          billExtractionData: formValue['billExtractionData'] || null,
-          extractedContainers: formValue['extractedContainers'] || [],
-          buyingUnit: 'MT',
-          shipOnBoardDate: formValue['shipOnBoardDate']
-            ? new Date(formValue['shipOnBoardDate']).toISOString().split('T')[0]
-            : '',
-          updatedETD: formValue['updatedETD']
-            ? new Date(formValue['updatedETD']).toISOString().split('T')[0]
-            : '',
-          updatedETA: formValue['updatedETA']
-            ? new Date(formValue['updatedETA']).toISOString().split('T')[0]
-            : '',
-          BLNo: formValue['BLNo'] || '',
-        };
+        const payload = new FormData();
+        payload.append('actualSerialNo', this.getActualShipmentId(index));
+        payload.append('commercialInvoiceNo', formValue['commercialInvoiceNo'] || '');
+        payload.append('qtyMT', String(formValue['qtyMT'] || 0));
+        payload.append('bags', String(formValue['bags'] || 0));
+        payload.append('pallet', String(formValue['pallet'] || 0));
+        payload.append('portOfLoading', formValue['portOfLoading'] || '');
+        payload.append('portOfDischarge', formValue['portOfDischarge'] || '');
+        payload.append('noOfContainers', String(formValue['noOfContainers'] || 0));
+        payload.append('noOfBags', String(formValue['noOfBags'] || 0));
+        payload.append('quantityByMt', String(formValue['quantityByMt'] || 0));
+        payload.append('shippingLine', formValue['shippingLine'] || '');
+        payload.append('freeDetentionDays', String(formValue['freeDetentionDays'] || 0));
+        payload.append('maximumDetentionDays', String(formValue['maximumDetentionDays'] || 0));
+        payload.append('freightPrepared', formValue['freightPrepared'] || 'No');
+        payload.append('billExtractionData', JSON.stringify(formValue['billExtractionData'] || null));
+        payload.append('extractedContainers', JSON.stringify(formValue['extractedContainers'] || []));
+        payload.append('buyingUnit', 'MT');
+        payload.append(
+          'shipOnBoardDate',
+          formValue['shipOnBoardDate'] ? new Date(formValue['shipOnBoardDate']).toISOString().split('T')[0] : ''
+        );
+        payload.append(
+          'updatedETD',
+          formValue['updatedETD'] ? new Date(formValue['updatedETD']).toISOString().split('T')[0] : ''
+        );
+        payload.append(
+          'updatedETA',
+          formValue['updatedETA'] ? new Date(formValue['updatedETA']).toISOString().split('T')[0] : ''
+        );
+        payload.append('BLNo', formValue['BLNo'] || '');
+
+        const billDocument = this.getBillDocumentFile(index);
+        if (billDocument) {
+          payload.append('blDocument', billDocument, billDocument.name);
+        }
 
         this.store.dispatch(
           ShipmentActions.submitActualContainer({ containerId, index, payload })

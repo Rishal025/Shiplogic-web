@@ -57,20 +57,48 @@
 
             @if (getActiveTab(i) === 'allocation') {
               <div class="rounded-2xl border border-slate-200 overflow-hidden">
-                <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
+                <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-slate-50 border-b border-slate-100">
                   <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Payment Allocation</span>
-                  <span class="text-[9px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
-                    29 Fixed Lines
-                  </span>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      (click)="generateAllocationReport(i)"
+                      class="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-bold uppercase text-blue-600 hover:bg-blue-100"
+                    >
+                      <i class="pi pi-file-export"></i>
+                      Generate Report
+                    </button>
+                    <button
+                      type="button"
+                      (click)="saveAllocation(i)"
+                      class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase text-emerald-600 hover:bg-emerald-100"
+                    >
+                      @if (savingRowIndex() === i) {
+                        <i class="pi pi-spin pi-spinner"></i>
+                        Saving...
+                      } @else {
+                        <i class="pi pi-check"></i>
+                        Save
+                      }
+                    </button>
+                  </div>
                 </div>
-                <div class="overflow-x-auto" formArrayName="paymentAllocations">
-                  <table class="min-w-full text-sm">
+                <div class="w-full" formArrayName="paymentAllocations">
+                  <table class="w-full table-fixed text-sm">
+                    <colgroup>
+                      <col class="w-[64px]" />
+                      <col />
+                      <col class="w-[170px]" />
+                      <col class="w-[180px]" />
+                      <col class="w-[190px]" />
+                    </colgroup>
                     <thead class="bg-white">
                       <tr class="border-b border-slate-100">
                         <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-16">SN</th>
-                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 min-w-[420px]">Description</th>
-                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 min-w-[180px]">Request Amount</th>
-                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 min-w-[180px]">Paid Amount</th>
+                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Description</th>
+                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Request Amount</th>
+                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Paid Amount</th>
+                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Reference</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -80,17 +108,29 @@
                             <div class="font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
                           </td>
                           <td class="px-4 py-4 align-middle">
-                            <div class="font-semibold text-slate-800">{{ row.get('description')?.value || '—' }}</div>
+                            <div class="font-semibold text-slate-800 break-words">{{ row.get('description')?.value || '—' }}</div>
                           </td>
                           <td class="px-4 py-4 align-middle">
                             <div class="table-input-text w-full bg-slate-50 min-h-[52px] flex items-center">{{ row.get('requestAmount')?.value ?? 0 }}</div>
                           </td>
                           <td class="px-4 py-4 align-middle">
-                            <div class="table-input-text w-full bg-slate-50 min-h-[52px] flex items-center">{{ row.get('paidAmount')?.value ?? 0 }}</div>
+                            <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber>
+                          </td>
+                          <td class="px-4 py-4 align-middle">
+                            <input pInputText formControlName="reference" class="table-input-text w-full" placeholder="Reference" />
                           </td>
                         </tr>
                       }
                     </tbody>
+                    <tfoot class="bg-slate-50/70 border-t border-slate-100">
+                      <tr>
+                        <td class="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500">Total</td>
+                        <td class="px-4 py-3"></td>
+                        <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getAllocationTotal(group, 'requestAmount') }}</td>
+                        <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getAllocationTotal(group, 'paidAmount') }}</td>
+                        <td class="px-4 py-3"></td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
                 @if (hasHiddenPaymentAllocations(group)) {
@@ -107,42 +147,18 @@
                 }
               </div>
             } @else {
-              <div class="rounded-2xl border border-slate-200 overflow-hidden payment-costing-shell">
+                <div class="rounded-2xl border border-slate-200 overflow-hidden payment-costing-shell">
                 <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-slate-50 border-b border-slate-100">
                   <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Payment Costing</span>
                   <div class="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      (click)="clickPaymentCostingUpload(i)"
+                      (click)="openPackagingExpensesModal(i)"
                       class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50"
                     >
-                      <i class="pi pi-upload"></i>
-                      Upload Document
+                      <i class="pi pi-box"></i>
+                      Expense For Packaging
                     </button>
-                    @if (getPaymentCostingFile(i)) {
-                      <button
-                        type="button"
-                        (click)="openDocumentPreview(getPaymentCostingFile(i)!, 'Payment Costing Document')"
-                        class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"
-                      >
-                        <i class="pi pi-eye"></i>
-                      </button>
-                      <button
-                        type="button"
-                        (click)="clearPaymentCostingFile(i)"
-                        class="w-9 h-9 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100"
-                      >
-                        <i class="pi pi-trash"></i>
-                      </button>
-                    } @else if (getSavedPaymentCostingUrl(group)) {
-                      <button
-                        type="button"
-                        (click)="openRemoteDocumentPreview(getSavedPaymentCostingUrl(group), getSavedPaymentCostingName(group) || 'Payment Costing Document')"
-                        class="w-9 h-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600"
-                      >
-                        <i class="pi pi-eye"></i>
-                      </button>
-                    }
                     <button
                       type="button"
                       (click)="generateReport(i)"
@@ -153,7 +169,7 @@
                     </button>
                     <button
                       type="button"
-                      (click)="saveRow(i)"
+                      (click)="saveCosting(i)"
                       class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase text-emerald-600 hover:bg-emerald-100"
                     >
                       @if (savingRowIndex() === i) {
@@ -170,7 +186,7 @@
                 <!-- Scrollable table — same pattern as Quality table -->
                 <div class="payment-costing-scroll-viewport">
                   <p-table
-                    [value]="getPaymentCostings(group).controls"
+                    [value]="getVisiblePaymentCostings(group, i)"
                     styleClass="p-datatable-sm custom-tracker-table payment-costing-scroll-table"
                     [tableStyle]="{ 'min-width': '1600px' }"
                     formArrayName="paymentCostings"
@@ -229,6 +245,14 @@
                     </ng-template>
                   </p-table>
                 </div>
+                <div class="border-t border-slate-100 bg-slate-50/70 px-4 py-3">
+                  <div class="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_160px_160px_160px] md:items-center">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Totals</span>
+                    <span class="text-sm font-black text-slate-800">Request: {{ getPaymentCostingTotal(group, 'requestAmount') }}</span>
+                    <span class="text-sm font-black text-slate-800">Paid: {{ getPaymentCostingTotal(group, 'paidAmount') }}</span>
+                    <span class="text-sm font-black text-slate-800">Actual: {{ getPaymentCostingTotal(group, 'actualPaid') }}</span>
+                  </div>
+                </div>
 
                 @if (hasHiddenPaymentCostings(group)) {
                   <div class="border-t border-slate-100 px-4 py-3 flex justify-center sm:justify-start">
@@ -242,6 +266,7 @@
                     </button>
                   </div>
                 }
+
               </div>
             }
           </div>
@@ -287,6 +312,115 @@
       }
     }
   </div>
+</p-dialog>
+
+<p-dialog
+  [header]="'Packaging Expenses'"
+  [visible]="packagingModalVisible()"
+  (visibleChange)="onPackagingModalVisibleChange($event)"
+  [modal]="true"
+  [dismissableMask]="true"
+  [style]="{ width: '96vw', maxWidth: '1400px' }"
+  [contentStyle]="{ overflow: 'auto', padding: '0' }"
+  [draggable]="false"
+  [resizable]="true"
+  appendTo="body">
+  @if (packagingModalShipmentIndex() !== null) {
+    @if (getPackagingModalShipmentGroup(); as shipmentGroup) {
+      <div [formGroup]="$any(shipmentGroup)" class="flex flex-col gap-4 p-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <div>
+            <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">Shipment</p>
+            <p class="mt-1 text-sm font-bold text-slate-800">{{ getShipmentNoLabel(getPackagingModalShipmentIndexValue()) }}</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              (click)="addPackagingExpenseRowForShipment(getPackagingModalShipmentIndexValue())"
+              class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50"
+            >
+              <i class="pi pi-plus"></i>
+              Add Row
+            </button>
+            <button
+              type="button"
+              (click)="saveCosting(getPackagingModalShipmentIndexValue())"
+              class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase text-emerald-600 hover:bg-emerald-100"
+            >
+              @if (savingRowIndex() === getPackagingModalShipmentIndexValue()) {
+                <i class="pi pi-spin pi-spinner"></i>
+                Saving...
+              } @else {
+                <i class="pi pi-check"></i>
+                Save Under Payment Costing
+              }
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto" formArrayName="packagingExpenses">
+          <table class="min-w-[1800px] text-sm">
+            <thead class="bg-white sticky top-0 z-10">
+              <tr class="border-b border-slate-100">
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">SN</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Item</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Packing</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Qty</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">UOM</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Unit Cost FC</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Unit Cost DH</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Total Cost FC</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Total Cost DH</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Expense Allocation Factor</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Expenses Allocated</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Total Value With Expenses</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Landed Cost / Unit</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Reference</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of getPackagingExpenses(shipmentGroup).controls; track $index; let p = $index) {
+                <tr [formGroupName]="p" class="border-b border-slate-100 last:border-b-0">
+                  <td class="px-4 py-3">{{ row.get('sn')?.value }}</td>
+                  <td class="px-4 py-3"><input pInputText formControlName="item" class="table-input-text w-full" placeholder="Item" /></td>
+                  <td class="px-4 py-3"><input pInputText formControlName="packing" class="table-input-text w-full" placeholder="Packing" /></td>
+                  <td class="px-4 py-3"><p-inputNumber formControlName="qty" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
+                  <td class="px-4 py-3"><input pInputText formControlName="uom" class="table-input-text w-full" placeholder="UOM" /></td>
+                  <td class="px-4 py-3"><p-inputNumber formControlName="unitCostFC" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
+                  <td class="px-4 py-3"><p-inputNumber formControlName="unitCostDH" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
+                  <td class="px-4 py-3"><p-inputNumber formControlName="totalCostFC" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
+                  <td class="px-4 py-3"><p-inputNumber formControlName="totalCostDH" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
+                  <td class="px-4 py-3"><p-inputNumber formControlName="expenseAllocationFactor" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="4"></p-inputNumber></td>
+                  <td class="px-4 py-3"><p-inputNumber formControlName="expensesAllocated" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
+                  <td class="px-4 py-3"><p-inputNumber formControlName="totalValueWithExpenses" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
+                  <td class="px-4 py-3"><p-inputNumber formControlName="landedCostPerUnit" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
+                  <td class="px-4 py-3"><input pInputText formControlName="reference" class="table-input-text w-full" placeholder="Reference" /></td>
+                </tr>
+              }
+            </tbody>
+            <tfoot class="bg-white border-t border-slate-100">
+              <tr>
+                <td class="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500">Total</td>
+                <td class="px-4 py-3"></td>
+                <td class="px-4 py-3"></td>
+                <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'qty') }}</td>
+                <td class="px-4 py-3"></td>
+                <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'unitCostFC') }}</td>
+                <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'unitCostDH') }}</td>
+                <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'totalCostFC') }}</td>
+                <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'totalCostDH') }}</td>
+                <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'expenseAllocationFactor') }}</td>
+                <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'expensesAllocated') }}</td>
+                <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'totalValueWithExpenses') }}</td>
+                <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'landedCostPerUnit') }}</td>
+                <td class="px-4 py-3"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    }
+  }
 </p-dialog>
 
 <p-dialog

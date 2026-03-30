@@ -33,7 +33,7 @@
               @for (notification of notifications(); track notification._id) {
                 <button
                   type="button"
-                  (click)="markNotificationAsRead(notification)"
+                  (click)="openNotification(notification)"
                   class="notification-item"
                   [class.is-unread]="!notification.isRead">
                   <div class="notification-item__copy">

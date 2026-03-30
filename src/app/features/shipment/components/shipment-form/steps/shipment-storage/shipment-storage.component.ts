@@ -88,7 +88,7 @@ export class ShipmentStorageComponent {
 
   getShipmentNoLabel(index: number): string {
     if (this.formArray?.controls[index] == null) return '–';
-    const base = this.shipmentData()?.shipment?.shipmentNo;
+    const base = this.shipmentData()?.shipment?.shipmentNo?.replace(/\([^)]*\)/g, '').trim();
     return base?.trim() ? `${base}-${index + 1}` : '–';
   }
 

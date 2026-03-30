@@ -69,6 +69,18 @@ export class ShipmentDocumentationComponent {
   readonly inwardAdviceFile = signal<Record<number, File | null>>({});
   readonly murabahaSubmittedFile = signal<Record<number, File | null>>({});
   readonly documentsReleasedFile = signal<Record<number, File | null>>({});
+  readonly statusModalVisible = signal(false);
+  readonly statusModalShipmentIndex = signal<number | null>(null);
+  readonly shipmentStages = [
+    'Shipment Entry',
+    'Shipment Tracker',
+    'BL Details',
+    'Document Tracker',
+    'Port and Customs Clearance Tracker',
+    'Storage Allocation & Arrival',
+    'Quality',
+    'Payment & Costing',
+  ] as const;
 
   onFilesSelected(
     event: Event,
@@ -189,9 +201,23 @@ export class ShipmentDocumentationComponent {
   /** Accordion header: "Shipment No: {shipmentNo}-{index+1}" when shipment exists, else "Shipment No: -". */
   getShipmentNoLabel(index: number): string {
     if (this.formArray?.controls[index] == null) return '–';
-    const base = this.shipmentData()?.shipment?.shipmentNo;
+    const base = this.shipmentData()?.shipment?.shipmentNo?.replace(/\([^)]*\)/g, '').trim();
     const num = base?.trim() ? `${base}-${index + 1}` : '–';
     return num;
+  }
+
+  getBlDocumentUrl(index: number): string {
+    const row = this.formArray?.at(index);
+    const containerId = row?.get('containerId')?.value;
+    const actualRow = this.shipmentData()?.actual?.find((entry: any) => entry.containerId === containerId);
+    return actualRow?.blDocumentUrl || '';
+  }
+
+  getBlDocumentName(index: number): string {
+    const row = this.formArray?.at(index);
+    const containerId = row?.get('containerId')?.value;
+    const actualRow = this.shipmentData()?.actual?.find((entry: any) => entry.containerId === containerId);
+    return actualRow?.blDocumentName || 'BL Document';
   }
 
   readonly receiverOptions = [
@@ -304,5 +330,50 @@ export class ShipmentDocumentationComponent {
         );
       },
     });
+  }
+
+  openStatusModal(index: number): void {
+    this.statusModalShipmentIndex.set(index);
+    this.statusModalVisible.set(true);
+  }
+
+  onStatusModalVisibleChange(visible: boolean): void {
+    this.statusModalVisible.set(visible);
+    if (!visible) this.statusModalShipmentIndex.set(null);
+  }
+
+  getShipmentReachedStage(index: number): string {
+    const shipment = this.shipmentData()?.actual?.[index];
+    if (shipment?.paymentCostingDocumentUrl || shipment?.paymentAllocations?.length || shipment?.paymentCostings?.length) return 'Payment & Costing';
+    if (shipment?.qualityRows?.length || shipment?.qualityReports?.length) return 'Quality';
+    if (shipment?.storageSplits?.length) return 'Storage Allocation & Arrival';
+    if (
+      shipment?.arrivalOn ||
+      shipment?.arrivalNoticeDate ||
+      shipment?.arrivalNoticeDocumentUrl ||
+      shipment?.advanceRequestDocumentUrl ||
+      shipment?.doReleasedDocumentUrl ||
+      shipment?.dpApprovalDocumentUrl ||
+      shipment?.customsClearanceDocumentUrl ||
+      shipment?.municipalityDocumentUrl ||
+      (shipment?.transportationBooked?.length ?? 0) > 0
+    ) return 'Port and Customs Clearance Tracker';
+    if (this.submittedIndices().includes(index)) return 'Document Tracker';
+    if (this.precedingIndices().includes(index)) return 'BL Details';
+    return 'Shipment Tracker';
+  }
+
+  isStageCompletedForShipment(index: number, stageIndex: number): boolean {
+    if (stageIndex === 0) return true;
+    if (stageIndex === 1) return true;
+    if (stageIndex === 2) return this.precedingIndices().includes(index);
+    if (stageIndex === 3) return this.submittedIndices().includes(index);
+    const reached = this.getShipmentReachedStage(index);
+    const reachedIndex = this.shipmentStages.indexOf(reached as typeof this.shipmentStages[number]);
+    return stageIndex < reachedIndex;
+  }
+
+  isCurrentStageForShipment(index: number, stageIndex: number): boolean {
+    return this.shipmentStages[stageIndex] === this.getShipmentReachedStage(index);
   }
 }

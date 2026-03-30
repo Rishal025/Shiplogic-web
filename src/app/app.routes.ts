@@ -21,6 +21,8 @@ export const routes: Routes = [
             { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
             { path: 'dashboard', loadChildren: () => import('./features/dashboard/dashboard.routes').then(m => m.DASHBOARD_ROUTES) },
             { path: 'shipments', loadChildren: () => import('./features/shipment/shipment.routes').then(m => m.SHIPMENT_ROUTES) },
+            { path: 'suppliers', loadChildren: () => import('./features/suppliers/suppliers.routes').then(m => m.SUPPLIERS_ROUTES) },
+            { path: 'supplier-schedules', loadChildren: () => import('./features/supplier-schedules/supplier-schedules.routes').then(m => m.SUPPLIER_SCHEDULES_ROUTES) },
             { path: 'reports', loadChildren: () => import('./features/reports/reports.routes').then(m => m.REPORTS_ROUTES) }
 
         ]

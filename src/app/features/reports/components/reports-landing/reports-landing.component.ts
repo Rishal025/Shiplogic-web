@@ -1,5 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { CommonModule, DatePipe, CurrencyPipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { finalize } from 'rxjs/operators';
 import { ShipmentReportExportRow } from '../../../../core/models/shipment.model';
 import { ShipmentService } from '../../../../core/services/shipment.service';
@@ -14,7 +14,7 @@ type ReportColumn = {
 @Component({
   selector: 'app-reports-landing',
   standalone: true,
-  imports: [CommonModule, DatePipe, CurrencyPipe],
+  imports: [CommonModule],
   templateUrl: './reports-landing.component.html',
   styleUrl: './reports-landing.component.scss',
 })

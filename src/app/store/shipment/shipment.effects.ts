@@ -105,8 +105,14 @@ export class ShipmentEffects {
         return this.shipmentService
           .createPlannedContainers({ shipmentId, plannedContainers: containers, noOfShipments })
             .pipe(
-              mergeMap(() => {
-                this.notificationService.success('Success', 'Planned containers submitted successfully');
+              mergeMap((response: any) => {
+                this.notificationService.success(
+                  'Success',
+                  response?.message || 'Planned containers submitted successfully'
+                );
+                if (response?.inviteSent === false && response?.inviteStatusMessage) {
+                  this.notificationService.warn('Invite email', response.inviteStatusMessage);
+                }
                 return [
                 ShipmentActions.submitPlannedSuccess({ keepTab }),
                 ShipmentActions.loadShipmentDetail({ id: shipmentId }),

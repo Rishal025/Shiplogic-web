@@ -16,6 +16,7 @@ export class SidebarComponent {
   readonly menuItems = [
     { label: 'Dashboard', icon: 'pi pi-chart-bar', route: '/dashboard' },
     { label: 'Shipments', icon: 'pi pi-truck', route: '/shipments' },
+    { label: 'Suppliers', icon: 'pi pi-users', route: '/suppliers' },
     { label: 'Reports', icon: 'pi pi-chart-line', route: '/reports' },
   ];
 
