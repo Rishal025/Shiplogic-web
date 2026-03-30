@@ -244,7 +244,7 @@
               <tr class="border-b border-slate-100">
                 <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-20">SN</th>
                 <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Shipment No</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-[240px]">Status</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-[180px]">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -253,7 +253,11 @@
                   <td class="px-4 py-4 text-sm font-bold text-slate-700">{{ i + 1 }}</td>
                   <td class="px-4 py-4 text-sm font-semibold text-slate-900">{{ item.shipmentNo }}</td>
                   <td class="px-4 py-4">
-                    <p-tag [value]="item.stage" [severity]="item.badge" styleClass="text-[10px] font-bold uppercase tracking-widest px-3"></p-tag>
+                    <span
+                      class="inline-flex max-w-[160px] rounded-md px-2 py-1 text-[8px] font-bold uppercase tracking-[0.14em] leading-[1.1]"
+                      [ngClass]="getStatusBadgeClass(item.badge)">
+                      {{ item.stage }}
+                    </span>
                   </td>
                 </tr>
               } @empty {

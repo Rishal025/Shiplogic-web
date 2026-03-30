@@ -5,13 +5,12 @@ import { DomSanitizer } from '@angular/platform-browser';
 import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { InputNumberModule } from 'primeng/inputnumber';
-import { TagModule } from 'primeng/tag';
 import { selectShipmentData, selectIsPlannedLocked } from '../../../../../../store/shipment/shipment.selectors';
 
 @Component({
   selector: 'app-shipment-summary',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, InputNumberModule, TagModule],
+  imports: [CommonModule, ReactiveFormsModule, InputNumberModule],
   templateUrl: './shipment-summary.component.html',
 })
 export class ShipmentSummaryComponent {
@@ -123,5 +122,17 @@ export class ShipmentSummaryComponent {
         badge: stage === 'Payment & Costing' || stage === 'Quality' ? 'success' : stage === 'Shipment Tracker' ? 'info' : 'warn',
       };
     });
+  }
+
+  getStatusBadgeClass(badge: 'success' | 'info' | 'warn'): string {
+    if (badge === 'success') {
+      return 'bg-emerald-50 text-emerald-700';
+    }
+
+    if (badge === 'info') {
+      return 'bg-sky-50 text-sky-700';
+    }
+
+    return 'bg-amber-50 text-amber-700';
   }
 }
