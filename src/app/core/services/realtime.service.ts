@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
 import { Subject } from 'rxjs';
-import { environment, AppEnvironment } from '../../../environments/environment';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -13,7 +13,7 @@ export class RealtimeService {
   public notification$ = this.notificationSubject.asObservable();
 
   constructor() {
-    const env = environment as AppEnvironment & { socketUrl?: string };
+    const env = environment as typeof environment & { socketUrl?: string };
     const socketUrl = env.socketUrl || env.apiUrl.replace(/\/api\/v1\/?$/, '');
 
     this.socket = io(socketUrl, {
