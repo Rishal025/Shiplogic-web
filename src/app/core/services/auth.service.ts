@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
+import { RbacService } from './rbac.service';
 
 export interface LoginCredentials {
   email: string;
@@ -13,6 +14,7 @@ export interface User {
   email: string;
   name: string;
   role: string;
+  mustChangePassword?: boolean;
 }
 
 export interface AuthResponse {
@@ -32,6 +34,7 @@ export interface ChangePasswordPayload {
 export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private rbacService = inject(RbacService);
 
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
@@ -45,6 +48,7 @@ export class AuthService {
     const user = this.getStoredUser();
     if (token && user) {
       this.currentUserSubject.next(user);
+      this.rbacService.loadEffectivePermissions().subscribe();
     }
   }
 
@@ -57,6 +61,7 @@ export class AuthService {
         this.setUser(response.user);
         // Update current user subject
         this.currentUserSubject.next(response.user);
+        this.rbacService.loadEffectivePermissions().subscribe();
       })
     );
   }
@@ -69,6 +74,7 @@ export class AuthService {
     this.removeToken();
     this.removeUser();
     this.currentUserSubject.next(null);
+    this.rbacService.clear();
     this.router.navigate(['/auth/login']);
   }
 
@@ -110,5 +116,10 @@ export class AuthService {
 
   getCurrentUser(): User | null {
     return this.currentUserSubject.value;
+  }
+
+  updateStoredUser(user: User): void {
+    this.setUser(user);
+    this.currentUserSubject.next(user);
   }
 }

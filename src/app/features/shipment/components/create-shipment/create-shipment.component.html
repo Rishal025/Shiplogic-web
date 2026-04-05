@@ -1,21 +1,20 @@
 <p-toast />
 <div class="page-transition-wrapper create-shipment-shell flex flex-col gap-4 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 2xl:px-12">
-  <!-- Top Navigation/Header -->
-  <header class="flex flex-col gap-4 md:flex-row md:justify-between md:items-center shrink-0">
-    <div class="flex items-start sm:items-center gap-4">
-      <button routerLink="/dashboard" class="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center bg-white text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
-          <i class="pi pi-arrow-left"></i>
+  <header class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between shrink-0">
+    <div class="flex items-start gap-4 sm:items-center">
+      <button routerLink="/dashboard" class="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-slate-50">
+        <i class="pi pi-arrow-left"></i>
       </button>
       <div>
-        <h1 class="font-bold text-2xl text-slate-900 tracking-tight">Create New Shipment</h1>
-        <p class="text-slate-500 text-sm">Fill in all required fields to register a new logistics record</p>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Create New Shipment</h1>
+        <p class="text-sm text-slate-500">Fill in the shipment header and review the extracted LPO items before saving.</p>
       </div>
     </div>
-    <div class="flex w-full md:w-auto gap-3">
-      <button 
-        (click)="onSubmit()" 
-        appButton 
-        class="shadow-sm w-full md:w-auto"
+    <div class="flex w-full gap-3 md:w-auto">
+      <button
+        (click)="onSubmit()"
+        appButton
+        class="w-full shadow-sm md:w-auto"
         [disabled]="submitting() || shipmentForm.invalid || !hasAllRequiredDocuments()">
         <i [class]="submitting() ? 'pi pi-spin pi-spinner mr-2' : 'pi pi-save mr-2'"></i>
         <span>{{ submitting() ? 'Saving...' : 'Save Shipment' }}</span>
@@ -23,136 +22,141 @@
     </div>
   </header>
 
-  <!-- Form Content -->
   <form [formGroup]="shipmentForm" class="pb-14">
-    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] gap-5 xl:gap-6">
-      
-      <!-- Left Column -->
-      <div class="flex flex-col gap-5">
-        
-        <!-- Shipment Info Group -->
-        <section class="sl-card">
-          <div class="sl-card-header">
-            <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
-              <i class="pi pi-info-circle"></i>
-            </div>
-            <h2>Shipment Info</h2>
+    <div class="flex flex-col gap-5">
+      <section class="sl-card">
+        <div class="sl-card-header">
+          <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+            <i class="pi pi-info-circle"></i>
           </div>
-          <div class="sl-card-body grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- Document upload row: Purchase order + optional Pro-forma Invoice + S1 Quality Report + Extract button -->
-            <div class="flex flex-col md:col-span-2">
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
-                <div class="flex flex-col gap-2">
-                  <label class="sl-label">Purchase order *</label>
-                  <div class="relative flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl p-5 bg-slate-50/50 hover:bg-slate-50 hover:border-blue-300 transition-colors group">
-                    <button type="button" class="absolute top-2 right-2 w-8 h-8 rounded-lg bg-white/90 border border-slate-200 flex items-center justify-center cursor-pointer text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm" *ngIf="document1File()" (click)="openDocumentPreview(document1File()!, 'Purchase order')" title="Preview document">
-                      <i class="pi pi-eye text-sm"></i>
-                    </button>
-                    <label class="flex flex-col items-center justify-center gap-2 cursor-pointer w-full">
-                      <div class="w-10 h-10 rounded-full bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center transition-colors shrink-0">
-                        <i class="pi pi-file-pdf text-lg text-blue-500"></i>
-                      </div>
-                      <span class="text-xs font-semibold text-slate-600 truncate max-w-full px-2">{{ document1File()?.name ?? 'Click to upload' }}</span>
-                      <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" (change)="onDocument1Selected($event)" />
-                    </label>
-                  </div>
-                  @if (document1File()) {
-                    <button type="button" (click)="clearDocument1()" class="text-xs text-slate-400 hover:text-red-500 transition-colors self-start">
-                      <i class="pi pi-times mr-1"></i>Remove
-                    </button>
-                  }
+          <h2>Shipment Header</h2>
+        </div>
+        <div class="sl-card-body grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div class="flex flex-col gap-3 md:col-span-2">
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div class="flex flex-col gap-2">
+                <label class="sl-label">Purchase order *</label>
+                <div class="group relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-5 transition-colors hover:border-blue-300 hover:bg-slate-50">
+                  <button
+                    type="button"
+                    class="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white/90 text-slate-500 shadow-sm transition-colors hover:bg-blue-50 hover:text-blue-600"
+                    *ngIf="document1File()"
+                    (click)="openDocumentPreview(document1File()!, 'Purchase order')"
+                    title="Preview document">
+                    <i class="pi pi-eye text-sm"></i>
+                  </button>
+                  <label class="flex w-full cursor-pointer flex-col items-center justify-center gap-2">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 transition-colors group-hover:bg-blue-100">
+                      <i class="pi pi-file-pdf text-lg text-blue-500"></i>
+                    </div>
+                    <span class="max-w-full truncate px-2 text-center text-xs font-semibold text-slate-600">{{ document1File()?.name ?? 'Click to upload' }}</span>
+                    <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" (change)="onDocument1Selected($event)" />
+                  </label>
                 </div>
-                <div class="flex flex-col gap-2">
-                  <label class="sl-label">Pro-forma Invoice</label>
-                  <div class="relative flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl p-5 bg-slate-50/50 hover:bg-slate-50 hover:border-blue-300 transition-colors group">
-                    <button type="button" class="absolute top-2 right-2 w-8 h-8 rounded-lg bg-white/90 border border-slate-200 flex items-center justify-center cursor-pointer text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm" *ngIf="document2File()" (click)="openDocumentPreview(document2File()!, 'Pro-forma Invoice')" title="Preview document">
-                      <i class="pi pi-eye text-sm"></i>
-                    </button>
-                    <label class="flex flex-col items-center justify-center gap-2 cursor-pointer w-full">
-                      <div class="w-10 h-10 rounded-full bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center transition-colors shrink-0">
-                        <i class="pi pi-file text-lg text-blue-500"></i>
-                      </div>
-                      <span class="text-xs font-semibold text-slate-600 truncate max-w-full px-2">{{ document2File()?.name ?? 'Click to upload' }}</span>
-                      <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" (change)="onDocument2Selected($event)" />
-                    </label>
-                  </div>
-                  @if (document2File()) {
-                    <button type="button" (click)="clearDocument2()" class="text-xs text-slate-400 hover:text-red-500 transition-colors self-start">
-                      <i class="pi pi-times mr-1"></i>Remove
-                    </button>
-                  }
-                </div>
-                <div class="flex flex-col gap-2">
-                  <label class="sl-label">S1 Quality Report *</label>
-                  <div class="relative flex flex-col items-center justify-center gap-2 border-2 border-dashed border-slate-200 rounded-xl p-5 bg-slate-50/50 hover:bg-slate-50 hover:border-blue-300 transition-colors group">
-                    <button type="button" class="absolute top-2 right-2 w-8 h-8 rounded-lg bg-white/90 border border-slate-200 flex items-center justify-center cursor-pointer text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors shadow-sm" *ngIf="s1QualityReportFile()" (click)="openDocumentPreview(s1QualityReportFile()!, 'S1 Quality Report')" title="Preview document">
-                      <i class="pi pi-eye text-sm"></i>
-                    </button>
-                    <label class="flex flex-col items-center justify-center gap-2 cursor-pointer w-full">
-                      <div class="w-10 h-10 rounded-full bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center transition-colors shrink-0">
-                        <i class="pi pi-file text-lg text-blue-500"></i>
-                      </div>
-                      <span class="text-xs font-semibold text-slate-600 truncate max-w-full px-2">{{ s1QualityReportFile()?.name ?? 'Click to upload' }}</span>
-                      <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx" (change)="onQualityReportSelected($event)" />
-                    </label>
-                  </div>
-                  @if (s1QualityReportFile()) {
-                    <button type="button" (click)="removeQualityReport()" class="text-xs text-slate-400 hover:text-red-500 transition-colors self-start">
-                      <i class="pi pi-times mr-1"></i>Remove
-                    </button>
-                  }
-                </div>
+                @if (document1File()) {
+                  <button type="button" (click)="clearDocument1()" class="self-start text-xs text-slate-400 transition-colors hover:text-red-500">
+                    <i class="pi pi-times mr-1"></i>Remove
+                  </button>
+                }
               </div>
-              <button
-                type="button"
-                (click)="onExtractAndAutopopulate()"
-                appButton
-                class="shadow-sm w-full md:w-auto"
-                [disabled]="!document1File() || !s1QualityReportFile() || extracting()">
-                <i [class]="extracting() ? 'pi pi-spin pi-spinner mr-2' : 'pi pi-download mr-2'"></i>
-                <span>{{ extracting() ? 'Extracting...' : 'Extract from 2 documents' }}</span>
-              </button>
+
+              <div class="flex flex-col gap-2">
+                <label class="sl-label">Pro-forma Invoice</label>
+                <div class="group relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-5 transition-colors hover:border-blue-300 hover:bg-slate-50">
+                  <button
+                    type="button"
+                    class="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white/90 text-slate-500 shadow-sm transition-colors hover:bg-blue-50 hover:text-blue-600"
+                    *ngIf="document2File()"
+                    (click)="openDocumentPreview(document2File()!, 'Pro-forma Invoice')"
+                    title="Preview document">
+                    <i class="pi pi-eye text-sm"></i>
+                  </button>
+                  <label class="flex w-full cursor-pointer flex-col items-center justify-center gap-2">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 transition-colors group-hover:bg-blue-100">
+                      <i class="pi pi-file text-lg text-blue-500"></i>
+                    </div>
+                    <span class="max-w-full truncate px-2 text-center text-xs font-semibold text-slate-600">{{ document2File()?.name ?? 'Click to upload' }}</span>
+                    <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp" (change)="onDocument2Selected($event)" />
+                  </label>
+                </div>
+                @if (document2File()) {
+                  <button type="button" (click)="clearDocument2()" class="self-start text-xs text-slate-400 transition-colors hover:text-red-500">
+                    <i class="pi pi-times mr-1"></i>Remove
+                  </button>
+                }
+              </div>
+
+              <div class="flex flex-col gap-2">
+                <label class="sl-label">S1 Quality Report *</label>
+                <div class="group relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-5 transition-colors hover:border-blue-300 hover:bg-slate-50">
+                  <button
+                    type="button"
+                    class="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white/90 text-slate-500 shadow-sm transition-colors hover:bg-blue-50 hover:text-blue-600"
+                    *ngIf="s1QualityReportFile()"
+                    (click)="openDocumentPreview(s1QualityReportFile()!, 'S1 Quality Report')"
+                    title="Preview document">
+                    <i class="pi pi-eye text-sm"></i>
+                  </button>
+                  <label class="flex w-full cursor-pointer flex-col items-center justify-center gap-2">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 transition-colors group-hover:bg-blue-100">
+                      <i class="pi pi-file text-lg text-blue-500"></i>
+                    </div>
+                    <span class="max-w-full truncate px-2 text-center text-xs font-semibold text-slate-600">{{ s1QualityReportFile()?.name ?? 'Click to upload' }}</span>
+                    <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx" (change)="onQualityReportSelected($event)" />
+                  </label>
+                </div>
+                @if (s1QualityReportFile()) {
+                  <button type="button" (click)="removeQualityReport()" class="self-start text-xs text-slate-400 transition-colors hover:text-red-500">
+                    <i class="pi pi-times mr-1"></i>Remove
+                  </button>
+                }
+              </div>
             </div>
 
-            <div class="flex flex-col">
-              <label class="sl-label">PO No.</label>
-              <input pInputText formControlName="fpoNo" placeholder="Purchase Order #" class="w-full" />
-            </div>
-            <div class="flex flex-col">
-              <label class="sl-label">PO Date</label>
-              <p-datepicker formControlName="purchaseDate" [showIcon]="true" iconDisplay="button" placeholder="Select Date" styleClass="w-full" inputStyleClass="w-full" appendTo="body" [dateFormat]="appDateFormat"></p-datepicker>
-            </div>
-            <div class="flex flex-col">
-              <label class="sl-label">PI No.</label>
-              <input pInputText formControlName="piNo" placeholder="Pro-forma Invoice #" class="w-full" />
-              @if (shipmentForm.get('piNo')?.invalid && shipmentForm.get('piNo')?.touched) {
-                <span class="mt-1 text-xs font-semibold text-rose-600">PI No. is required.</span>
-              }
-            </div>
-            <div class="flex flex-col">
-              <label class="sl-label">PI Date</label>
-              <p-datepicker formControlName="piDate" [showIcon]="true" iconDisplay="button" placeholder="Select PI Date" styleClass="w-full" inputStyleClass="w-full" appendTo="body" [dateFormat]="appDateFormat"></p-datepicker>
-            </div>
-            <!-- Port row -->
-            <div class="flex flex-col">
-              <label class="sl-label">Port of Loading</label>
-              <input pInputText formControlName="portOfLoading" placeholder="Enter port of loading" class="w-full" />
-            </div>
-            <div class="flex flex-col">
-              <label class="sl-label">Port of Discharge</label>
-              <input pInputText formControlName="portOfDischarge" placeholder="Enter port of discharge" class="w-full" />
-            </div>
-            <div class="flex flex-col">
-              <label class="sl-label">Inco Terms</label>
-              <p-select 
-                [options]="incoTerms"
-                formControlName="incoTerms" 
-                placeholder="Select Inco Terms" 
-                [showClear]="true" 
-                styleClass="w-full" 
-                appendTo="body">
-              </p-select>
-            </div>
+            <button
+              type="button"
+              (click)="onExtractAndAutopopulate()"
+              appButton
+              class="w-full shadow-sm md:w-auto"
+              [disabled]="!document1File() || !s1QualityReportFile() || extracting()">
+              <i [class]="extracting() ? 'pi pi-spin pi-spinner mr-2' : 'pi pi-download mr-2'"></i>
+              <span>{{ extracting() ? 'Extracting...' : 'Extract from 2 documents' }}</span>
+            </button>
+          </div>
+
+          <div class="flex flex-col">
+            <label class="sl-label">PO No.</label>
+            <input pInputText formControlName="fpoNo" placeholder="Purchase Order #" class="w-full" />
+          </div>
+          <div class="flex flex-col">
+            <label class="sl-label">PO Date</label>
+            <p-datepicker formControlName="purchaseDate" [showIcon]="true" iconDisplay="button" placeholder="Select Date" styleClass="w-full" inputStyleClass="w-full" appendTo="body" [dateFormat]="appDateFormat"></p-datepicker>
+          </div>
+          <div class="flex flex-col">
+            <label class="sl-label">PI No.</label>
+            <input pInputText formControlName="piNo" placeholder="Pro-forma Invoice #" class="w-full" />
+            @if (shipmentForm.get('piNo')?.invalid && shipmentForm.get('piNo')?.touched) {
+              <span class="mt-1 text-xs font-semibold text-rose-600">PI No. is required.</span>
+            }
+          </div>
+          <div class="flex flex-col">
+            <label class="sl-label">PI Date</label>
+            <p-datepicker formControlName="piDate" [showIcon]="true" iconDisplay="button" placeholder="Select PI Date" styleClass="w-full" inputStyleClass="w-full" appendTo="body" [dateFormat]="appDateFormat"></p-datepicker>
+          </div>
+          <div class="flex flex-col">
+            <label class="sl-label">Port of Loading</label>
+            <input pInputText formControlName="portOfLoading" placeholder="Enter port of loading" class="w-full" />
+          </div>
+          <div class="flex flex-col">
+            <label class="sl-label">Port of Discharge</label>
+            <input pInputText formControlName="portOfDischarge" placeholder="Enter port of discharge" class="w-full" />
+          </div>
+          <div class="flex flex-col">
+            <label class="sl-label">Inco Terms</label>
+            <p-select [options]="incoTerms" formControlName="incoTerms" placeholder="Select Inco Terms" [showClear]="true" styleClass="w-full" appendTo="body"></p-select>
+          </div>
+
+          @if (!extractedItems().length) {
             <div class="flex flex-col">
               <label class="sl-label">Item Code</label>
               <input pInputText formControlName="itemCode" placeholder="Enter item code" class="w-full" />
@@ -181,59 +185,209 @@
               <label class="sl-label">Item Description</label>
               <textarea pInputTextarea formControlName="itemDescription" rows="3" placeholder="Detailed description..." class="w-full"></textarea>
             </div>
+          }
+        </div>
+      </section>
+
+      @if (extractedItems().length) {
+        <section class="sl-card extracted-results-card">
+          <div class="sl-card-header">
+            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-50 text-violet-600">
+              <i class="pi pi-table"></i>
+            </div>
+            <div class="flex min-w-0 flex-1 flex-col gap-1">
+              <h2>Extracted LPO Items</h2>
+              <p class="text-sm text-slate-500">{{ extractedItems().length }} item{{ extractedItems().length === 1 ? '' : 's' }} will be saved with this shipment.</p>
+            </div>
+          </div>
+          <div class="sl-card-body flex flex-col gap-5">
+            @if (extractionPriceMismatch() && !extractionPriceMismatch()?.isPriceMatching) {
+              <div class="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                <i class="pi pi-exclamation-triangle mt-0.5 shrink-0 text-lg text-amber-600"></i>
+                <div class="flex flex-col gap-1">
+                  <span class="font-semibold text-amber-800">Quantity / calculation mismatch</span>
+                  <p class="text-sm text-amber-700">
+                    There is a mismatch between Total quantity (MT) and the calculated bags. Difference: {{ priceMismatchDiffLabel }}. Please verify the extracted rows before saving.
+                  </p>
+                </div>
+              </div>
+            }
+
+            <div class="extracted-summary-grid">
+              <div class="extracted-stat-card">
+                <span class="extracted-stat-card__label">Total Qty MT</span>
+                <p class="extracted-stat-card__value">{{ getExtractedTotalQuantity() | number:'1.0-2' }}</p>
+              </div>
+              <div class="extracted-stat-card">
+                <span class="extracted-stat-card__label">Total FCL</span>
+                <p class="extracted-stat-card__value">{{ getExtractedTotalFcl() | number:'1.0-2' }}</p>
+              </div>
+              <div class="extracted-stat-card">
+                <span class="extracted-stat-card__label">Total Bags</span>
+                <p class="extracted-stat-card__value">{{ getExtractedTotalBags() | number:'1.0-0' }}</p>
+              </div>
+              <div class="extracted-stat-card">
+                <span class="extracted-stat-card__label">Total Pallets</span>
+                <p class="extracted-stat-card__value">{{ getExtractedTotalPallets() | number:'1.0-0' }}</p>
+              </div>
+              <div class="extracted-stat-card">
+                <span class="extracted-stat-card__label">Total USD</span>
+                <p class="extracted-stat-card__value">{{ getExtractedTotalAmount() | currency:'USD' }}</p>
+              </div>
+              <div class="extracted-stat-card">
+                <span class="extracted-stat-card__label">Total AED</span>
+                <p class="extracted-stat-card__value">{{ getExtractedTotalAmountAed() | number:'1.2-2' }} AED</p>
+              </div>
+            </div>
+
+            <div class="rounded-[28px] border border-slate-200 bg-white shadow-sm">
+              <div class="hidden xl:block">
+                <div class="extracted-table-shell">
+                  <table class="w-full border-separate border-spacing-0">
+                    <thead>
+                      <tr class="bg-slate-50">
+                        <th class="extracted-table-head w-[72px]">Line</th>
+                        <th class="extracted-table-head min-w-[150px]">Item Code</th>
+                        <th class="extracted-table-head min-w-[260px]">Description</th>
+                        <th class="extracted-table-head min-w-[150px]">Commodity</th>
+                        <th class="extracted-table-head min-w-[150px]">Origin</th>
+                        <th class="extracted-table-head min-w-[140px]">Brand</th>
+                        <th class="extracted-table-head min-w-[130px]">Packing</th>
+                        <th class="extracted-table-head min-w-[130px]">Size</th>
+                        <th class="extracted-table-head min-w-[120px]">Qty MT</th>
+                        <th class="extracted-table-head min-w-[100px]">FCL</th>
+                        <th class="extracted-table-head min-w-[110px]">Pallet</th>
+                        <th class="extracted-table-head min-w-[120px]">Bags</th>
+                        <th class="extracted-table-head min-w-[130px]">Unit</th>
+                        <th class="extracted-table-head min-w-[130px]">FCL / Unit</th>
+                        <th class="extracted-table-head min-w-[150px]">FC / Unit</th>
+                        <th class="extracted-table-head min-w-[160px]">Total USD</th>
+                        <th class="extracted-table-head min-w-[160px]">Total AED</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (item of extractedItems(); track item.lineNo ?? $index; let i = $index) {
+                        <tr class="align-top">
+                          <td class="extracted-table-cell text-sm font-bold text-slate-700">{{ item.lineNo || (i + 1) }}</td>
+                          <td class="extracted-table-cell"><input pInputText [ngModel]="item.itemCode" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'itemCode', $event)" class="w-full" /></td>
+                          <td class="extracted-table-cell"><textarea pInputTextarea rows="2" [ngModel]="item.itemDescription" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'itemDescription', $event)" class="w-full"></textarea></td>
+                          <td class="extracted-table-cell"><input pInputText [ngModel]="item.commodity" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'commodity', $event)" class="w-full" /></td>
+                          <td class="extracted-table-cell"><input pInputText [ngModel]="item.countryOfOrigin" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'countryOfOrigin', $event)" class="w-full" /></td>
+                          <td class="extracted-table-cell"><input pInputText [ngModel]="item.brandName" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'brandName', $event)" class="w-full" /></td>
+                          <td class="extracted-table-cell"><input pInputText [ngModel]="item.packagingType" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'packagingType', $event)" class="w-full" /></td>
+                          <td class="extracted-table-cell">
+                            <p-select [options]="containerSizes" optionLabel="label" optionValue="value" [ngModel]="item.containerSize" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'containerSize', $event)" appendTo="body" styleClass="w-full"></p-select>
+                          </td>
+                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.plannedContainers" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'plannedContainers', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
+                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.fcl" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'fcl', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
+                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.pallet" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'pallet', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
+                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.bags" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'bags', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
+                          <td class="extracted-table-cell">
+                            <p-select [options]="buyingUnits" optionLabel="label" optionValue="value" [ngModel]="item.buyingUnit" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'buyingUnit', $event)" appendTo="body" styleClass="w-full"></p-select>
+                          </td>
+                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.fclPerUnit" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'fclPerUnit', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
+                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.fcPerUnit" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'fcPerUnit', $event)" mode="currency" currency="USD" locale="en-US" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
+                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.totalUSD" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'totalUSD', $event)" mode="currency" currency="USD" locale="en-US" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
+                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.totalAED" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'totalAED', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 gap-4 p-4 xl:hidden">
+                @for (item of extractedItems(); track item.lineNo ?? $index; let i = $index) {
+                  <div class="rounded-[24px] border border-slate-200 bg-slate-50/60 p-4 shadow-sm">
+                    <div>
+                      <p class="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Line {{ item.lineNo || (i + 1) }}</p>
+                      <h4 class="mt-1 text-sm font-black text-slate-900">{{ item.itemCode || 'Item row' }}</h4>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">Item Code</label>
+                        <input pInputText [ngModel]="item.itemCode" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'itemCode', $event)" class="w-full" />
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">Commodity</label>
+                        <input pInputText [ngModel]="item.commodity" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'commodity', $event)" class="w-full" />
+                      </div>
+                      <div class="flex flex-col gap-2 sm:col-span-2">
+                        <label class="sl-label">Description</label>
+                        <textarea pInputTextarea rows="2" [ngModel]="item.itemDescription" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'itemDescription', $event)" class="w-full"></textarea>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">Country of Origin</label>
+                        <input pInputText [ngModel]="item.countryOfOrigin" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'countryOfOrigin', $event)" class="w-full" />
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">Brand</label>
+                        <input pInputText [ngModel]="item.brandName" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'brandName', $event)" class="w-full" />
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">Packing</label>
+                        <input pInputText [ngModel]="item.packagingType" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'packagingType', $event)" class="w-full" />
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">Container Size</label>
+                        <p-select [options]="containerSizes" optionLabel="label" optionValue="value" [ngModel]="item.containerSize" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'containerSize', $event)" appendTo="body" styleClass="w-full"></p-select>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">Qty MT</label>
+                        <p-inputNumber [ngModel]="item.plannedContainers" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'plannedContainers', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">FCL</label>
+                        <p-inputNumber [ngModel]="item.fcl" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'fcl', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">Pallet</label>
+                        <p-inputNumber [ngModel]="item.pallet" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'pallet', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">Bags</label>
+                        <p-inputNumber [ngModel]="item.bags" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'bags', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">Buying Unit</label>
+                        <p-select [options]="buyingUnits" optionLabel="label" optionValue="value" [ngModel]="item.buyingUnit" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'buyingUnit', $event)" appendTo="body" styleClass="w-full"></p-select>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">FCL per Unit</label>
+                        <p-inputNumber [ngModel]="item.fclPerUnit" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'fclPerUnit', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">FC per Unit</label>
+                        <p-inputNumber [ngModel]="item.fcPerUnit" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'fcPerUnit', $event)" mode="currency" currency="USD" locale="en-US" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">Total USD</label>
+                        <p-inputNumber [ngModel]="item.totalUSD" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'totalUSD', $event)" mode="currency" currency="USD" locale="en-US" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">Total AED</label>
+                        <p-inputNumber [ngModel]="item.totalAED" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'totalAED', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
           </div>
         </section>
-
-        <!-- Supplier Details -->
+      } @else {
         <section class="sl-card">
           <div class="sl-card-header">
-            <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
-              <i class="pi pi-users"></i>
-            </div>
-            <h2>Supplier Details</h2>
-          </div>
-          <div class="sl-card-body grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div class="flex flex-col">
-              <label class="sl-label">Supplier</label>
-              <input pInputText formControlName="supplier" placeholder="Enter supplier name" class="w-full" />
-            </div>
-            <div class="flex flex-col">
-              <label class="sl-label">Supplier Email *</label>
-              <input pInputText formControlName="supplierEmail" type="email" placeholder="Enter supplier email" class="w-full" />
-              @if (shipmentForm.get('supplierEmail')?.hasError('required') && shipmentForm.get('supplierEmail')?.touched) {
-                <span class="mt-1 text-xs font-semibold text-rose-600">Supplier email is required.</span>
-              }
-              @if (shipmentForm.get('supplierEmail')?.hasError('email') && shipmentForm.get('supplierEmail')?.touched) {
-                <span class="mt-1 text-xs font-semibold text-rose-600">Enter a valid email address.</span>
-              }
-            </div>
-            <div class="flex flex-col">
-              <label class="sl-label">Country of Origin</label>
-              <input pInputText formControlName="countryOfOrigin" placeholder="Enter Country" class="w-full" />
-              @if (shipmentForm.get('countryOfOrigin')?.hasError('required') && shipmentForm.get('countryOfOrigin')?.touched) {
-                <span class="mt-1 text-xs font-semibold text-rose-600">Country of origin is required.</span>
-              }
-            </div>
-          </div>
-        </section>
-
-      </div>
-
-      <!-- Right Column -->
-      <div class="flex flex-col gap-5">
-
-        <!-- Quantity of Packaging -->
-        <section class="sl-card">
-          <div class="sl-card-header">
-            <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
               <i class="pi pi-truck"></i>
             </div>
             <h2>Quantity of Packaging</h2>
           </div>
-          <div class="sl-card-body grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="sl-card-body grid grid-cols-1 gap-4 md:grid-cols-2">
             @if (extractionPriceMismatch() && !extractionPriceMismatch()?.isPriceMatching) {
-              <div class="md:col-span-2 flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
-                <i class="pi pi-exclamation-triangle text-amber-600 text-xl shrink-0 mt-0.5"></i>
+              <div class="md:col-span-2 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <i class="pi pi-exclamation-triangle mt-0.5 shrink-0 text-xl text-amber-600"></i>
                 <div class="flex flex-col gap-1">
                   <span class="font-semibold text-amber-800">Quantity / calculation mismatch</span>
                   <p class="text-sm text-amber-700">
@@ -248,16 +402,7 @@
             </div>
             <div class="flex flex-col">
               <label class="sl-label">Container Size</label>
-              <p-select
-                [options]="containerSizes"
-                formControlName="containerSize"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Select 20' or 40'"
-                [showClear]="true"
-                styleClass="w-full"
-                appendTo="body">
-              </p-select>
+              <p-select [options]="containerSizes" formControlName="containerSize" optionLabel="label" optionValue="value" placeholder="Select 20' or 40'" [showClear]="true" styleClass="w-full" appendTo="body"></p-select>
             </div>
             <div class="flex flex-col">
               <label class="sl-label">Total Quantity (MT)</label>
@@ -277,100 +422,130 @@
             </div>
           </div>
         </section>
+      }
 
-        <!-- Price Group -->
+      <div class="grid grid-cols-1 gap-5 xl:grid-cols-2 xl:gap-6">
+        <section class="sl-card">
+          <div class="sl-card-header">
+            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+              <i class="pi pi-users"></i>
+            </div>
+            <h2>Supplier Details</h2>
+          </div>
+          <div class="sl-card-body grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div class="flex flex-col">
+              <label class="sl-label">Supplier</label>
+              <input pInputText formControlName="supplier" placeholder="Enter supplier name" class="w-full" />
+            </div>
+            <div class="flex flex-col">
+              <label class="sl-label">Supplier Email *</label>
+              <input pInputText formControlName="supplierEmail" type="email" placeholder="Enter supplier email" class="w-full" />
+              @if (shipmentForm.get('supplierEmail')?.hasError('required') && shipmentForm.get('supplierEmail')?.touched) {
+                <span class="mt-1 text-xs font-semibold text-rose-600">Supplier email is required.</span>
+              }
+              @if (shipmentForm.get('supplierEmail')?.hasError('email') && shipmentForm.get('supplierEmail')?.touched) {
+                <span class="mt-1 text-xs font-semibold text-rose-600">Enter a valid email address.</span>
+              }
+            </div>
+            @if (!extractedItems().length) {
+              <div class="flex flex-col md:col-span-2">
+                <label class="sl-label">Country of Origin</label>
+                <input pInputText formControlName="countryOfOrigin" placeholder="Enter country" class="w-full" />
+                @if (shipmentForm.get('countryOfOrigin')?.hasError('required') && shipmentForm.get('countryOfOrigin')?.touched) {
+                  <span class="mt-1 text-xs font-semibold text-rose-600">Country of origin is required.</span>
+                }
+              </div>
+            } @else {
+              <div class="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 md:col-span-2">
+                <span class="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Country of Origin</span>
+                <p class="mt-1 text-sm font-bold text-slate-900">{{ getExtractedDisplayValue('countryOfOrigin') }}</p>
+              </div>
+            }
+          </div>
+        </section>
+
         <section class="sl-card h-fit">
           <div class="sl-card-header">
-            <div class="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
+            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
               <i class="pi pi-dollar"></i>
             </div>
-            <h2>Price</h2>
+            <h2>Payment Details</h2>
           </div>
           <div class="sl-card-body flex flex-col gap-5">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="flex flex-col">
-                <label class="sl-label">Buying Unit (UOM)</label>
-                <p-select 
-                  [options]="buyingUnits" 
-                  formControlName="buyingUnit" 
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="Select Buying Unit" 
-                  [showClear]="true" 
-                  styleClass="w-full" 
-                  appendTo="body">
-                </p-select>
+            @if (extractedItems().length) {
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div class="summary-mini-card">
+                  <span class="summary-mini-card__label">Buying Unit (UOM)</span>
+                  <p class="summary-mini-card__value">{{ getExtractedDisplayValue('buyingUnit') }}</p>
+                </div>
+                <div class="summary-mini-card">
+                  <span class="summary-mini-card__label">Weighted FC per Unit</span>
+                  <p class="summary-mini-card__value">{{ getExtractedWeightedFcPerUnit() | currency:'USD' }}</p>
+                </div>
+                <div class="summary-mini-card">
+                  <span class="summary-mini-card__label">Total AED</span>
+                  <p class="summary-mini-card__value">{{ getExtractedTotalAmountAed() | number:'1.2-2' }} AED</p>
+                </div>
               </div>
-              <div class="flex flex-col">
-                <label class="sl-label">FC per Unit</label>
-                <p-inputNumber formControlName="fcPerUnit" mode="currency" currency="USD" locale="en-US" placeholder="$0.00" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+            } @else {
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="flex flex-col">
+                  <label class="sl-label">Buying Unit (UOM)</label>
+                  <p-select [options]="buyingUnits" formControlName="buyingUnit" optionLabel="label" optionValue="value" placeholder="Select Buying Unit" [showClear]="true" styleClass="w-full" appendTo="body"></p-select>
+                </div>
+                <div class="flex flex-col">
+                  <label class="sl-label">FC per Unit</label>
+                  <p-inputNumber formControlName="fcPerUnit" mode="currency" currency="USD" locale="en-US" placeholder="$0.00" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                </div>
               </div>
-            </div>
+            }
+
             @if (extractedFclPerUnit() !== null) {
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div class="financial-total-box">
-                  <label class="text-[10px] font-bold text-violet-500 uppercase tracking-wider">Extracted FCL per Unit</label>
+                  <label class="text-[10px] font-bold uppercase tracking-wider text-violet-500">Extracted FCL per Unit</label>
                   <div class="text-xl font-black text-violet-900">{{ extractedFclPerUnit() | number:'1.0-0' }}</div>
                 </div>
               </div>
             }
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div class="financial-total-box">
-                <label class="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Total USD (Auto)</label>
+                <label class="text-[10px] font-bold uppercase tracking-wider text-blue-400">Total USD (Auto)</label>
                 <div class="text-xl font-black text-blue-900">{{ (shipmentForm.get('totalUSD')?.value || 0) | currency:'USD' }}</div>
               </div>
               <div class="financial-total-box">
-                <label class="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Total AED (Auto)</label>
+                <label class="text-[10px] font-bold uppercase tracking-wider text-emerald-500">Total AED (Auto)</label>
                 <div class="text-xl font-black text-emerald-900">{{ (shipmentForm.get('totalAED')?.value || 0) | number:'1.2-2' }} AED</div>
               </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div class="flex flex-col">
                 <label class="sl-label">Payment Terms</label>
-                <p-select 
-                  [options]="paymentTerms" 
-                  formControlName="paymentTerms" 
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="Select Terms" 
-                  [showClear]="true" 
-                  styleClass="w-full" 
-                  appendTo="body">
-                </p-select>
+                <p-select [options]="paymentTerms" formControlName="paymentTerms" optionLabel="label" optionValue="value" placeholder="Select Terms" [showClear]="true" styleClass="w-full" appendTo="body"></p-select>
               </div>
               <div class="flex flex-col">
                 <label class="sl-label">Advance Amount</label>
                 <p-inputNumber formControlName="advanceAmount" mode="currency" currency="USD" locale="en-US" placeholder="$0.00" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
               </div>
             </div>
+
             @if (requiresBankName(shipmentForm.get('paymentTerms')?.value)) {
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
                 <div class="flex flex-col">
                   <label class="sl-label">Bank Name</label>
-                  <p-select
-                    [options]="bankNames"
-                    formControlName="bankName"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Select Bank Name"
-                    [showClear]="true"
-                    styleClass="w-full"
-                    appendTo="body">
-                  </p-select>
+                  <p-select [options]="bankNames" formControlName="bankName" optionLabel="label" optionValue="value" placeholder="Select Bank Name" [showClear]="true" styleClass="w-full" appendTo="body"></p-select>
                 </div>
               </div>
             }
-
           </div>
         </section>
-
       </div>
     </div>
-
   </form>
 </div>
 
-<!-- Document preview modal -->
 <p-dialog
   [header]="previewTitle()"
   [visible]="showPreviewModal()"
@@ -383,12 +558,12 @@
   [resizable]="true"
   styleClass="document-preview-dialog"
   appendTo="body">
-  <div class="document-preview-content flex items-center justify-center min-h-[70vh] bg-slate-100 p-4">
+  <div class="document-preview-content flex min-h-[70vh] items-center justify-center bg-slate-100 p-4">
     @if (previewUrl(); as url) {
       @if (previewIsImage()) {
-        <img [src]="url" [alt]="previewTitle()" class="max-w-full max-h-[80vh] object-contain rounded shadow-lg" />
+        <img [src]="url" [alt]="previewTitle()" class="max-h-[80vh] max-w-full rounded object-contain shadow-lg" />
       } @else {
-        <iframe [src]="previewSafeUrl()" class="w-full h-[80vh] min-h-[500px] rounded border-0 bg-white shadow-lg" title="Document preview"></iframe>
+        <iframe [src]="previewSafeUrl()" class="h-[80vh] min-h-[500px] w-full rounded border-0 bg-white shadow-lg" title="Document preview"></iframe>
       }
     }
   </div>

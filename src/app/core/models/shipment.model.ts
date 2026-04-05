@@ -218,6 +218,7 @@ export interface CreateShipmentPayload {
   paymentTerms?: string;         // Payment Terms
   bankName?: string;
   q1Report?: string;
+  itemsJson?: string;
   splitContainers?: string;      // Split Containers
   totalSplitQtyMT?: string;      // Total Split Quantity MT (from Split Containers)
 }
@@ -346,6 +347,30 @@ export interface ExtractedShipmentData {
     analysis_details?: Record<string, unknown>;
     [key: string]: unknown;
   };
+  items?: ExtractedShipmentItem[];
+}
+
+export interface ExtractedShipmentItem {
+  lineNo?: number;
+  itemCode?: string;
+  itemDescription?: string;
+  commodity?: string;
+  brandName?: string;
+  countryOfOrigin?: string;
+  packagingType?: string;
+  containerSize?: string;
+  plannedContainers?: number;
+  fcl?: number;
+  pallet?: number;
+  bags?: number;
+  noOfShipments?: number;
+  buyingUnit?: string;
+  fclPerUnit?: number;
+  fcPerUnit?: number;
+  totalUSD?: number;
+  totalAED?: number;
+  expectedETD?: string;
+  expectedETA?: string;
 }
 
 export interface ExtractShipmentFromDocumentsResponse {

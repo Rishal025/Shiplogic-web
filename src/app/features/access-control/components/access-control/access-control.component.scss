@@ -1,0 +1,57 @@
+@reference "tailwindcss";
+
+:host {
+  display: block;
+}
+
+.access-tab {
+  @apply inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-slate-600 transition hover:border-slate-300 hover:bg-slate-50;
+}
+
+.access-tab.is-active {
+  @apply border-slate-950 bg-slate-950 text-white;
+}
+
+.role-card {
+  @apply rounded-[1.5rem] border border-slate-200 bg-slate-50/60 p-5 transition hover:border-slate-300 hover:bg-slate-50;
+}
+
+.permission-row {
+  @apply flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 transition hover:border-slate-300;
+}
+
+.permission-row input[type='checkbox'] {
+  @apply mt-1 h-4 w-4 rounded border-slate-300 text-blue-600;
+}
+
+.permission-table-shell {
+  @apply overflow-x-auto rounded-[1.5rem] border border-slate-200 bg-white;
+}
+
+.permission-table {
+  @apply min-w-full border-collapse;
+}
+
+.permission-table thead th {
+  @apply border-b border-slate-200 bg-slate-50 px-4 py-3 text-left text-[11px] font-black uppercase tracking-[0.18em] text-slate-400;
+}
+
+.permission-table tbody td {
+  @apply border-b border-slate-100 px-4 py-3 align-top;
+}
+
+.permission-table tbody tr:last-child td {
+  @apply border-b-0;
+}
+
+.permission-table .is-center {
+  @apply text-center;
+}
+
+.permission-type-chip {
+  @apply inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500;
+}
+
+.permission-checkbox {
+  @apply h-4 w-4 rounded border-slate-300 text-blue-600;
+}

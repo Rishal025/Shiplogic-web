@@ -1,6 +1,6 @@
 import { Component, OnDestroy, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AbstractControl, FormBuilder, FormGroup, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
@@ -18,7 +18,7 @@ import { DialogModule } from 'primeng/dialog';
 
 import { PrimaryButtonDirective } from '../../../../shared/directives/button.directive';
 import { ShipmentService } from '../../../../core/services/shipment.service';
-import { CreateShipmentPayload, ExtractedShipmentData } from '../../../../core/models/shipment.model';
+import { CreateShipmentPayload, ExtractedShipmentData, ExtractedShipmentItem } from '../../../../core/models/shipment.model';
 import { ItemService } from '../../../../core/services/item.service';
 
 @Component({
@@ -26,6 +26,7 @@ import { ItemService } from '../../../../core/services/item.service';
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     ReactiveFormsModule,
     RouterLink,
     InputTextModule,
@@ -54,6 +55,7 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
   extracting = signal(false);
   extractedQ1Report = signal<Record<string, unknown> | null>(null);
   extractedFclPerUnit = signal<number | null>(null);
+  extractedItems = signal<ExtractedShipmentItem[]>([]);
   /** Set after extract & autopopulate when response includes shipment_calculations; used for price-mismatch warning. */
   extractionPriceMismatch = signal<{ isPriceMatching: boolean; diffPercent?: number } | null>(null);
   private subscriptions = new Subscription();
@@ -113,6 +115,25 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     { label: 'Cotton', value: 'Cotton' },
     { label: 'Pulses', value: 'Pulses' },
     { label: 'Other', value: 'Other' }
+  ];
+
+  readonly extractedEditableFields: Array<keyof ExtractedShipmentItem> = [
+    'itemCode',
+    'itemDescription',
+    'commodity',
+    'countryOfOrigin',
+    'brandName',
+    'packagingType',
+    'containerSize',
+    'plannedContainers',
+    'fcl',
+    'pallet',
+    'bags',
+    'buyingUnit',
+    'fclPerUnit',
+    'fcPerUnit',
+    'totalUSD',
+    'totalAED'
   ];
 
   constructor(
@@ -232,6 +253,7 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (file) this.document1File.set(file);
+    this.resetExtractionState();
     input.value = '';
   }
 
@@ -244,6 +266,7 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
 
   clearDocument1(): void {
     this.document1File.set(null);
+    this.resetExtractionState();
   }
 
   clearDocument2(): void {
@@ -255,12 +278,21 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     const file = input.files?.[0] || null;
     this.s1QualityReportFile.set(file);
     this.shipmentForm.get('s1QualityReport')?.setValue(file, { emitEvent: false });
+    this.resetExtractionState();
     input.value = '';
   }
 
   removeQualityReport(): void {
     this.s1QualityReportFile.set(null);
     this.shipmentForm.get('s1QualityReport')?.setValue(null, { emitEvent: false });
+    this.resetExtractionState();
+  }
+
+  private resetExtractionState(): void {
+    this.extractedItems.set([]);
+    this.extractedQ1Report.set(null);
+    this.extractedFclPerUnit.set(null);
+    this.extractionPriceMismatch.set(null);
   }
 
   hasAllRequiredDocuments(): boolean {
@@ -320,7 +352,7 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
           detail: response.message ?? 'Values extracted and form autopopulated.'
         });
         if (response.data) {
-          this.patchFormFromExtraction(response.data);
+          this.applyExtractionResponse(response.data);
         }
       },
       error: (err) => {
@@ -340,16 +372,14 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
    * Resolves supplier/item by supplierCode/itemCode from resolved lists.
    * All keys are optional; missing or invalid values are skipped (no error).
    */
-  private patchFormFromExtraction(data: ExtractedShipmentData): void {
+  private applyExtractionResponse(data: ExtractedShipmentData): void {
     try {
-      const d = data as Record<string, unknown>;
       const patch: Record<string, unknown> = {};
       this.extractedQ1Report.set((data.q1Report as Record<string, unknown>) ?? null);
-      this.extractedFclPerUnit.set(typeof data.fclPerUnit === 'number' ? data.fclPerUnit : null);
 
-      const dateKeys = ['piDate', 'purchaseDate', 'expectedETD', 'expectedETA'];
+      const dateKeys = ['piDate', 'purchaseDate'];
       for (const key of dateKeys) {
-        const v = d[key];
+        const v = (data as Record<string, unknown>)[key];
         if (v == null || v === '') continue;
         const dateVal = typeof v === 'string' ? this.parseDate(v) : v;
         if (dateVal != null) patch[key] = dateVal;
@@ -357,42 +387,31 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
 
       const directKeys = [
         'piNo', 'fpoNo', 'incoTerms', 'portOfLoading', 'portOfDischarge',
-        'commodity', 'brandName', 'itemDescription', 'countryOfOrigin',
-        'packagingType', 'containerSize', 'fcl', 'pallet', 'bags',
-        'plannedContainers', 'noOfShipments', 'buyingUnit', 'fcPerUnit',
-        'totalUSD', 'totalAED', 'paymentTerms', 'advanceAmount'
+        'paymentTerms', 'advanceAmount'
       ];
       for (const key of directKeys) {
-        const v = d[key];
+        const v = (data as Record<string, unknown>)[key];
         if (v == null) continue;
         if (typeof v === 'string' && v.trim() === '') continue;
         patch[key] = v;
       }
 
-      const rawName = d['supplierName'];
+      const rawName = data.supplierName;
       const name = typeof rawName === 'string' ? rawName.trim() : '';
       if (name) {
         patch['supplier'] = name;
       }
 
-      const rawItemCode = d['itemCode'];
-      const itemCode = typeof rawItemCode === 'string' ? rawItemCode.trim() : '';
-      if (itemCode) {
-        patch['itemCode'] = itemCode;
-      }
-
       this.shipmentForm.patchValue(patch, { emitEvent: false });
-      if (itemCode) {
-        this.lookupItemMetadata(itemCode);
-      }
-      // Ensure form validity is recalculated so Save Shipment enables when required fields are set
-      this.shipmentForm.updateValueAndValidity({ emitEvent: true });
+
+      const items = Array.isArray(data.items) && data.items.length
+        ? data.items
+        : [this.buildFallbackItemFromLegacyExtraction(data)];
+      this.extractedItems.set(items);
+      this.patchFormFromExtractedItems(items);
 
       const sc = data.shipmentCalculations;
       if (sc) {
-        if (this.extractedFclPerUnit() == null && typeof sc.fcl_per_unit === 'number') {
-          this.extractedFclPerUnit.set(sc.fcl_per_unit);
-        }
         this.extractionPriceMismatch.set({
           isPriceMatching: sc.is_price_matching === true,
           diffPercent: sc.diff_percent
@@ -403,6 +422,145 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     } catch {
       // If anything fails, just skip autopopulate; user can fill manually
     }
+  }
+
+  private patchFormFromExtractedItems(items: ExtractedShipmentItem[]): void {
+    if (!items.length) return;
+    const primaryItem = items[0];
+    const sumNumeric = (selector: (item: ExtractedShipmentItem) => number | undefined) =>
+      items.reduce((sum, item) => sum + (selector(item) || 0), 0);
+    const uniqueValues = (selector: (item: ExtractedShipmentItem) => string | undefined) =>
+      [...new Set(items.map((item) => String(selector(item) || '').trim()).filter(Boolean))];
+    const uniqueOrMixed = (selector: (item: ExtractedShipmentItem) => string | undefined, fallback = '') => {
+      const values = uniqueValues(selector);
+      if (!values.length) return fallback;
+      return values.length === 1 ? values[0] : `Multiple (${values.length})`;
+    };
+
+    const patch: Record<string, unknown> = {};
+    patch['itemCode'] = uniqueOrMixed((item) => item.itemCode, primaryItem.itemCode || '');
+    patch['itemDescription'] = items.length > 1 ? `Multiple Items (${items.length})` : (primaryItem.itemDescription || '');
+    patch['commodity'] = uniqueOrMixed((item) => item.commodity, primaryItem.commodity || '');
+    patch['brandName'] = uniqueOrMixed((item) => item.brandName, primaryItem.brandName || '');
+    patch['countryOfOrigin'] = uniqueOrMixed((item) => item.countryOfOrigin, primaryItem.countryOfOrigin || '');
+    patch['packagingType'] = uniqueOrMixed((item) => item.packagingType, primaryItem.packagingType || '');
+    patch['containerSize'] = uniqueOrMixed((item) => item.containerSize, primaryItem.containerSize || '');
+    patch['plannedContainers'] = sumNumeric((item) => item.plannedContainers);
+    patch['fcl'] = sumNumeric((item) => item.fcl);
+    patch['pallet'] = sumNumeric((item) => item.pallet);
+    patch['bags'] = sumNumeric((item) => item.bags);
+    patch['buyingUnit'] = uniqueOrMixed((item) => item.buyingUnit, primaryItem.buyingUnit || '');
+    patch['fcPerUnit'] = patch['plannedContainers']
+      ? Number((sumNumeric((item) => item.totalUSD) / Number(patch['plannedContainers'] || 0)).toFixed(2))
+      : (primaryItem.fcPerUnit || 0);
+    patch['totalUSD'] = sumNumeric((item) => item.totalUSD);
+    patch['totalAED'] = sumNumeric((item) => item.totalAED);
+    patch['expectedETD'] = primaryItem.expectedETD ? this.parseDate(primaryItem.expectedETD) : null;
+    patch['expectedETA'] = primaryItem.expectedETA ? this.parseDate(primaryItem.expectedETA) : null;
+
+    this.shipmentForm.patchValue(patch, { emitEvent: false });
+
+    this.shipmentForm.updateValueAndValidity({ emitEvent: true });
+  }
+
+  updateExtractedItem<K extends keyof ExtractedShipmentItem>(index: number, key: K, value: ExtractedShipmentItem[K]): void {
+    const nextItems = this.extractedItems().map((item, itemIndex) => {
+      if (itemIndex !== index) return item;
+      return {
+        ...item,
+        [key]: value,
+      };
+    });
+
+    this.extractedItems.set(nextItems);
+    this.patchFormFromExtractedItems(nextItems);
+  }
+
+  updateExtractedNumericField(index: number, key: keyof ExtractedShipmentItem, value: number | null | undefined): void {
+    const normalized = value == null || Number.isNaN(Number(value)) ? 0 : Number(value);
+    this.updateExtractedItem(index, key as keyof ExtractedShipmentItem, normalized as never);
+  }
+
+  updateExtractedTextField(index: number, key: keyof ExtractedShipmentItem, value: string | null | undefined): void {
+    this.updateExtractedItem(index, key as keyof ExtractedShipmentItem, String(value || '') as never);
+  }
+
+  updateExtractedDateField(index: number, key: 'expectedETD' | 'expectedETA', value: Date | string | null | undefined): void {
+    let normalized = '';
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      normalized = value.toISOString();
+    } else if (typeof value === 'string' && value.trim()) {
+      const parsed = this.parseDate(value);
+      normalized = parsed ? parsed.toISOString() : '';
+    }
+    this.updateExtractedItem(index, key, normalized as never);
+  }
+
+  getExtractedDateValue(value?: string): Date | null {
+    if (!value) return null;
+    const parsed = this.parseDate(value);
+    return parsed;
+  }
+
+  getExtractedWeightedFcPerUnit(): number {
+    const totalQty = this.getExtractedTotalQuantity();
+    if (!totalQty) return 0;
+    return Number((this.getExtractedTotalAmount() / totalQty).toFixed(2));
+  }
+
+  getExtractedTotalAmountAed(): number {
+    return this.extractedItems().reduce((sum, item) => sum + (item.totalAED || 0), 0);
+  }
+
+  private buildFallbackItemFromLegacyExtraction(data: ExtractedShipmentData): ExtractedShipmentItem {
+    return {
+      lineNo: 1,
+      itemCode: data.itemCode,
+      itemDescription: data.itemDescription,
+      commodity: data.commodity,
+      brandName: data.brandName,
+      countryOfOrigin: data.countryOfOrigin,
+      packagingType: data.packagingType,
+      containerSize: data.containerSize,
+      plannedContainers: data.plannedContainers,
+      fcl: data.fcl,
+      pallet: data.pallet,
+      bags: data.bags,
+      noOfShipments: data.noOfShipments,
+      buyingUnit: data.buyingUnit,
+      fclPerUnit: data.fclPerUnit,
+      fcPerUnit: data.fcPerUnit,
+      totalUSD: data.totalUSD,
+      totalAED: data.totalAED,
+      expectedETD: data.expectedETD,
+      expectedETA: data.expectedETA,
+    };
+  }
+
+  getExtractedTotalQuantity(): number {
+    return this.extractedItems().reduce((sum, item) => sum + (item.plannedContainers || 0), 0);
+  }
+
+  getExtractedTotalAmount(): number {
+    return this.extractedItems().reduce((sum, item) => sum + (item.totalUSD || 0), 0);
+  }
+
+  getExtractedTotalFcl(): number {
+    return this.extractedItems().reduce((sum, item) => sum + (item.fcl || 0), 0);
+  }
+
+  getExtractedTotalBags(): number {
+    return this.extractedItems().reduce((sum, item) => sum + (item.bags || 0), 0);
+  }
+
+  getExtractedTotalPallets(): number {
+    return this.extractedItems().reduce((sum, item) => sum + (item.pallet || 0), 0);
+  }
+
+  getExtractedDisplayValue<K extends keyof ExtractedShipmentItem>(key: K): string {
+    const values = [...new Set(this.extractedItems().map((item) => String(item[key] || '').trim()).filter(Boolean))];
+    if (!values.length) return '—';
+    return values.length === 1 ? values[0] : `Multiple (${values.length})`;
   }
 
   private parseDate(v: string): Date | null {
@@ -533,6 +691,7 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
       paymentTerms: formValue.paymentTerms || '',
       bankName: formValue.bankName || '',
       q1Report: JSON.stringify(this.extractedQ1Report() || {}),
+      itemsJson: JSON.stringify(this.extractedItems()),
       splitContainers: formValue.noOfShipments?.toString() || '0',
       totalSplitQtyMT: formValue.noOfShipments?.toString() || '0'
     };
