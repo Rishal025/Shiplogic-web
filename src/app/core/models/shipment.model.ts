@@ -308,6 +308,9 @@ export interface ExtractedShipmentData {
   commodity?: string;
   brandName?: string;
   itemDescription?: string;
+  barcode?: string;
+  variant?: string;
+  hsCode?: string;
   // Supplier (frontend resolves to supplier _id via supplierCode or supplierName)
   supplierCode?: string;
   supplierName?: string;
@@ -357,6 +360,10 @@ export interface ExtractedShipmentItem {
   commodity?: string;
   brandName?: string;
   countryOfOrigin?: string;
+  barcode?: string;
+  dmBarcode?: string;
+  variant?: string;
+  hsCode?: string;
   packagingType?: string;
   containerSize?: string;
   plannedContainers?: number;
@@ -492,6 +499,29 @@ export interface ShipmentInfo {
   plannedETA?: string;
   containerSize?: number;
   noOfShipments?: number;
+  lineItems?: Array<{
+    lineNo?: number | null;
+    itemCode?: string | null;
+    itemDescription?: string | null;
+    commodity?: string | null;
+    countryOfOrigin?: string | null;
+    brandName?: string | null;
+    barcode?: string | null;
+    dmBarcode?: string | null;
+    variant?: string | null;
+    hsCode?: string | null;
+    packagingType?: string | null;
+    containerSize?: string | null;
+    plannedContainers?: number | null;
+    fcl?: number | null;
+    pallet?: number | null;
+    bags?: number | null;
+    buyingUnit?: string | null;
+    fclPerUnit?: number | null;
+    fcPerUnit?: number | null;
+    totalUSD?: number | null;
+    totalAED?: number | null;
+  }>;
 }
 
 // Step 1: Planned Split

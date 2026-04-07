@@ -45,6 +45,13 @@ import { ItemService } from '../../../../core/services/item.service';
 })
 export class CreateShipmentComponent implements OnInit, OnDestroy {
   readonly appDateFormat = 'dd/mm/yy';
+  readonly extractionMessages = [
+    'Uploading your documents securely',
+    'Royal AI is reading the purchase order',
+    'Matching extracted items with your item master',
+    'Structuring shipment header and pricing details',
+    'Preparing the extracted result for review'
+  ];
   shipmentForm!: FormGroup;
   submitting = signal(false);
 
@@ -56,15 +63,19 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
   extractedQ1Report = signal<Record<string, unknown> | null>(null);
   extractedFclPerUnit = signal<number | null>(null);
   extractedItems = signal<ExtractedShipmentItem[]>([]);
+  extractionMessageIndex = signal(0);
+  extractionProgress = signal(18);
   /** Set after extract & autopopulate when response includes shipment_calculations; used for price-mismatch warning. */
   extractionPriceMismatch = signal<{ isPriceMatching: boolean; diffPercent?: number } | null>(null);
   private subscriptions = new Subscription();
+  private extractionTicker: ReturnType<typeof setInterval> | null = null;
 
   // Document preview modal
   showPreviewModal = signal(false);
   previewUrl = signal<string | null>(null);
   previewTitle = signal('');
   previewIsImage = signal(false);
+  currentExtractionMessage = computed(() => this.extractionMessages[this.extractionMessageIndex()] || this.extractionMessages[0]);
   previewSafeUrl = computed(() => {
     const url = this.previewUrl();
     if (!url || this.previewIsImage()) return null;
@@ -123,6 +134,10 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     'commodity',
     'countryOfOrigin',
     'brandName',
+    'barcode',
+    'dmBarcode',
+    'variant',
+    'hsCode',
     'packagingType',
     'containerSize',
     'plannedContainers',
@@ -152,6 +167,7 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
+    this.stopExtractionExperience();
   }
 
   private initForm(): void {
@@ -295,6 +311,28 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     this.extractionPriceMismatch.set(null);
   }
 
+  private startExtractionExperience(): void {
+    this.stopExtractionExperience();
+    this.extractionMessageIndex.set(0);
+    this.extractionProgress.set(18);
+    this.extractionTicker = setInterval(() => {
+      this.extractionMessageIndex.update((index) => (index + 1) % this.extractionMessages.length);
+      this.extractionProgress.update((value) => {
+        if (value >= 88) return 26;
+        return value + 12;
+      });
+    }, 1600);
+  }
+
+  private stopExtractionExperience(): void {
+    if (this.extractionTicker) {
+      clearInterval(this.extractionTicker);
+      this.extractionTicker = null;
+    }
+    this.extractionMessageIndex.set(0);
+    this.extractionProgress.set(18);
+  }
+
   hasAllRequiredDocuments(): boolean {
     return !!this.document1File() && !!this.s1QualityReportFile();
   }
@@ -341,11 +379,13 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     formData.append('s1QualityReport', quality, quality.name);
 
     this.extracting.set(true);
+    this.startExtractionExperience();
     this.extractionPriceMismatch.set(null);
     this.extractedFclPerUnit.set(null);
     this.shipmentService.extractShipmentFromDocuments(formData).subscribe({
       next: (response) => {
         this.extracting.set(false);
+        this.stopExtractionExperience();
         this.messageService.add({
           severity: 'success',
           summary: 'Extraction complete',
@@ -357,6 +397,7 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.extracting.set(false);
+        this.stopExtractionExperience();
         console.error('Extract documents error:', err);
         this.messageService.add({
           severity: 'error',
@@ -443,6 +484,9 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     patch['commodity'] = uniqueOrMixed((item) => item.commodity, primaryItem.commodity || '');
     patch['brandName'] = uniqueOrMixed((item) => item.brandName, primaryItem.brandName || '');
     patch['countryOfOrigin'] = uniqueOrMixed((item) => item.countryOfOrigin, primaryItem.countryOfOrigin || '');
+    patch['barcode'] = uniqueOrMixed((item) => item.barcode, primaryItem.barcode || '');
+    patch['variant'] = uniqueOrMixed((item) => item.variant, primaryItem.variant || '');
+    patch['hsCode'] = uniqueOrMixed((item) => item.hsCode, primaryItem.hsCode || '');
     patch['packagingType'] = uniqueOrMixed((item) => item.packagingType, primaryItem.packagingType || '');
     patch['containerSize'] = uniqueOrMixed((item) => item.containerSize, primaryItem.containerSize || '');
     patch['plannedContainers'] = sumNumeric((item) => item.plannedContainers);
@@ -520,6 +564,9 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
       commodity: data.commodity,
       brandName: data.brandName,
       countryOfOrigin: data.countryOfOrigin,
+      barcode: data.barcode,
+      variant: data.variant,
+      hsCode: data.hsCode,
       packagingType: data.packagingType,
       containerSize: data.containerSize,
       plannedContainers: data.plannedContainers,

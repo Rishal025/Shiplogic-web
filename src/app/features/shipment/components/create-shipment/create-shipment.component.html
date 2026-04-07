@@ -1,4 +1,29 @@
 <p-toast />
+@if (extracting()) {
+  <div class="extraction-overlay">
+    <div class="extraction-overlay__backdrop"></div>
+    <div class="extraction-overlay__card">
+      <div class="extraction-overlay__badge">
+        <span class="extraction-overlay__badge-dot"></span>
+        Royal AI
+      </div>
+      <div class="extraction-orb">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <h3 class="extraction-overlay__title">Royal AI is extracting your shipment data</h3>
+      <p class="extraction-overlay__message">{{ currentExtractionMessage() }}</p>
+      <div class="extraction-progress">
+        <div class="extraction-progress__bar" [style.width.%]="extractionProgress()"></div>
+      </div>
+      <div class="extraction-overlay__footer">
+        <span>This usually takes a few seconds.</span>
+        <span>Please keep this window open while extraction finishes.</span>
+      </div>
+    </div>
+  </div>
+}
 <div class="page-transition-wrapper create-shipment-shell flex flex-col gap-4 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-10 2xl:px-12">
   <header class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between shrink-0">
     <div class="flex items-start gap-4 sm:items-center">
@@ -153,7 +178,7 @@
           </div>
           <div class="flex flex-col">
             <label class="sl-label">Inco Terms</label>
-            <p-select [options]="incoTerms" formControlName="incoTerms" placeholder="Select Inco Terms" [showClear]="true" styleClass="w-full" appendTo="body"></p-select>
+            <input pInputText formControlName="incoTerms" placeholder="Enter inco terms" class="w-full" />
           </div>
 
           @if (!extractedItems().length) {
@@ -197,46 +222,33 @@
             </div>
             <div class="flex min-w-0 flex-1 flex-col gap-1">
               <h2>Extracted LPO Items</h2>
-              <p class="text-sm text-slate-500">{{ extractedItems().length }} item{{ extractedItems().length === 1 ? '' : 's' }} will be saved with this shipment.</p>
             </div>
           </div>
           <div class="sl-card-body flex flex-col gap-5">
-            @if (extractionPriceMismatch() && !extractionPriceMismatch()?.isPriceMatching) {
-              <div class="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
-                <i class="pi pi-exclamation-triangle mt-0.5 shrink-0 text-lg text-amber-600"></i>
-                <div class="flex flex-col gap-1">
-                  <span class="font-semibold text-amber-800">Quantity / calculation mismatch</span>
-                  <p class="text-sm text-amber-700">
-                    There is a mismatch between Total quantity (MT) and the calculated bags. Difference: {{ priceMismatchDiffLabel }}. Please verify the extracted rows before saving.
-                  </p>
-                </div>
-              </div>
-            }
-
             <div class="extracted-summary-grid">
               <div class="extracted-stat-card">
                 <span class="extracted-stat-card__label">Total Qty MT</span>
-                <p class="extracted-stat-card__value">{{ getExtractedTotalQuantity() | number:'1.0-2' }}</p>
+                <p class="text-xl font-medium tracking-tight text-slate-900">{{ getExtractedTotalQuantity() | number:'1.0-2' }}</p>
               </div>
               <div class="extracted-stat-card">
                 <span class="extracted-stat-card__label">Total FCL</span>
-                <p class="extracted-stat-card__value">{{ getExtractedTotalFcl() | number:'1.0-2' }}</p>
+                <p class="text-xl font-medium tracking-tight text-slate-900">{{ getExtractedTotalFcl() | number:'1.0-2' }}</p>
               </div>
               <div class="extracted-stat-card">
                 <span class="extracted-stat-card__label">Total Bags</span>
-                <p class="extracted-stat-card__value">{{ getExtractedTotalBags() | number:'1.0-0' }}</p>
+                <p class="text-xl font-medium tracking-tight text-slate-900">{{ getExtractedTotalBags() | number:'1.0-0' }}</p>
               </div>
               <div class="extracted-stat-card">
                 <span class="extracted-stat-card__label">Total Pallets</span>
-                <p class="extracted-stat-card__value">{{ getExtractedTotalPallets() | number:'1.0-0' }}</p>
+                <p class="text-xl font-medium tracking-tight text-slate-900">{{ getExtractedTotalPallets() | number:'1.0-0' }}</p>
               </div>
               <div class="extracted-stat-card">
                 <span class="extracted-stat-card__label">Total USD</span>
-                <p class="extracted-stat-card__value">{{ getExtractedTotalAmount() | currency:'USD' }}</p>
+                <p class="text-xl font-medium tracking-tight text-slate-900">{{ getExtractedTotalAmount() | currency:'USD' }}</p>
               </div>
               <div class="extracted-stat-card">
                 <span class="extracted-stat-card__label">Total AED</span>
-                <p class="extracted-stat-card__value">{{ getExtractedTotalAmountAed() | number:'1.2-2' }} AED</p>
+                <p class="text-xl font-medium tracking-tight text-slate-900">{{ getExtractedTotalAmountAed() | number:'1.2-2' }}</p>
               </div>
             </div>
 
@@ -247,11 +259,14 @@
                     <thead>
                       <tr class="bg-slate-50">
                         <th class="extracted-table-head w-[72px]">Line</th>
-                        <th class="extracted-table-head min-w-[150px]">Item Code</th>
+                        <th class="extracted-table-head min-w-[220px]">Item Code</th>
                         <th class="extracted-table-head min-w-[260px]">Description</th>
                         <th class="extracted-table-head min-w-[150px]">Commodity</th>
                         <th class="extracted-table-head min-w-[150px]">Origin</th>
                         <th class="extracted-table-head min-w-[140px]">Brand</th>
+                        <th class="extracted-table-head min-w-[150px]">Barcode</th>
+                        <th class="extracted-table-head min-w-[130px]">Variant</th>
+                        <th class="extracted-table-head min-w-[130px]">H.S Code</th>
                         <th class="extracted-table-head min-w-[130px]">Packing</th>
                         <th class="extracted-table-head min-w-[130px]">Size</th>
                         <th class="extracted-table-head min-w-[120px]">Qty MT</th>
@@ -259,36 +274,31 @@
                         <th class="extracted-table-head min-w-[110px]">Pallet</th>
                         <th class="extracted-table-head min-w-[120px]">Bags</th>
                         <th class="extracted-table-head min-w-[130px]">Unit</th>
-                        <th class="extracted-table-head min-w-[130px]">FCL / Unit</th>
                         <th class="extracted-table-head min-w-[150px]">FC / Unit</th>
                         <th class="extracted-table-head min-w-[160px]">Total USD</th>
-                        <th class="extracted-table-head min-w-[160px]">Total AED</th>
                       </tr>
                     </thead>
                     <tbody>
                       @for (item of extractedItems(); track item.lineNo ?? $index; let i = $index) {
                         <tr class="align-top">
-                          <td class="extracted-table-cell text-sm font-bold text-slate-700">{{ item.lineNo || (i + 1) }}</td>
-                          <td class="extracted-table-cell"><input pInputText [ngModel]="item.itemCode" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'itemCode', $event)" class="w-full" /></td>
-                          <td class="extracted-table-cell"><textarea pInputTextarea rows="2" [ngModel]="item.itemDescription" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'itemDescription', $event)" class="w-full"></textarea></td>
-                          <td class="extracted-table-cell"><input pInputText [ngModel]="item.commodity" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'commodity', $event)" class="w-full" /></td>
-                          <td class="extracted-table-cell"><input pInputText [ngModel]="item.countryOfOrigin" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'countryOfOrigin', $event)" class="w-full" /></td>
-                          <td class="extracted-table-cell"><input pInputText [ngModel]="item.brandName" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'brandName', $event)" class="w-full" /></td>
-                          <td class="extracted-table-cell"><input pInputText [ngModel]="item.packagingType" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'packagingType', $event)" class="w-full" /></td>
-                          <td class="extracted-table-cell">
-                            <p-select [options]="containerSizes" optionLabel="label" optionValue="value" [ngModel]="item.containerSize" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'containerSize', $event)" appendTo="body" styleClass="w-full"></p-select>
-                          </td>
-                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.plannedContainers" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'plannedContainers', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
-                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.fcl" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'fcl', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
-                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.pallet" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'pallet', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
-                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.bags" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'bags', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
-                          <td class="extracted-table-cell">
-                            <p-select [options]="buyingUnits" optionLabel="label" optionValue="value" [ngModel]="item.buyingUnit" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'buyingUnit', $event)" appendTo="body" styleClass="w-full"></p-select>
-                          </td>
-                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.fclPerUnit" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'fclPerUnit', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
-                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.fcPerUnit" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'fcPerUnit', $event)" mode="currency" currency="USD" locale="en-US" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
-                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.totalUSD" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'totalUSD', $event)" mode="currency" currency="USD" locale="en-US" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
-                          <td class="extracted-table-cell"><p-inputNumber [ngModel]="item.totalAED" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'totalAED', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber></td>
+                          <td class="extracted-table-cell text-xs font-medium text-slate-500">{{ item.lineNo || (i + 1) }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ item.itemCode || '—' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ item.itemDescription || '—' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ (item.commodity || '—') | titlecase }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ item.countryOfOrigin || '—' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ item.brandName || '—' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ item.barcode || '—' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ item.variant || '—' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ item.hsCode || '—' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ item.packagingType || '—' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ item.containerSize || '—' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ (item.plannedContainers ?? 0) | number:'1.0-2' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ (item.fcl ?? 0) | number:'1.0-2' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ (item.pallet ?? 0) | number:'1.0-2' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ (item.bags ?? 0) | number:'1.0-0' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ item.buyingUnit || '—' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ (item.fcPerUnit ?? 0) | currency:'USD' }}</td>
+                          <td class="extracted-table-cell text-slate-700">{{ (item.totalUSD ?? 0) | currency:'USD' }}</td>
                         </tr>
                       }
                     </tbody>
@@ -300,74 +310,78 @@
                 @for (item of extractedItems(); track item.lineNo ?? $index; let i = $index) {
                   <div class="rounded-[24px] border border-slate-200 bg-slate-50/60 p-4 shadow-sm">
                     <div>
-                      <p class="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">Line {{ item.lineNo || (i + 1) }}</p>
-                      <h4 class="mt-1 text-sm font-black text-slate-900">{{ item.itemCode || 'Item row' }}</h4>
+                      <p class="text-[9px] font-medium uppercase tracking-[0.18em] text-slate-400">Line {{ item.lineNo || (i + 1) }}</p>
+                      <h4 class="mt-1 text-sm font-semibold text-slate-900">{{ item.itemCode || 'Item row' }}</h4>
                     </div>
 
                     <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">Item Code</label>
-                        <input pInputText [ngModel]="item.itemCode" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'itemCode', $event)" class="w-full" />
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900">{{ item.itemCode || '—' }}</div>
                       </div>
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">Commodity</label>
-                        <input pInputText [ngModel]="item.commodity" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'commodity', $event)" class="w-full" />
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ (item.commodity || '—') | titlecase }}</div>
                       </div>
                       <div class="flex flex-col gap-2 sm:col-span-2">
                         <label class="sl-label">Description</label>
-                        <textarea pInputTextarea rows="2" [ngModel]="item.itemDescription" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'itemDescription', $event)" class="w-full"></textarea>
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ item.itemDescription || '—' }}</div>
                       </div>
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">Country of Origin</label>
-                        <input pInputText [ngModel]="item.countryOfOrigin" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'countryOfOrigin', $event)" class="w-full" />
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ item.countryOfOrigin || '—' }}</div>
                       </div>
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">Brand</label>
-                        <input pInputText [ngModel]="item.brandName" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'brandName', $event)" class="w-full" />
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ item.brandName || '—' }}</div>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">Barcode</label>
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ item.barcode || '—' }}</div>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">Variant</label>
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ item.variant || '—' }}</div>
+                      </div>
+                      <div class="flex flex-col gap-2">
+                        <label class="sl-label">H.S Code</label>
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ item.hsCode || '—' }}</div>
                       </div>
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">Packing</label>
-                        <input pInputText [ngModel]="item.packagingType" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'packagingType', $event)" class="w-full" />
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ item.packagingType || '—' }}</div>
                       </div>
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">Container Size</label>
-                        <p-select [options]="containerSizes" optionLabel="label" optionValue="value" [ngModel]="item.containerSize" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'containerSize', $event)" appendTo="body" styleClass="w-full"></p-select>
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ item.containerSize || '—' }}</div>
                       </div>
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">Qty MT</label>
-                        <p-inputNumber [ngModel]="item.plannedContainers" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'plannedContainers', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ (item.plannedContainers ?? 0) | number:'1.0-2' }}</div>
                       </div>
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">FCL</label>
-                        <p-inputNumber [ngModel]="item.fcl" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'fcl', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ (item.fcl ?? 0) | number:'1.0-2' }}</div>
                       </div>
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">Pallet</label>
-                        <p-inputNumber [ngModel]="item.pallet" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'pallet', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ (item.pallet ?? 0) | number:'1.0-2' }}</div>
                       </div>
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">Bags</label>
-                        <p-inputNumber [ngModel]="item.bags" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'bags', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ (item.bags ?? 0) | number:'1.0-0' }}</div>
                       </div>
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">Buying Unit</label>
-                        <p-select [options]="buyingUnits" optionLabel="label" optionValue="value" [ngModel]="item.buyingUnit" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedTextField(i, 'buyingUnit', $event)" appendTo="body" styleClass="w-full"></p-select>
-                      </div>
-                      <div class="flex flex-col gap-2">
-                        <label class="sl-label">FCL per Unit</label>
-                        <p-inputNumber [ngModel]="item.fclPerUnit" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'fclPerUnit', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ item.buyingUnit || '—' }}</div>
                       </div>
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">FC per Unit</label>
-                        <p-inputNumber [ngModel]="item.fcPerUnit" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'fcPerUnit', $event)" mode="currency" currency="USD" locale="en-US" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ (item.fcPerUnit ?? 0) | currency:'USD' }}</div>
                       </div>
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">Total USD</label>
-                        <p-inputNumber [ngModel]="item.totalUSD" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'totalUSD', $event)" mode="currency" currency="USD" locale="en-US" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
-                      </div>
-                      <div class="flex flex-col gap-2">
-                        <label class="sl-label">Total AED</label>
-                        <p-inputNumber [ngModel]="item.totalAED" [ngModelOptions]="{standalone:true}" (ngModelChange)="updateExtractedNumericField(i, 'totalAED', $event)" mode="decimal" [min]="0" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ (item.totalUSD ?? 0) | currency:'USD' }}</div>
                       </div>
                     </div>
                   </div>
@@ -433,7 +447,7 @@
             <h2>Supplier Details</h2>
           </div>
           <div class="sl-card-body grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div class="flex flex-col">
+            <div class="flex flex-col md:col-span-2">
               <label class="sl-label">Supplier</label>
               <input pInputText formControlName="supplier" placeholder="Enter supplier name" class="w-full" />
             </div>
@@ -448,7 +462,7 @@
               }
             </div>
             @if (!extractedItems().length) {
-              <div class="flex flex-col md:col-span-2">
+              <div class="flex flex-col">
                 <label class="sl-label">Country of Origin</label>
                 <input pInputText formControlName="countryOfOrigin" placeholder="Enter country" class="w-full" />
                 @if (shipmentForm.get('countryOfOrigin')?.hasError('required') && shipmentForm.get('countryOfOrigin')?.touched) {
@@ -456,9 +470,14 @@
                 }
               </div>
             } @else {
-              <div class="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 md:col-span-2">
-                <span class="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Country of Origin</span>
-                <p class="mt-1 text-sm font-bold text-slate-900">{{ getExtractedDisplayValue('countryOfOrigin') }}</p>
+              <div class="flex flex-col">
+                <label class="sl-label">Country of Origin</label>
+                <input
+                  pInputText
+                  [value]="getExtractedDisplayValue('countryOfOrigin')"
+                  class="w-full"
+                  readonly
+                />
               </div>
             }
           </div>
@@ -473,18 +492,14 @@
           </div>
           <div class="sl-card-body flex flex-col gap-5">
             @if (extractedItems().length) {
-              <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div class="summary-mini-card">
-                  <span class="summary-mini-card__label">Buying Unit (UOM)</span>
-                  <p class="summary-mini-card__value">{{ getExtractedDisplayValue('buyingUnit') }}</p>
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="extracted-stat-card">
+                  <span class="extracted-stat-card__label">Buying Unit (UOM)</span>
+                  <p class="text-xl font-medium tracking-tight text-slate-900">{{ getExtractedDisplayValue('buyingUnit') }}</p>
                 </div>
-                <div class="summary-mini-card">
-                  <span class="summary-mini-card__label">Weighted FC per Unit</span>
-                  <p class="summary-mini-card__value">{{ getExtractedWeightedFcPerUnit() | currency:'USD' }}</p>
-                </div>
-                <div class="summary-mini-card">
-                  <span class="summary-mini-card__label">Total AED</span>
-                  <p class="summary-mini-card__value">{{ getExtractedTotalAmountAed() | number:'1.2-2' }} AED</p>
+                <div class="extracted-stat-card">
+                  <span class="extracted-stat-card__label">FC per Unit</span>
+                  <p class="text-xl font-medium tracking-tight text-slate-900">{{ getExtractedWeightedFcPerUnit() | currency:'USD' }}</p>
                 </div>
               </div>
             } @else {
@@ -525,17 +540,24 @@
                 <label class="sl-label">Payment Terms</label>
                 <p-select [options]="paymentTerms" formControlName="paymentTerms" optionLabel="label" optionValue="value" placeholder="Select Terms" [showClear]="true" styleClass="w-full" appendTo="body"></p-select>
               </div>
-              <div class="flex flex-col">
-                <label class="sl-label">Advance Amount</label>
-                <p-inputNumber formControlName="advanceAmount" mode="currency" currency="USD" locale="en-US" placeholder="$0.00" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
-              </div>
-            </div>
-
-            @if (requiresBankName(shipmentForm.get('paymentTerms')?.value)) {
-              <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+              @if (requiresBankName(shipmentForm.get('paymentTerms')?.value)) {
                 <div class="flex flex-col">
                   <label class="sl-label">Bank Name</label>
                   <p-select [options]="bankNames" formControlName="bankName" optionLabel="label" optionValue="value" placeholder="Select Bank Name" [showClear]="true" styleClass="w-full" appendTo="body"></p-select>
+                </div>
+              } @else {
+                <div class="flex flex-col">
+                  <label class="sl-label">Advance Amount</label>
+                  <p-inputNumber formControlName="advanceAmount" mode="currency" currency="USD" locale="en-US" placeholder="$0.00" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
+                </div>
+              }
+            </div>
+
+            @if (requiresBankName(shipmentForm.get('paymentTerms')?.value)) {
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="flex flex-col">
+                  <label class="sl-label">Advance Amount</label>
+                  <p-inputNumber formControlName="advanceAmount" mode="currency" currency="USD" locale="en-US" placeholder="$0.00" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
                 </div>
               </div>
             }

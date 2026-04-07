@@ -68,6 +68,140 @@
     </div>
   </section>
 
+  <section class="sl-card">
+    <div class="sl-card-header">
+      <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+        <i class="pi pi-users"></i>
+      </div>
+      <h2>Supplier & Item</h2>
+    </div>
+    <div class="sl-card-body flex flex-col gap-5">
+      <div class="flex flex-col gap-1 md:col-span-2">
+        <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Supplier</span>
+        <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.supplier || '–' }}</span>
+      </div>
+
+      @if (getLineItems().length) {
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div class="hidden xl:block overflow-x-auto">
+            <table class="w-full border-separate border-spacing-0">
+              <thead>
+                <tr class="bg-slate-50">
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Line</th>
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Item Code</th>
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Description</th>
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Commodity</th>
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Brand</th>
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Packing</th>
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Qty MT</th>
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">FCL</th>
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Barcode</th>
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Variant</th>
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">H.S Code</th>
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Origin</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of getLineItems(); track item.lineNo ?? $index; let i = $index) {
+                  <tr>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-500">{{ item.lineNo || (i + 1) }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm font-medium text-slate-900">{{ item.itemCode || '–' }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.itemDescription || '–' }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.commodity || '–' }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.brandName || '–' }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.packagingType || '–' }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.plannedContainers ?? '–' }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.fcl ?? '–' }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.barcode || '–' }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.variant || '–' }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.hsCode || '–' }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.countryOfOrigin || '–' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 p-4 xl:hidden">
+            @for (item of getLineItems(); track item.lineNo ?? $index; let i = $index) {
+              <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Line {{ item.lineNo || (i + 1) }}</p>
+                    <p class="mt-1 text-sm font-semibold text-slate-900">{{ item.itemCode || '–' }}</p>
+                  </div>
+                  <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-500 shadow-sm">{{ item.commodity || '–' }}</span>
+                </div>
+                <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Description</span><span class="text-sm text-slate-700">{{ item.itemDescription || '–' }}</span></div>
+                  <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Brand</span><span class="text-sm text-slate-700">{{ item.brandName || '–' }}</span></div>
+                  <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Packing</span><span class="text-sm text-slate-700">{{ item.packagingType || '–' }}</span></div>
+                  <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Qty MT</span><span class="text-sm text-slate-700">{{ item.plannedContainers ?? '–' }}</span></div>
+                  <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">FCL</span><span class="text-sm text-slate-700">{{ item.fcl ?? '–' }}</span></div>
+                  <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Barcode</span><span class="text-sm text-slate-700">{{ item.barcode || '–' }}</span></div>
+                  <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Variant</span><span class="text-sm text-slate-700">{{ item.variant || '–' }}</span></div>
+                  <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">H.S Code</span><span class="text-sm text-slate-700">{{ item.hsCode || '–' }}</span></div>
+                  <div class="flex flex-col gap-1 sm:col-span-2"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Country of Origin</span><span class="text-sm text-slate-700">{{ item.countryOfOrigin || '–' }}</span></div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Item Code</span>
+            <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.itemCode || '–' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Commodity / Item</span>
+            <span class="text-sm font-semibold text-slate-900 line-clamp-2" [title]="shipmentData()?.shipment?.itemDescription || shipmentData()?.shipment?.item || ''">{{ shipmentData()?.shipment?.commodity || shipmentData()?.shipment?.itemDescription || shipmentData()?.shipment?.item || '–' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Brand</span>
+            <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.riceName || '–' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Packing</span>
+            <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.packing || '–' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">FCL</span>
+            <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.fcl ?? '–' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Pallet</span>
+            <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.pallet ?? '–' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Bags</span>
+            <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.bags ?? '–' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Planned Qty (MT)</span>
+            <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.plannedQtyMT ?? '–' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Barcode</span>
+            <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.barcode || '–' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Variant</span>
+            <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.variant || '–' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">H.S Code</span>
+            <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.hsCode || '–' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Country of Origin</span>
+            <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.countryOfOrigin || '–' }}</span>
+          </div>
+        </div>
+      }
+    </div>
+  </section>
+
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
     <!-- Shipment Info (PO, PI, Ports, Inco, Container) -->
     <section class="sl-card">
@@ -120,114 +254,49 @@
         </div>
       </div>
     </section>
-
-    <!-- Supplier & Item -->
-    <section class="sl-card">
+    <!-- Quantity & Financial Summary -->
+    <section class="sl-card border-slate-100">
       <div class="sl-card-header">
-        <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
-          <i class="pi pi-users"></i>
+        <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+          <i class="pi pi-truck"></i>
         </div>
-        <h2>Supplier & Item</h2>
+        <h2>Quantity & Financial Summary</h2>
       </div>
-      <div class="sl-card-body grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div class="flex flex-col gap-1 md:col-span-2">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Supplier</span>
-          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.supplier || '–' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Item Code</span>
-          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.itemCode || '–' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Commodity / Item</span>
-          <span class="text-sm font-semibold text-slate-900 line-clamp-2" [title]="shipmentData()?.shipment?.itemDescription || shipmentData()?.shipment?.item || ''">{{ shipmentData()?.shipment?.commodity || shipmentData()?.shipment?.itemDescription || shipmentData()?.shipment?.item || '–' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Brand</span>
-          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.riceName || '–' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Packing</span>
-          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.packing || '–' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">FCL</span>
-          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.fcl ?? '–' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Pallet</span>
-          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.pallet ?? '–' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Bags</span>
-          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.bags ?? '–' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Planned Qty (MT)</span>
-          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.plannedQtyMT ?? '–' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Barcode</span>
-          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.barcode || '–' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Variant</span>
-          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.variant || '–' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">H.S Code</span>
-          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.hsCode || '–' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Country of Origin</span>
-          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.countryOfOrigin || '–' }}</span>
+      <div class="sl-card-body">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Container Size</span>
+            <span class="text-lg font-bold text-slate-900">
+              {{ shipmentData()?.shipment?.containerSize ?? '–' }}
+            </span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Buying Unit</span>
+            <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.buyunit || '–' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-blue-500">FC per Unit</span>
+            <span class="text-lg font-bold text-slate-900">{{ (shipmentData()?.shipment?.fcPerUnit ?? 0) | currency: 'USD' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-blue-500">Total Amount</span>
+            <span class="text-xl font-black text-slate-900 tracking-tight">{{ (shipmentData()?.shipment?.payment ?? 0) | currency: 'USD' }}</span>
+            <span class="text-[10px] text-slate-400">Terms: {{ shipmentData()?.shipment?.paymentTerms || '–' }}</span>
+          </div>
+          @if ((shipmentData()?.shipment?.paymentTerms || '').includes('CAD')) {
+            <div class="flex flex-col gap-1">
+              <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Bank Name</span>
+              <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.bankName || '–' }}</span>
+            </div>
+          }
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Advance</span>
+            <span class="text-lg font-bold text-emerald-600">{{ (shipmentData()?.shipment?.advanceAmount ?? 0) | currency: 'USD' }}</span>
+          </div>
         </div>
       </div>
     </section>
   </div>
-
-  <!-- Quantity & Financial Summary -->
-  <section class="sl-card border-slate-100">
-    <div class="sl-card-header">
-      <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
-        <i class="pi pi-truck"></i>
-      </div>
-      <h2>Quantity & Financial Summary</h2>
-    </div>
-    <div class="sl-card-body">
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Container Size</span>
-          <span class="text-lg font-bold text-slate-900">
-            {{ shipmentData()?.shipment?.containerSize ?? '–' }}
-          </span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Buying Unit</span>
-          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.buyunit || '–' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-blue-500">FC per Unit</span>
-          <span class="text-lg font-bold text-slate-900">{{ (shipmentData()?.shipment?.fcPerUnit ?? 0) | currency: 'USD' }}</span>
-        </div>
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-blue-500">Total Amount</span>
-          <span class="text-xl font-black text-slate-900 tracking-tight">{{ (shipmentData()?.shipment?.payment ?? 0) | currency: 'USD' }}</span>
-          <span class="text-[10px] text-slate-400">Terms: {{ shipmentData()?.shipment?.paymentTerms || '–' }}</span>
-        </div>
-        @if ((shipmentData()?.shipment?.paymentTerms || '').includes('CAD')) {
-          <div class="flex flex-col gap-1">
-            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Bank Name</span>
-            <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.bankName || '–' }}</span>
-          </div>
-        }
-        <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Advance</span>
-          <span class="text-lg font-bold text-emerald-600">{{ (shipmentData()?.shipment?.advanceAmount ?? 0) | currency: 'USD' }}</span>
-        </div>
-      </div>
-    </div>
-  </section>
 
   <section class="sl-card border-slate-100">
     <div class="sl-card-header">

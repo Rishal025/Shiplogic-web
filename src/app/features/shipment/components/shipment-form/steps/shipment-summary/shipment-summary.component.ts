@@ -135,4 +135,8 @@ export class ShipmentSummaryComponent {
 
     return 'bg-amber-50 text-amber-700';
   }
+
+  getLineItems() {
+    return this.shipmentData()?.shipment?.lineItems || [];
+  }
 }

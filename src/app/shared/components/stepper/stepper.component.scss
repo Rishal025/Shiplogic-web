@@ -78,6 +78,7 @@
 /* Content Styling */
 .step-content {
     @apply flex flex-col items-center text-center px-1 min-h-[56px] justify-start;
+    gap: 0.35rem;
 }
 
 .step-label {
@@ -92,11 +93,14 @@
 }
 
 .step-sublabel {
-    @apply text-[9px] text-slate-400 uppercase font-bold tracking-[0.18em] mt-0.5;
+    @apply text-[9px] text-slate-400 uppercase font-bold tracking-[0.18em];
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 100%;
+    order: -1;
+    margin-top: 0;
+    line-height: 1.1;
 }
 
 /* Responsive adjustments */
