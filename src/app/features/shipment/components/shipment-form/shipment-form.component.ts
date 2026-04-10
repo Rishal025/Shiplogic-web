@@ -34,6 +34,8 @@ import { ShipmentArrivalComponent } from './steps/shipment-arrival/shipment-arri
 import { ShipmentStorageComponent } from './steps/shipment-storage/shipment-storage.component';
 import { ShipmentQualityComponent } from './steps/shipment-quality/shipment-quality.component';
 import { ShipmentPaymentCostingComponent } from './steps/shipment-payment-costing/shipment-payment-costing.component';
+import { RbacService } from '../../../../core/services/rbac.service';
+import { AuthService } from '../../../../core/services/auth.service';
 
 const COST_SHEET_DESCRIPTIONS = [
   'Invoice Attestation - MOFAIC',
@@ -67,6 +69,23 @@ const COST_SHEET_DESCRIPTIONS = [
   'Murabaha Profit',
 ] as const;
 
+type ShipmentTabKey =
+  | 'shipment_entry'
+  | 'shipment_tracker_split'
+  | 'bl_details'
+  | 'document_tracker'
+  | 'port_customs'
+  | 'storage_arrival'
+  | 'quality'
+  | 'payment_costing';
+
+interface TrackerStepConfig extends Step {
+  index: number;
+  tabKey: ShipmentTabKey;
+  viewPermissionKey: string;
+  editPermissionKey?: string;
+}
+
 @Component({
   selector: 'app-shipment-form',
   standalone: true,
@@ -94,6 +113,8 @@ export class ShipmentFormComponent implements OnDestroy {
   private fb = inject(FormBuilder);
   private route = inject(ActivatedRoute);
   private store = inject(Store);
+  private rbacService = inject(RbacService);
+  private authService = inject(AuthService);
 
   shipmentForm: FormGroup;
   shipmentId: string | null = null;
@@ -126,45 +147,102 @@ export class ShipmentFormComponent implements OnDestroy {
   readonly submittedStep7Indices = toSignal(this.store.select(selectSubmittedStep7Indices), {
     initialValue: [],
   });
+  readonly effectivePermissions = toSignal(this.rbacService.permissions$, { initialValue: null });
 
   // Computed steps for stepper
-  readonly steps = computed<Step[]>(() => {
+  readonly trackerStepConfigs = computed<TrackerStepConfig[]>(() => {
     const total = this.totalContainers();
     return [
-      { label: 'Shipment Entry', subLabel: 'Purchase', completed: true },
-      { label: 'Shipment Tracker', subLabel: 'Purchase', completed: this.isPlannedLocked() },
       {
+        index: 0,
+        tabKey: 'shipment_entry',
+        viewPermissionKey: 'shipment.tab.shipment_entry.view',
+        label: 'Shipment Entry',
+        subLabel: 'Purchase',
+        completed: true,
+      },
+      {
+        index: 1,
+        tabKey: 'shipment_tracker_split',
+        viewPermissionKey: 'shipment.tab.shipment_tracker_split.view',
+        editPermissionKey: 'shipment.tab.shipment_tracker_split.edit',
+        label: 'Shipment Tracker',
+        subLabel: 'Purchase',
+        completed: this.isPlannedLocked(),
+      },
+      {
+        index: 2,
+        tabKey: 'bl_details',
+        viewPermissionKey: 'shipment.tab.bl_details.view',
+        editPermissionKey: 'shipment.tab.bl_details.edit',
         label: 'BL Details',
         subLabel: 'Purchase',
         completed: this.allSubmitted(total, this.submittedActualIndices()),
       },
       {
+        index: 3,
+        tabKey: 'document_tracker',
+        viewPermissionKey: 'shipment.tab.document_tracker.view',
+        editPermissionKey: 'shipment.tab.document_tracker.edit',
         label: 'Document Tracker',
         subLabel: 'FAS',
         completed: this.allSubmitted(total, this.submittedStep3Indices()),
       },
       {
+        index: 4,
+        tabKey: 'port_customs',
+        viewPermissionKey: 'shipment.tab.port_customs.view',
+        editPermissionKey: 'shipment.tab.port_customs.edit',
         label: 'Port and Customs Clearance Tracker',
         subLabel: 'Logistics',
         completed: this.allSubmitted(total, this.submittedStep4Indices()),
       },
       {
+        index: 5,
+        tabKey: 'storage_arrival',
+        viewPermissionKey: 'shipment.tab.storage_arrival.view',
+        editPermissionKey: 'shipment.tab.storage_arrival.edit',
         label: 'Storage Allocation & Arrival',
         subLabel: 'Logistics',
         completed: this.allSubmitted(total, this.submittedStep5Indices()),
       },
       {
+        index: 6,
+        tabKey: 'quality',
+        viewPermissionKey: 'shipment.tab.quality.view',
+        editPermissionKey: 'shipment.tab.quality.edit',
         label: 'Quality',
         subLabel: 'QA',
         completed: this.allSubmitted(total, this.submittedStep6Indices()),
       },
       {
+        index: 7,
+        tabKey: 'payment_costing',
+        viewPermissionKey: 'shipment.tab.payment_costing.view',
+        editPermissionKey: 'shipment.tab.payment_costing.edit',
         label: 'Payment & Costing',
         subLabel: 'FAS',
         completed: this.allSubmitted(total, this.submittedStep7Indices()),
       },
     ];
   });
+
+  readonly trackerAccessDenied = computed(() => this.shouldEnforceTabPermissions() && !this.hasTrackerScreenAccess());
+
+  readonly accessibleTrackerSteps = computed<TrackerStepConfig[]>(() => {
+    if (this.trackerAccessDenied()) {
+      return [];
+    }
+    return this.trackerStepConfigs().filter((step) => this.canViewStep(step));
+  });
+
+  readonly stepperSteps = computed<Step[]>(() =>
+    this.trackerStepConfigs().map(({ label, subLabel, completed }) => ({ label, subLabel, completed }))
+  );
+
+  readonly currentStepMeta = computed<TrackerStepConfig | null>(
+    () => this.trackerStepConfigs().find((step) => step.index === this.currentStep()) ?? null
+  );
 
   constructor() {
     this.shipmentForm = this.buildForm();
@@ -173,6 +251,23 @@ export class ShipmentFormComponent implements OnDestroy {
     effect(() => {
       const data = this.shipmentData();
       if (data) this.populateFormWithData(data);
+    });
+
+    effect(() => {
+      if (this.trackerAccessDenied()) {
+        return;
+      }
+
+      const visibleSteps = this.accessibleTrackerSteps();
+      const currentStep = this.currentStep();
+
+      if (!visibleSteps.length) {
+        return;
+      }
+
+      if (!visibleSteps.some((step) => step.index === currentStep)) {
+        this.store.dispatch(ShipmentActions.setCurrentStep({ step: visibleSteps[0].index }));
+      }
     });
 
     // Load shipment on route param
@@ -187,7 +282,29 @@ export class ShipmentFormComponent implements OnDestroy {
 
   getDisplayShipmentNo(): string {
     const shipmentNo = this.shipmentForm.get('shipmentNo')?.value;
-    return typeof shipmentNo === 'string' ? shipmentNo.replace(/\([^)]*\)/g, '').trim() : '';
+    return typeof shipmentNo === 'string' ? shipmentNo.replace(/\([^)]*\)/g, '').replace(/-\d+$/, '').trim() : '';
+  }
+
+  isStepReadOnly(stepIndex: number): boolean {
+    if (stepIndex === 0) {
+      return true;
+    }
+
+    const step = this.trackerStepConfigs().find((item) => item.index === stepIndex);
+    if (!step || !step.editPermissionKey || !this.shouldEnforceTabPermissions()) {
+      return false;
+    }
+
+    return !this.rbacService.hasPermission(step.editPermissionKey);
+  }
+
+  getNextVisibleStepLabel(): string {
+    const nextStep = this.getAdjacentAccessibleStep(1);
+    return nextStep?.label || '';
+  }
+
+  hasPreviousAccessibleStep(): boolean {
+    return !!this.getAdjacentAccessibleStep(-1);
   }
 
   // --- Form Accessors ---
@@ -1178,26 +1295,80 @@ export class ShipmentFormComponent implements OnDestroy {
 
   // --- Navigation ---
   onStepChange(step: number): void {
-    this.store.dispatch(ShipmentActions.setCurrentStep({ step }));
+    const targetStep = this.trackerStepConfigs()[step];
+    if (!targetStep) {
+      return;
+    }
+    if (!this.canViewStep(targetStep)) {
+      return;
+    }
+    this.store.dispatch(ShipmentActions.setCurrentStep({ step: targetStep.index }));
+    if (this.shipmentId) {
+      this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: this.shipmentId }));
+    }
+  }
+
+  goToStep(stepIndex: number): void {
+    const targetStep = this.trackerStepConfigs().find((step) => step.index === stepIndex);
+    if (!targetStep || !this.canViewStep(targetStep)) {
+      return;
+    }
+
+    this.store.dispatch(ShipmentActions.setCurrentStep({ step: stepIndex }));
     if (this.shipmentId) {
       this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: this.shipmentId }));
     }
   }
 
   nextStep(): void {
-    const next = this.currentStep() + 1;
-    if (next < this.steps().length) {
-      this.store.dispatch(ShipmentActions.setCurrentStep({ step: next }));
+    const nextStep = this.getAdjacentAccessibleStep(1);
+    if (nextStep) {
+      this.store.dispatch(ShipmentActions.setCurrentStep({ step: nextStep.index }));
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }
 
   prevStep(): void {
-    const prev = this.currentStep() - 1;
-    if (prev >= 0) {
-      this.store.dispatch(ShipmentActions.setCurrentStep({ step: prev }));
+    const previousStep = this.getAdjacentAccessibleStep(-1);
+    if (previousStep) {
+      this.store.dispatch(ShipmentActions.setCurrentStep({ step: previousStep.index }));
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  }
+
+  private shouldEnforceTabPermissions(): boolean {
+    if (['Admin', 'Manager'].includes(this.authService.getCurrentUser()?.role || '')) {
+      return false;
+    }
+    return !!this.effectivePermissions();
+  }
+
+  private hasTrackerScreenAccess(): boolean {
+    if (!this.shouldEnforceTabPermissions()) {
+      return true;
+    }
+    return this.rbacService.hasPermission('shipment.screen.shipment_tracker.view');
+  }
+
+  private canViewStep(step: TrackerStepConfig): boolean {
+    if (!this.shouldEnforceTabPermissions()) {
+      return true;
+    }
+    return this.rbacService.hasPermission(step.viewPermissionKey);
+  }
+
+  private getAdjacentAccessibleStep(direction: 1 | -1): TrackerStepConfig | null {
+    const currentIndex = this.currentStep();
+    const steps = this.trackerStepConfigs();
+
+    for (let index = currentIndex + direction; index >= 0 && index < steps.length; index += direction) {
+      const step = steps[index];
+      if (step && this.canViewStep(step)) {
+        return step;
+      }
+    }
+
+    return null;
   }
 
   // --- Helpers ---
@@ -1222,7 +1393,27 @@ export class ShipmentFormComponent implements OnDestroy {
         return null;
       }
 
-      return endDate <= startDate ? { [errorKey]: true } : null;
+      const errors: ValidationErrors = {};
+
+      if (endDate <= startDate) {
+        errors[errorKey] = true;
+      }
+
+      const poDateStr = this.shipmentData()?.shipment?.orderDate;
+      if (poDateStr) {
+        const poDate = new Date(poDateStr);
+        if (!Number.isNaN(poDate.getTime())) {
+          poDate.setHours(0, 0, 0, 0);
+          if (startDate <= poDate) {
+            errors['etdBeforePoDate'] = true;
+          }
+          if (endDate <= poDate) {
+            errors['etaBeforePoDate'] = true;
+          }
+        }
+      }
+
+      return Object.keys(errors).length > 0 ? errors : null;
     };
   }
 
@@ -1235,20 +1426,38 @@ export class ShipmentFormComponent implements OnDestroy {
       const shipDate = shipOnBoardDate ? new Date(shipOnBoardDate) : null;
       const etdDate = etd ? new Date(etd) : null;
       const etaDate = eta ? new Date(eta) : null;
+      const errors: ValidationErrors = {};
 
       if (shipDate && etdDate && etdDate <= shipDate) {
-        return { etdBeforeShipOnBoard: true };
+        errors['etdBeforeShipOnBoard'] = true;
       }
 
       if (shipDate && etaDate && etaDate <= shipDate) {
-        return { etaBeforeShipOnBoard: true };
+        errors['etaBeforeShipOnBoard'] = true;
       }
 
       if (etdDate && etaDate && etaDate <= etdDate) {
-        return { etaBeforeEtd: true };
+        errors['etaBeforeEtd'] = true;
       }
 
-      return null;
+      const poDateStr = this.shipmentData()?.shipment?.orderDate;
+      if (poDateStr) {
+        const poDate = new Date(poDateStr);
+        if (!Number.isNaN(poDate.getTime())) {
+          poDate.setHours(0, 0, 0, 0);
+          if (etdDate && etdDate <= poDate) {
+            errors['etdBeforePoDate'] = true;
+          }
+          if (etaDate && etaDate <= poDate) {
+            errors['etaBeforePoDate'] = true;
+          }
+          if (shipDate && shipDate <= poDate) {
+            errors['shipOnBoardBeforePoDate'] = true;
+          }
+        }
+      }
+
+      return Object.keys(errors).length > 0 ? errors : null;
     };
   }
 

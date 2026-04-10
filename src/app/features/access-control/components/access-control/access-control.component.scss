@@ -30,6 +30,11 @@
 
 .permission-table {
   @apply min-w-full border-collapse;
+
+  .matrix-expand-col {
+    width: 56px;
+    min-width: 56px;
+  }
 }
 
 .permission-table thead th {
@@ -44,6 +49,18 @@
   @apply border-b-0;
 }
 
+.permission-matrix-row {
+  @apply cursor-pointer transition;
+
+  &:hover td {
+    @apply bg-slate-50/60;
+  }
+}
+
+.permission-detail-row td {
+  @apply bg-slate-50/50;
+}
+
 .permission-table .is-center {
   @apply text-center;
 }
@@ -54,4 +71,16 @@
 
 .permission-checkbox {
   @apply h-4 w-4 rounded border-slate-300 text-blue-600;
+}
+
+.matrix-expand-btn {
+  @apply inline-flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50;
+}
+
+.field-permission-shell {
+  @apply rounded-2xl border border-slate-200 bg-white p-4;
+}
+
+.field-permission-card {
+  @apply flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3;
 }

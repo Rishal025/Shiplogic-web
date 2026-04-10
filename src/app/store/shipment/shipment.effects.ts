@@ -42,17 +42,8 @@ export class ShipmentEffects {
                 actualData?.murabahaContractSubmittedDocumentUrl ||
                 actualData?.documentsReleasedDocumentUrl
               ) submittedStep3Indices.push(index);
-              if (
-                actualData?.arrivalOn ||
-                actualData?.arrivalNoticeDate ||
-                actualData?.arrivalNoticeDocumentUrl ||
-                actualData?.advanceRequestDocumentUrl ||
-                actualData?.doReleasedDocumentUrl ||
-                actualData?.dpApprovalDocumentUrl ||
-                actualData?.customsClearanceDocumentUrl ||
-                actualData?.municipalityDocumentUrl ||
-                (actualData?.transportationBooked?.length ?? 0) > 0
-              ) submittedStep4Indices.push(index);
+              // Step 4 (Logistics) is now handled via surgical sections, so we won't mark it 
+              // as fully "submitted" just because one field has a value.
               if ((actualData?.storageSplits?.length ?? 0) > 0) submittedStep5Indices.push(index);
               if ((actualData?.qualityRows?.length ?? 0) > 0 || (actualData?.qualityReports?.length ?? 0) > 0) {
                 submittedStep6Indices.push(index);

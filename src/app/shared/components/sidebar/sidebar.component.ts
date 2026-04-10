@@ -35,6 +35,7 @@ export class SidebarComponent {
       { label: 'Suppliers', icon: 'pi pi-users', route: '/suppliers', permissionKey: 'menu.suppliers.view' },
       { label: 'Reports', icon: 'pi pi-chart-line', route: '/reports', permissionKey: 'menu.reports.view' },
       { label: 'Access Control', icon: 'pi pi-shield', route: '/access-control', permissionKey: 'menu.access_control.view' },
+      { label: 'Settings', icon: 'pi pi-cog', route: '/settings/warehouses', permissionKey: 'menu.settings.view' },
     ];
 
     return items.filter((item) => {

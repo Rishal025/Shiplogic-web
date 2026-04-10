@@ -102,7 +102,7 @@
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Expected Date of Document Arrival</label>
-                <p-datepicker formControlName="expectedDocDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                <p-datepicker formControlName="expectedDocDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
               </div>
               <div class="flex flex-col gap-1.5">
                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Receiver</label>
@@ -131,7 +131,7 @@
                   <div class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 shadow-sm">
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Inward Collection Notice Date</label>
                     <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <p-datepicker formControlName="inwardCollectionAdviceDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                      <p-datepicker formControlName="inwardCollectionAdviceDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
                       <div class="flex items-center gap-2 sm:shrink-0">
                         <button type="button" (click)="clickFileInput(i, 'inwardAdvice')" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0">
                           <i class="pi pi-upload"></i>
@@ -158,11 +158,11 @@
                   </div>
                   <div class="flex flex-col gap-1.5">
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Murabaha Contract Release Date</label>
-                    <p-datepicker formControlName="murabahaContractReleasedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                    <p-datepicker formControlName="murabahaContractReleasedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
                   </div>
                   <div class="flex flex-col gap-1.5">
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Murabaha Contract Approved Date</label>
-                    <p-datepicker formControlName="murabahaContractApprovedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                    <p-datepicker formControlName="murabahaContractApprovedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
                   </div>
                 </div>
 
@@ -170,7 +170,7 @@
                   <div class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 shadow-sm">
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Approved Murabaha Contract Submitted Date</label>
                     <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <p-datepicker formControlName="murabahaContractSubmittedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                      <p-datepicker formControlName="murabahaContractSubmittedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
                       <div class="flex items-center gap-2 sm:shrink-0">
                         <button type="button" (click)="clickFileInput(i, 'murabahaSubmitted')" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0">
                           <i class="pi pi-upload"></i>
@@ -199,7 +199,7 @@
                   <div class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 shadow-sm">
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Documents Released Date</label>
                     <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <p-datepicker formControlName="documentsReleasedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                      <p-datepicker formControlName="documentsReleasedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
                       <div class="flex items-center gap-2 sm:shrink-0">
                         <button type="button" (click)="clickFileInput(i, 'documentsReleased')" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0">
                           <i class="pi pi-upload"></i>

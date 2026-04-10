@@ -24,7 +24,8 @@ export const routes: Routes = [
             { path: 'suppliers', loadChildren: () => import('./features/suppliers/suppliers.routes').then(m => m.SUPPLIERS_ROUTES) },
             { path: 'supplier-schedules', loadChildren: () => import('./features/supplier-schedules/supplier-schedules.routes').then(m => m.SUPPLIER_SCHEDULES_ROUTES) },
             { path: 'reports', loadChildren: () => import('./features/reports/reports.routes').then(m => m.REPORTS_ROUTES) },
-            { path: 'access-control', loadChildren: () => import('./features/access-control/access-control.routes').then(m => m.ACCESS_CONTROL_ROUTES) }
+            { path: 'access-control', loadChildren: () => import('./features/access-control/access-control.routes').then(m => m.ACCESS_CONTROL_ROUTES) },
+            { path: 'settings', loadChildren: () => import('./features/settings/settings.routes').then(m => m.SETTINGS_ROUTES) }
 
         ]
     },

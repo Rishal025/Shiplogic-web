@@ -76,9 +76,15 @@
       <h2>Supplier & Item</h2>
     </div>
     <div class="sl-card-body flex flex-col gap-5">
-      <div class="flex flex-col gap-1 md:col-span-2">
-        <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Supplier</span>
-        <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.supplier || '–' }}</span>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="flex flex-col gap-1">
+          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Supplier</span>
+          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.supplier || '–' }}</span>
+        </div>
+        <div class="flex flex-col gap-1">
+          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Supplier Email</span>
+          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.supplierEmail || '–' }}</span>
+        </div>
       </div>
 
       @if (getLineItems().length) {
@@ -88,7 +94,7 @@
               <thead>
                 <tr class="bg-slate-50">
                   <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Line</th>
-                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Item Code</th>
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 whitespace-nowrap">Item Code</th>
                   <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Description</th>
                   <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Commodity</th>
                   <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Brand</th>
@@ -105,9 +111,9 @@
                 @for (item of getLineItems(); track item.lineNo ?? $index; let i = $index) {
                   <tr>
                     <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-500">{{ item.lineNo || (i + 1) }}</td>
-                    <td class="border-t border-slate-100 px-4 py-4 text-sm font-medium text-slate-900">{{ item.itemCode || '–' }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm font-medium text-slate-900 whitespace-nowrap">{{ item.itemCode || '–' }}</td>
                     <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.itemDescription || '–' }}</td>
-                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.commodity || '–' }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ (item.commodity || '–') | titlecase }}</td>
                     <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.brandName || '–' }}</td>
                     <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.packagingType || '–' }}</td>
                     <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.plannedContainers ?? '–' }}</td>
@@ -230,7 +236,7 @@
         </div>
         <div class="flex flex-col gap-1">
           <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Shipment No.</span>
-          <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.shipmentNo || '–' }}</span>
+          <span class="text-sm font-semibold text-slate-900">{{ (shipmentData()?.shipment?.shipmentNo || '–').replace(/\([^)]*\)/g, '').replace(/-\d+$/, '').trim() }}</span>
         </div>
         <div class="flex flex-col gap-1">
           <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">No. of Shipments</span>
@@ -265,12 +271,6 @@
       <div class="sl-card-body">
         <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
           <div class="flex flex-col gap-1">
-            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Container Size</span>
-            <span class="text-lg font-bold text-slate-900">
-              {{ shipmentData()?.shipment?.containerSize ?? '–' }}
-            </span>
-          </div>
-          <div class="flex flex-col gap-1">
             <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Buying Unit</span>
             <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.buyunit || '–' }}</span>
           </div>
@@ -279,9 +279,13 @@
             <span class="text-lg font-bold text-slate-900">{{ (shipmentData()?.shipment?.fcPerUnit ?? 0) | currency: 'USD' }}</span>
           </div>
           <div class="flex flex-col gap-1">
-            <span class="sl-label text-[10px] uppercase tracking-wider text-blue-500">Total Amount</span>
+            <span class="sl-label text-[10px] uppercase tracking-wider text-blue-500">Total USD</span>
             <span class="text-xl font-black text-slate-900 tracking-tight">{{ (shipmentData()?.shipment?.payment ?? 0) | currency: 'USD' }}</span>
             <span class="text-[10px] text-slate-400">Terms: {{ shipmentData()?.shipment?.paymentTerms || '–' }}</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="sl-label text-[10px] uppercase tracking-wider text-emerald-500">Total AED</span>
+            <span class="text-xl font-black text-emerald-800 tracking-tight">{{ (shipmentData()?.shipment?.totalAED ?? 0) | number:'1.2-2' }}</span>
           </div>
           @if ((shipmentData()?.shipment?.paymentTerms || '').includes('CAD')) {
             <div class="flex flex-col gap-1">

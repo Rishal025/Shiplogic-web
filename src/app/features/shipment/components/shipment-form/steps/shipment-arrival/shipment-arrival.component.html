@@ -1,3 +1,29 @@
+@if (extractingArrivalNoticeRowIndex() !== null) {
+  <div class="extraction-overlay">
+    <div class="extraction-overlay__backdrop"></div>
+    <div class="extraction-overlay__card">
+      <div class="extraction-overlay__badge">
+        <span class="extraction-overlay__badge-dot"></span>
+        Royal AI
+      </div>
+      <div class="extraction-orb">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <h3 class="extraction-overlay__title">Royal AI is extracting Arrival details</h3>
+      <p class="extraction-overlay__message">{{ currentExtractionMessage() }}</p>
+      <div class="extraction-progress">
+        <div class="extraction-progress__bar" [style.width.%]="extractionProgress()"></div>
+      </div>
+      <div class="extraction-overlay__footer">
+        <span>This usually takes a few seconds.</span>
+        <span>Please keep this window open while extraction finishes.</span>
+      </div>
+    </div>
+  </div>
+}
+
 @if (formArray.controls.length === 0) {
   <div class="p-16 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
     <div class="flex flex-col items-center justify-center gap-3">
@@ -121,21 +147,21 @@
                   </div>
                   <div class="flex flex-col gap-1.5">
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Arrival On</label>
-                    <p-datepicker formControlName="arrivalOn" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onArrivalDateChange(i)" />
+                    <p-datepicker formControlName="arrivalOn" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onArrivalDateChange(i)" [readonlyInput]="true" [showIcon]="true" />
                   </div>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   <div class="flex flex-col gap-1.5">
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shipment Free Retention Date</label>
-                    <p-datepicker formControlName="shipmentFreeRetentionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="false" />
+                    <p-datepicker formControlName="shipmentFreeRetentionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
                   </div>
                   <div class="flex flex-col gap-1.5">
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Maximum Retention Date</label>
-                    <p-datepicker formControlName="maximumRetentionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="false" />
+                    <p-datepicker formControlName="maximumRetentionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
                   </div>
                   <div class="flex flex-col gap-1.5">
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Port Retention Date</label>
-                    <p-datepicker formControlName="portRetentionWithPenaltyDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="false" />
+                    <p-datepicker formControlName="portRetentionWithPenaltyDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
                   </div>
                 </div>
               </div>
@@ -170,7 +196,7 @@
                     }
                   </div>
                   <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <p-datepicker [formControlName]="doc.dateControl" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                    <p-datepicker [formControlName]="doc.dateControl" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
                     <div class="flex items-center gap-2 sm:shrink-0">
                       <button
                         type="button"
@@ -221,7 +247,7 @@
                   @if (doc.kind === 'customsClearance') {
                     <div class="flex flex-col gap-1.5">
                       <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Token Received Date</label>
-                      <p-datepicker formControlName="tokenReceivedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                      <p-datepicker formControlName="tokenReceivedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
                     </div>
                   }
                 </div>

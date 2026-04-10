@@ -91,25 +91,33 @@
           <p class="text-slate-500 text-xs md:text-sm">
             Phase:
             <span class="text-blue-600 font-bold uppercase tracking-wider">
-              {{ steps()[currentStep()].label }}
+              {{ currentStepMeta()?.label }}
             </span>
           </p>
         </div>
       </div>
     </header>
 
-    <!-- Stepper -->
-    <section class="sl-card shadow-sm border-slate-100 compact-stepper-shell" aria-label="Shipment Progress Navigation">
-      <div class="py-3 sm:py-4 justify-center!">
-        <app-stepper
-          [steps]="steps()"
-          [currentStep]="currentStep()"
-          (stepChange)="onStepChange($event)"
-        ></app-stepper>
-      </div>
-    </section>
+    @if (trackerAccessDenied()) {
+      <section class="sl-card border-slate-100 p-8 text-center">
+        <h2 class="text-xl font-bold text-slate-900">Tracker access restricted</h2>
+        <p class="mt-2 text-sm text-slate-500">
+          Your role does not currently have permission to view any shipment tracker tabs.
+        </p>
+      </section>
+    } @else {
+      <!-- Stepper -->
+      <section class="sl-card shadow-sm border-slate-100 compact-stepper-shell" aria-label="Shipment Progress Navigation">
+        <div class="py-3 sm:py-4 justify-center!">
+          <app-stepper
+            [steps]="stepperSteps()"
+            [currentStep]="currentStep()"
+            (stepChange)="onStepChange($event)"
+          ></app-stepper>
+        </div>
+      </section>
 
-    <div class="pb-20">
+      <div class="pb-20">
 
       <!-- Step 0: Summary -->
       @if (currentStep() === 0) {
@@ -120,35 +128,37 @@
 
       <!-- Step 1: Split -->
       @if (currentStep() === 1) {
-        <app-shipment-split
-          [plannedSplits]="plannedSplits"
-          [actualSplits]="actualSplits"
-          [noOfShipmentsControl]="noOfShipmentsFormControl"
-          [totalQtyMT]="shipmentData()?.shipment?.plannedQtyMT ?? 0"
-          (addActual)="onAddActual()"
-          (removeActual)="onRemoveActual($event)"
-          (confirmNoOfShipments)="onConfirmNoOfShipments($event)"
-          (addPlannedRow)="addPlannedRow()"
-          (removePlannedRow)="removePlannedRow($event)"
-        ></app-shipment-split>
+        <div [class.rbac-readonly-shell]="isStepReadOnly(1)">
+          <app-shipment-split
+            [plannedSplits]="plannedSplits"
+            [actualSplits]="actualSplits"
+            [noOfShipmentsControl]="noOfShipmentsFormControl"
+            [totalQtyMT]="shipmentData()?.shipment?.plannedQtyMT ?? 0"
+            (addActual)="onAddActual()"
+            (removeActual)="onRemoveActual($event)"
+            (confirmNoOfShipments)="onConfirmNoOfShipments($event)"
+            (addPlannedRow)="addPlannedRow()"
+            (removePlannedRow)="removePlannedRow($event)"
+          ></app-shipment-split>
+        </div>
       }
 
       @if (currentStep() === 2) {
         <div
           class="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500"
           role="region"
-          [attr.aria-label]="steps()[currentStep()].label + ' Management'"
+          [attr.aria-label]="(currentStepMeta()?.label || 'Shipment Step') + ' Management'"
         >
           <div class="bg-slate-900 p-4 rounded-2xl flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center shadow-lg">
             <h2 class="text-sm font-black text-white uppercase tracking-widest">
-              {{ steps()[currentStep()].label }}
+              {{ currentStepMeta()?.label }}
             </h2>
             <span class="px-3 py-1 bg-slate-800 rounded-lg text-[9px] font-black text-blue-400 uppercase tracking-widest">
               Linked to Actuals
             </span>
           </div>
 
-          <div class="sl-card overflow-hidden">
+          <div class="sl-card overflow-hidden" [class.rbac-readonly-shell]="isStepReadOnly(2)">
             <app-shipment-bl-details
               [formArray]="blDetailsSplits"
             ></app-shipment-bl-details>
@@ -160,21 +170,21 @@
         <div
           class="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500"
           role="region"
-          [attr.aria-label]="steps()[currentStep()].label + ' Management'"
+          [attr.aria-label]="(currentStepMeta()?.label || 'Shipment Step') + ' Management'"
         >
           <div class="bg-slate-900 p-4 rounded-2xl flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center shadow-lg">
             <h2 class="text-sm font-black text-white uppercase tracking-widest">
-              {{ steps()[currentStep()].label }}
+              {{ currentStepMeta()?.label }}
             </h2>
             <span class="px-3 py-1 bg-slate-800 rounded-lg text-[9px] font-black text-blue-400 uppercase tracking-widest">
               Linked to Actuals
             </span>
           </div>
 
-          <div class="sl-card overflow-hidden">
+          <div class="sl-card overflow-hidden" [class.rbac-readonly-shell]="isStepReadOnly(3)">
             <app-shipment-documentation
               [formArray]="documentationSplits"
-              (navigateToSplit)="onStepChange(1)"
+              (navigateToSplit)="goToStep(1)"
             ></app-shipment-documentation>
           </div>
         </div>
@@ -184,18 +194,18 @@
         <div
           class="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500"
           role="region"
-          [attr.aria-label]="steps()[currentStep()].label + ' Management'"
+          [attr.aria-label]="(currentStepMeta()?.label || 'Shipment Step') + ' Management'"
         >
           <div class="bg-slate-900 p-4 rounded-2xl flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center shadow-lg">
             <h2 class="text-sm font-black text-white uppercase tracking-widest">
-              {{ steps()[currentStep()].label }}
+              {{ currentStepMeta()?.label }}
             </h2>
             <span class="px-3 py-1 bg-slate-800 rounded-lg text-[9px] font-black text-blue-400 uppercase tracking-widest">
               Logistics
             </span>
           </div>
 
-          <div class="sl-card overflow-hidden">
+          <div class="sl-card overflow-hidden" [class.rbac-readonly-shell]="isStepReadOnly(4)">
             <app-shipment-arrival
               [formArray]="arrivalTimeSplits"
             ></app-shipment-arrival>
@@ -207,18 +217,18 @@
         <div
           class="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500"
           role="region"
-          [attr.aria-label]="steps()[currentStep()].label + ' Management'"
+          [attr.aria-label]="(currentStepMeta()?.label || 'Shipment Step') + ' Management'"
         >
           <div class="bg-slate-900 p-4 rounded-2xl flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center shadow-lg">
             <h2 class="text-sm font-black text-white uppercase tracking-widest">
-              {{ steps()[currentStep()].label }}
+              {{ currentStepMeta()?.label }}
             </h2>
             <span class="px-3 py-1 bg-slate-800 rounded-lg text-[9px] font-black text-blue-400 uppercase tracking-widest">
               Logistics
             </span>
           </div>
 
-          <div class="sl-card overflow-hidden">
+          <div class="sl-card overflow-hidden" [class.rbac-readonly-shell]="isStepReadOnly(5)">
             <app-shipment-storage
               [formArray]="storageSplits"
             ></app-shipment-storage>
@@ -230,18 +240,18 @@
         <div
           class="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500"
           role="region"
-          [attr.aria-label]="steps()[currentStep()].label + ' Management'"
+          [attr.aria-label]="(currentStepMeta()?.label || 'Shipment Step') + ' Management'"
         >
           <div class="bg-slate-900 p-4 rounded-2xl flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center shadow-lg">
             <h2 class="text-sm font-black text-white uppercase tracking-widest">
-              {{ steps()[currentStep()].label }}
+              {{ currentStepMeta()?.label }}
             </h2>
             <span class="px-3 py-1 bg-slate-800 rounded-lg text-[9px] font-black text-blue-400 uppercase tracking-widest">
               QA
             </span>
           </div>
 
-          <div class="sl-card overflow-visible">
+          <div class="sl-card overflow-visible" [class.rbac-readonly-shell]="isStepReadOnly(6)">
             <app-shipment-quality
               [formArray]="grnSplits"
             ></app-shipment-quality>
@@ -253,18 +263,18 @@
         <div
           class="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500"
           role="region"
-          [attr.aria-label]="steps()[currentStep()].label + ' Management'"
+          [attr.aria-label]="(currentStepMeta()?.label || 'Shipment Step') + ' Management'"
         >
           <div class="bg-slate-900 p-4 rounded-2xl flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center shadow-lg">
             <h2 class="text-sm font-black text-white uppercase tracking-widest">
-              {{ steps()[currentStep()].label }}
+              {{ currentStepMeta()?.label }}
             </h2>
             <span class="px-3 py-1 bg-slate-800 rounded-lg text-[9px] font-black text-blue-400 uppercase tracking-widest">
               FAS
             </span>
           </div>
 
-          <div class="sl-card overflow-visible">
+          <div class="sl-card overflow-visible" [class.rbac-readonly-shell]="isStepReadOnly(7)">
             <app-shipment-payment-costing
               [formArray]="clearanceFinalSplits"
             ></app-shipment-payment-costing>
@@ -276,26 +286,27 @@
       <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between sm:items-center mt-10" role="navigation" aria-label="Step Navigation">
         <button
           (click)="prevStep()"
-          [disabled]="currentStep() === 0"
+          [disabled]="!hasPreviousAccessibleStep()"
           aria-label="Previous Step"
           class="flex items-center justify-center gap-2 px-6 py-2 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-30 text-[10px] uppercase w-full sm:w-auto"
         >
           <i class="pi pi-chevron-left" aria-hidden="true"></i> Back
         </button>
 
-        @if (currentStep() < steps().length - 1) {
+        @if (getNextVisibleStepLabel()) {
           <button
             (click)="nextStep()"
             aria-label="Continue to Next Step"
             class="flex items-center justify-center gap-3 px-8 py-2.5 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 shadow-lg text-[10px] uppercase w-full sm:w-auto"
           >
-            Continue to {{ steps()[currentStep() + 1]?.label }}
+            Continue to {{ getNextVisibleStepLabel() }}
             <i class="pi pi-chevron-right" aria-hidden="true"></i>
           </button>
         }
       </div>
 
     </div>
+    }
   }
 
 </div>

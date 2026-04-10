@@ -1,0 +1,8 @@
+import { Routes } from '@angular/router';
+
+export const SETTINGS_ROUTES: Routes = [
+  {
+    path: 'warehouses',
+    loadComponent: () => import('./warehouse-management/warehouse-management.component').then(m => m.WarehouseManagementComponent)
+  }
+];

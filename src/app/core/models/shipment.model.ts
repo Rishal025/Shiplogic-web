@@ -461,6 +461,7 @@ export interface ShipmentInfo {
   poNumber?: string;
   fpoNo?: string;
   supplier: string;
+  supplierEmail?: string;
   item: string;
   itemCode?: string;
   commodity?: string;
@@ -479,6 +480,7 @@ export interface ShipmentInfo {
   assumedContainerCount: number;
   currentStage: string;
   payment: number;
+  totalAED?: number;
   incoterms?: string;
   buyunit?: string;
   fcPerUnit?: number;
@@ -707,6 +709,7 @@ export interface ActualContainer {
     transportTime?: string;
     delayHours?: number;
   }>;
+  lockedLogisticsSections?: string[];
   // Step 4 legacy
   clearExpectedOn?: string;
   shipmentArrivedOn?: string;

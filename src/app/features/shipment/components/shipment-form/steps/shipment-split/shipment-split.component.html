@@ -1,3 +1,30 @@
+<p-toast />
+@if (extractingBillNoRowIndex() !== null) {
+  <div class="extraction-overlay">
+    <div class="extraction-overlay__backdrop"></div>
+    <div class="extraction-overlay__card">
+      <div class="extraction-overlay__badge">
+        <span class="extraction-overlay__badge-dot"></span>
+        Royal AI
+      </div>
+      <div class="extraction-orb">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <h3 class="extraction-overlay__title">Royal AI is extracting your BL details</h3>
+      <p class="extraction-overlay__message">{{ currentExtractionMessage() }}</p>
+      <div class="extraction-progress">
+        <div class="extraction-progress__bar" [style.width.%]="extractionProgress()"></div>
+      </div>
+      <div class="extraction-overlay__footer">
+        <span>This usually takes a few seconds.</span>
+        <span>Please keep this window open while extraction finishes.</span>
+      </div>
+    </div>
+  </div>
+}
+
 <div class="flex flex-col gap-6 animate-in fade-in duration-500">
   <!-- Tab Bar + No of Shipments -->
   <div class="split-toolbar bg-slate-900 p-3 rounded-2xl shadow-xl">
@@ -259,33 +286,51 @@
                     <div class="text-xs text-slate-500">{{ entry.remarks }}</div>
                   }
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 min-w-0 lg:min-w-[24rem]">
-                  <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <div class="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-500">Before</div>
-                    <div class="space-y-2">
-                      @for (row of entry.before; track $index) {
-                        <div class="rounded-lg bg-white px-3 py-2 text-xs text-slate-600">
-                          <span class="font-semibold">{{ getScheduledShipmentId($index) }}</span>
-                          • {{ row.qtyMT || 0 }} MT • FCL {{ row.FCL || 0 }} • ETA {{ row.eta ? formatHistoryTimestamp(row.eta).split(',')[0] : '—' }}
+                <div class="flex-1 space-y-3">
+                  @for (diff of getRowDiffs(entry); track $index) {
+                    @if (diff.status !== 'Unchanged') {
+                      <div class="rounded-xl border p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all"
+                        [class.bg-emerald-50]="diff.status === 'Added'"
+                        [class.border-emerald-100]="diff.status === 'Added'"
+                        [class.bg-red-50]="diff.status === 'Removed'"
+                        [class.border-red-100]="diff.status === 'Removed'"
+                        [class.bg-slate-50]="diff.status === 'Modified'"
+                        [class.border-slate-200]="diff.status === 'Modified'">
+                        
+                        <div class="flex items-center gap-3">
+                          <span class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-[10px] font-black text-slate-500 shadow-sm">
+                            {{ $index + 1 }}
+                          </span>
+                          <div class="flex flex-col">
+                            <span class="text-xs font-bold text-slate-900">{{ diff.shipmentId }}</span>
+                            <span class="text-[9px] font-black uppercase tracking-wider"
+                              [class.text-emerald-600]="diff.status === 'Added'"
+                              [class.text-red-600]="diff.status === 'Removed'"
+                              [class.text-slate-400]="diff.status === 'Modified'">
+                              {{ diff.status }}
+                            </span>
+                          </div>
                         </div>
-                      } @empty {
-                        <div class="text-xs text-slate-400">No previous baseline.</div>
-                      }
-                    </div>
-                  </div>
-                  <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
-                    <div class="mb-2 text-[10px] font-black uppercase tracking-widest text-emerald-700">After</div>
-                    <div class="space-y-2">
-                      @for (row of entry.after; track $index) {
-                        <div class="rounded-lg bg-white px-3 py-2 text-xs text-slate-600">
-                          <span class="font-semibold">{{ getScheduledShipmentId($index) }}</span>
-                          • {{ row.qtyMT || 0 }} MT • FCL {{ row.FCL || 0 }} • ETA {{ row.eta ? formatHistoryTimestamp(row.eta).split(',')[0] : '—' }}
+
+                        <div class="flex flex-wrap gap-2 sm:justify-end">
+                          @if (diff.status === 'Modified') {
+                            @for (change of diff.changes; track change.field) {
+                              <div class="px-2 py-1 rounded bg-white border border-slate-200 flex items-center gap-2 text-[10px] shadow-sm">
+                                <span class="font-bold text-slate-500 uppercase">{{ change.field }}:</span>
+                                <span class="line-through text-slate-400">{{ change.before || '—' }}</span>
+                                <i class="pi pi-arrow-right text-[8px] text-slate-400 font-bold"></i>
+                                <span class="font-black text-slate-900">{{ change.after || '—' }}</span>
+                              </div>
+                            }
+                          } @else if (diff.status === 'Added') {
+                            <div class="text-[10px] font-semibold text-emerald-700 italic">Created new shipment baseline</div>
+                          } @else if (diff.status === 'Removed') {
+                            <div class="text-[10px] font-semibold text-red-700 italic">Removed from baseline</div>
+                          }
                         </div>
-                      } @empty {
-                        <div class="text-xs text-slate-400">No saved rows.</div>
-                      }
-                    </div>
-                  </div>
+                      </div>
+                    }
+                  }
                 </div>
               </div>
             </div>
@@ -323,8 +368,8 @@
             <th scope="col" class="actual-col-num">QTY(MT)</th>
             <th scope="col" class="actual-col-num">BAGS</th>
             <th scope="col" class="actual-col-num">PALLET</th>
-            <th scope="col" class="actual-col-ci">COMMERCIAL INVOICE NO</th>
             <th scope="col" class="actual-col-bl">BL NO</th>
+            <th scope="col" class="actual-col-ci">COMMERCIAL INVOICE NO</th>
             <th scope="col" class="actual-col-date">SHIP ONBOARD DATE</th>
             <th scope="col" class="actual-col-date">ETD</th>
             <th scope="col" class="actual-col-date">ETA</th>
@@ -366,15 +411,6 @@
               <p-inputNumber formControlName="pallet" styleClass="w-full"
                 inputStyleClass="table-input" ariaLabel="Pallet" placeholder="0"
               ></p-inputNumber>
-            </td>
-            <td class="actual-col-ci">
-              <input
-                pInputText
-                formControlName="commercialInvoiceNo"
-                class="table-input-text w-full"
-                aria-label="Commercial Invoice Number"
-                placeholder="CI-001"
-              />
             </td>
             <td class="actual-col-bl">
               <div class="flex items-center gap-1.5 w-full">
@@ -426,11 +462,21 @@
                 }
               </div>
             </td>
+            <td class="actual-col-ci">
+              <input
+                pInputText
+                formControlName="commercialInvoiceNo"
+                class="table-input-text w-full"
+                aria-label="Commercial Invoice Number"
+                placeholder="CI-001"
+              />
+            </td>
             <td class="actual-col-date">
               <p-datepicker formControlName="shipOnBoardDate" appendTo="body"
                 inputStyleClass="date-mini" ariaLabel="Ship Onboard Date" placeholder="Ship Onboard"
                 [dateFormat]="appDateFormat"
                 [readonlyInput]="true"
+                [showIcon]="true"
               ></p-datepicker>
             </td>
             <td class="actual-col-date">
@@ -438,6 +484,7 @@
                 inputStyleClass="date-mini" ariaLabel="ETD" placeholder="ETD"
                 [dateFormat]="appDateFormat"
                 [readonlyInput]="true"
+                [showIcon]="true"
                 [minDate]="getStrictMinDate($any(group), 'shipOnBoardDate')"
               ></p-datepicker>
             </td>
@@ -446,6 +493,7 @@
                 inputStyleClass="date-mini" ariaLabel="ETA" placeholder="ETA"
                 [dateFormat]="appDateFormat"
                 [readonlyInput]="true"
+                [showIcon]="true"
                 [minDate]="getStrictMinDate($any(group), group.get('updatedETD')?.value ? 'updatedETD' : 'shipOnBoardDate')"
               ></p-datepicker>
             </td>

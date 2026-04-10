@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, inject, effect, signal, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject, effect, signal, computed, AfterViewInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormArray, FormControl, FormGroup } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
@@ -14,6 +14,8 @@ import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
+import { ToastModule } from 'primeng/toast';
+
 import {
   selectActiveSplitTab,
   selectIsPlannedLocked,
@@ -25,6 +27,18 @@ import {
 import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
 import { ScheduledHistoryEntry } from '../../../../../../core/models/shipment.model';
+
+export interface HistoryDiffRow {
+  index: number;
+  shipmentId: string;
+  status: 'Added' | 'Removed' | 'Modified' | 'Unchanged';
+  changes: {
+    field: string;
+    before: any;
+    after: any;
+  }[];
+}
+
 
 @Component({
   selector: 'app-shipment-split',
@@ -40,9 +54,12 @@ import { ScheduledHistoryEntry } from '../../../../../../core/models/shipment.mo
     TableModule,
     ConfirmDialogModule,
     DialogModule,
+    ToastModule,
   ],
+
   providers: [ConfirmationService],
   templateUrl: './shipment-split.component.html',
+  styleUrl: './shipment-split.component.scss',
 })
 export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   readonly appDateFormat = 'dd/mm/yy';
@@ -88,6 +105,17 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
 
   /** True after user clicks Confirm (No of Shipments) so the input becomes readonly until lock. */
   readonly noOfShipmentsConfirmed = signal(false);
+
+  readonly extractionMessages = [
+    'Uploading your documents securely',
+    'Royal AI is reading the BL document',
+    'Extracting bill number and invoice references',
+    'Preparing the extraction result for review'
+  ];
+  readonly extractionMessageIndex = signal(0);
+  readonly extractionProgress = signal(18);
+  readonly currentExtractionMessage = computed(() => this.extractionMessages[this.extractionMessageIndex()] || this.extractionMessages[0]);
+  private extractionTicker: any = null;
 
   private actualRecalcSub?: Subscription;
   private plannedLockSub?: Subscription;
@@ -170,6 +198,27 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.actualRecalcSub?.unsubscribe();
     this.plannedLockSub?.unsubscribe();
+    this.stopExtractionExperience();
+  }
+
+  private startExtractionExperience(): void {
+    this.stopExtractionExperience();
+    this.extractionMessageIndex.set(0);
+    this.extractionProgress.set(18);
+    this.extractionTicker = setInterval(() => {
+      this.extractionMessageIndex.update((index) => (index + 1) % this.extractionMessages.length);
+      this.extractionProgress.update((value) => {
+        if (value >= 88) return 26;
+        return value + 12;
+      });
+    }, 1600);
+  }
+
+  private stopExtractionExperience(): void {
+    if (this.extractionTicker) {
+      clearInterval(this.extractionTicker);
+      this.extractionTicker = null;
+    }
   }
 
   private applyPlannedRowLockState(): void {
@@ -187,27 +236,28 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  /** Parse packing (e.g. "20 KG" or 20) to number in KG. Default 20. */
   getPackingKg(): number {
     const p = this.shipmentData()?.shipment?.packing;
     if (p == null || p === '') return 20;
+    
+    // Attempt to specifically find a number immediately before KG/KGS
+    const kgMatch = String(p).toUpperCase().match(/(\d+(?:\.\d+)?)\s*KGS?/);
+    if (kgMatch && kgMatch[1]) {
+      const num = parseFloat(kgMatch[1]);
+      if (Number.isFinite(num) && num > 0) return num;
+    }
+
+    // Fallback block if KG prefix is not used explicitly
     const num = typeof p === 'number' ? p : parseFloat(String(p).replace(/[^0-9.]/g, ''));
     return Number.isFinite(num) && num > 0 ? num : 20;
   }
 
-  /** Container capacity in MT: 20ft = 25, 40ft = 26. */
   getContainerCapacityMT(size: string | number | null | undefined): number {
     const s = size != null ? String(size).trim() : '';
     if (s === '40') return 26;
     return 25; // 20ft default
   }
 
-  /**
-   * Compute bags and pallet for an Actual row.
-   * Bags per container = (container capacity in KG) / packing (KG).
-   * Total Bags = Bags per container × FCL.
-   * Total Pallet = Total Bags / 50.
-   */
   computeBagsAndPalletForRow(
     rowIndex: number,
     packingKg?: number
@@ -215,12 +265,15 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     const row = this.actualSplits?.at(rowIndex);
     if (!row) return null;
     const kg = packingKg ?? this.getPackingKg();
-    const capacityMT = this.getContainerCapacityMT(row.get('size')?.value);
-    const fcl = Number(row.get('FCL')?.value) || 0;
-    if (fcl <= 0) return null;
-    const capacityKg = capacityMT * 1000;
-    const bagsPerContainer = capacityKg / kg;
-    const bags = Math.round(bagsPerContainer * fcl);
+
+    // Calculate based tightly on actual assigned MT instead of theoretical capacity
+    const qtyMT = Number(row.get('qtyMT')?.value) || 0;
+    if (qtyMT <= 0) return null;
+
+    const totalKg = qtyMT * 1000;
+    const bags = Math.round(totalKg / kg);
+    
+    // Each pallet fits 50 bags (adjusts down properly)
     const pallet = Math.round(bags / 50);
     return { bags, pallet };
   }
@@ -494,6 +547,18 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   }
 
   getActualDateError(group: FormGroup): string | null {
+    if (group.hasError('shipOnBoardBeforePoDate')) {
+      return 'Ship Onboard Date must be later than PO Date.';
+    }
+
+    if (group.hasError('etdBeforePoDate')) {
+      return 'ETD must be later than PO Date.';
+    }
+
+    if (group.hasError('etaBeforePoDate')) {
+      return 'ETA must be later than PO Date.';
+    }
+
     if (group.hasError('etdBeforeShipOnBoard')) {
       return 'ETD must be later than Ship Onboard Date.';
     }
@@ -510,6 +575,14 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   }
 
   getPlannedDateError(group: FormGroup): string | null {
+    if (group.hasError('etdBeforePoDate')) {
+      return 'ETD must be later than PO Date.';
+    }
+
+    if (group.hasError('etaBeforePoDate')) {
+      return 'ETA must be later than PO Date.';
+    }
+
     if (group.hasError('etaBeforeEtd')) {
       return 'ETA must be later than ETD.';
     }
@@ -555,9 +628,11 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     this.billDocumentFiles.update((current) => ({ ...current, [rowIndex]: file }));
 
     this.extractingBillNoRowIndex.set(rowIndex);
+    this.startExtractionExperience();
     this.shipmentService.extractBillNoFromDocument(formData).subscribe({
       next: (res) => {
         this.extractingBillNoRowIndex.set(null);
+        this.stopExtractionExperience();
         const billNo = res.bill_no?.trim() ?? '';
         const invoiceNumber = res.invoice_number?.trim() ?? '';
         if (billNo && this.actualSplits?.at(rowIndex)) {
@@ -596,6 +671,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
       },
       error: (err) => {
         this.extractingBillNoRowIndex.set(null);
+        this.stopExtractionExperience();
         this.messageService.add({
           severity: 'error',
           summary: 'Extraction failed',
@@ -665,6 +741,65 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
         this.editablePlannedRows.set([]);
       },
     });
+  }
+
+  getRowDiffs(entry: ScheduledHistoryEntry): HistoryDiffRow[] {
+    const diffs: HistoryDiffRow[] = [];
+    const before = entry.before || [];
+    const after = entry.after || [];
+
+    const maxLen = Math.max(before.length, after.length);
+
+    for (let i = 0; i < maxLen; i++) {
+        const bRow = before[i];
+        const aRow = after[i];
+
+        if (!bRow && aRow) {
+            diffs.push({ index: i, shipmentId: this.getScheduledShipmentId(i), status: 'Added', changes: [] });
+        } else if (bRow && !aRow) {
+            diffs.push({ index: i, shipmentId: this.getScheduledShipmentId(i), status: 'Removed', changes: [] });
+        } else if (bRow && aRow) {
+            const rowChanges: HistoryDiffRow['changes'] = [];
+            
+            // Compare fields
+            if (Number(bRow.qtyMT) !== Number(aRow.qtyMT)) {
+                rowChanges.push({ field: 'Qty MT', before: bRow.qtyMT, after: aRow.qtyMT });
+            }
+            if (Number(bRow.FCL) !== Number(aRow.FCL)) {
+                rowChanges.push({ field: 'FCL', before: bRow.FCL, after: aRow.FCL });
+            }
+            if (bRow.size !== aRow.size) {
+                rowChanges.push({ field: 'Size', before: bRow.size, after: aRow.size });
+            }
+            
+            const bEtd = this.stripTime(bRow.etd);
+            const aEtd = this.stripTime(aRow.etd);
+            if (bEtd !== aEtd) {
+                rowChanges.push({ field: 'ETD', before: bEtd, after: aEtd });
+            }
+
+            const bEta = this.stripTime(bRow.eta);
+            const aEta = this.stripTime(aRow.eta);
+            if (bEta !== aEta) {
+                rowChanges.push({ field: 'ETA', before: bEta, after: aEta });
+            }
+
+            if (rowChanges.length > 0) {
+                diffs.push({ index: i, shipmentId: this.getScheduledShipmentId(i), status: 'Modified', changes: rowChanges });
+            } else {
+                diffs.push({ index: i, shipmentId: this.getScheduledShipmentId(i), status: 'Unchanged', changes: [] });
+            }
+        }
+    }
+
+    return diffs;
+  }
+
+  private stripTime(val: any): string {
+    if (!val) return '—';
+    const date = val instanceof Date ? val : new Date(val);
+    if (isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
   formatHistoryTimestamp(value: string | Date | null | undefined): string {

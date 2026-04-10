@@ -7,6 +7,18 @@ import { AccessPermission, AccessPermissionGroup, AccessRole, AccessUser } from 
 import { AuthService } from '../../../../core/services/auth.service';
 
 type AccessTabKey = 'roles' | 'menu' | 'permissions' | 'users';
+interface FlattenedPermissionRow {
+  groupKey: string;
+  groupLabel: string;
+  permission: AccessPermission;
+}
+interface PermissionMatrixRow {
+  key: string;
+  label: string;
+  viewPermission: AccessPermission | null;
+  editPermission: AccessPermission | null;
+  fieldPermissions: AccessPermission[];
+}
 
 @Component({
   selector: 'app-access-control',
@@ -32,6 +44,7 @@ export class AccessControlComponent {
   readonly permissionGroups = signal<AccessPermissionGroup[]>([]);
   readonly users = signal<AccessUser[]>([]);
   readonly selectedUserId = signal<string | null>(null);
+  readonly expandedPermissionRowKey = signal<string | null>(null);
 
   readonly roleForm = signal({
     key: '',
@@ -72,6 +85,57 @@ export class AccessControlComponent {
   readonly fieldPermissionGroups = computed(() =>
     this.permissionGroups().filter((group) =>
       group.permissions.some((permission) => permission.resource === 'shipment' && permission.type === 'field')
+    )
+  );
+
+  readonly permissionMatrixRows = computed<PermissionMatrixRow[]>(() => {
+    const rowDefinitions = [
+      { key: 'create_shipment', label: 'Create Shipment', groupKey: 'create_shipment' },
+      { key: 'shipment_entry', label: 'Shipment Entry', groupKey: 'shipment_entry' },
+      { key: 'shipment_tracker_split', label: 'Shipment Tracker', groupKey: 'shipment_tracker_split' },
+      { key: 'bl_details', label: 'BL Details', groupKey: 'bl_details' },
+      { key: 'document_tracker', label: 'Document Tracker', groupKey: 'document_tracker' },
+      { key: 'port_customs', label: 'Port & Customs', groupKey: 'port_customs' },
+      { key: 'storage_arrival', label: 'Storage Allocation & Arrival', groupKey: 'storage_arrival' },
+      { key: 'quality', label: 'Quality', groupKey: 'quality' },
+      { key: 'payment_costing', label: 'Payment & Costing', groupKey: 'payment_costing' },
+    ] as const;
+
+    const allPermissions = this.permissionGroups().flatMap((group) => group.permissions);
+
+    return rowDefinitions.map((row) => {
+      const permissionsForRow = allPermissions.filter((permission) => {
+        if (row.key === 'create_shipment') {
+          return permission.screen === 'create_shipment';
+        }
+        return permission.tab === row.key;
+      });
+
+      const viewPermission =
+        permissionsForRow.find((permission) => permission.key.endsWith('.view')) ?? null;
+
+      const editPermission =
+        permissionsForRow.find((permission) => permission.key.endsWith('.edit') && permission.type !== 'field') ?? null;
+
+      const fieldPermissions = permissionsForRow.filter((permission) => permission.type === 'field');
+
+      return {
+        key: row.key,
+        label: row.label,
+        viewPermission,
+        editPermission,
+        fieldPermissions,
+      };
+    });
+  });
+
+  readonly tabPermissionRows = computed<FlattenedPermissionRow[]>(() =>
+    this.tabPermissionGroups().flatMap((group) =>
+      group.permissions.map((permission) => ({
+        groupKey: group.key,
+        groupLabel: group.label,
+        permission,
+      }))
     )
   );
 
@@ -270,6 +334,14 @@ export class AccessControlComponent {
             }
       )
     );
+  }
+
+  toggleExpandedPermissionRow(rowKey: string): void {
+    this.expandedPermissionRowKey.update((current) => (current === rowKey ? null : rowKey));
+  }
+
+  isPermissionRowExpanded(rowKey: string): boolean {
+    return this.expandedPermissionRowKey() === rowKey;
   }
 
   savePermissions(): void {

@@ -242,6 +242,22 @@ export class ShipmentDocumentationComponent {
 
   constructor() {
     effect(() => {
+      const data = this.shipmentData();
+      if (!data || !this.formArray) return;
+
+      this.formArray.controls.forEach((group) => {
+        // If bankName is empty in group but present in parent shipment, patch it
+        if (!group.get('bankName')?.value && data.shipment?.bankName) {
+          group.get('bankName')?.patchValue(data.shipment.bankName, { emitEvent: false });
+          // Default receiver to 'Bank' if we have a bank name
+          if (!group.get('receiver')?.value) {
+            group.get('receiver')?.patchValue('Bank', { emitEvent: false });
+          }
+        }
+      });
+    });
+
+    effect(() => {
       const indices = this.submittedIndices();
       indices.forEach((idx) => {
         if (this.formArray?.at(idx)) {

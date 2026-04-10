@@ -90,6 +90,17 @@ export class ShipmentArrivalComponent {
   readonly lockedPortCustomsSections = signal<Record<number, boolean>>({});
   readonly lockedTransportationSections = signal<Record<number, boolean>>({});
 
+  readonly extractionMessages = [
+    'Uploading Arrival Notice safely',
+    'Royal AI is identifying the vessel and date',
+    'Extracting free retention data and detention terms',
+    'Syncing extraction results with shipment records'
+  ];
+  readonly extractionMessageIndex = signal(0);
+  readonly extractionProgress = signal(18);
+  readonly currentExtractionMessage = computed(() => this.extractionMessages[this.extractionMessageIndex()] || this.extractionMessages[0]);
+  private extractionTicker: any = null;
+
   showPreviewModal = signal(false);
   previewUrl = signal<string | null>(null);
   previewTitle = signal('');
@@ -114,20 +125,60 @@ export class ShipmentArrivalComponent {
 
   constructor() {
     effect(() => {
-      this.submittedIndices().forEach((idx) => {
-        if (this.formArray?.at(idx)) this.formArray.at(idx).disable({ emitEvent: false });
+      const indices = this.submittedIndices();
+      if (!this.formArray) return;
+      indices.forEach((idx) => {
+        if (this.formArray.at(idx)) this.formArray.at(idx).disable({ emitEvent: false });
       });
     });
 
     effect(() => {
-      if (!this.formArray) return;
+      const data = this.shipmentData();
+      if (!data || !this.formArray) return;
+      
+      // 1. Sync all locks first in one atomic update
+      this.syncAllSectionLocks();
+      
+      // 2. Perform updates that don't depend on lockedSections signal
       this.formArray.controls.forEach((_, index) => {
         this.updateDerivedDates(index);
         this.updateDelayHours(index);
-        this.initializeSectionLocks(index);
+      });
+    });
+
+    effect(() => {
+      // 3. Apply locks to form controls whenever lockedSections OR submittedIndices change
+      this.lockedSections(); 
+      this.submittedIndices();
+      if (!this.formArray) return;
+      this.formArray.controls.forEach((_, index) => {
         this.applySectionLocks(index);
       });
     });
+  }
+
+  ngOnDestroy(): void {
+    this.stopExtractionExperience();
+  }
+
+  private startExtractionExperience(): void {
+    this.stopExtractionExperience();
+    this.extractionMessageIndex.set(0);
+    this.extractionProgress.set(18);
+    this.extractionTicker = setInterval(() => {
+      this.extractionMessageIndex.update((index) => (index + 1) % this.extractionMessages.length);
+      this.extractionProgress.update((value) => {
+        if (value >= 88) return 26;
+        return value + 12;
+      });
+    }, 1600);
+  }
+
+  private stopExtractionExperience(): void {
+    if (this.extractionTicker) {
+      clearInterval(this.extractionTicker);
+      this.extractionTicker = null;
+    }
   }
 
   getShipmentNoLabel(index: number): string {
@@ -520,9 +571,11 @@ export class ShipmentArrivalComponent {
     const formData = new FormData();
     formData.append('file', file, file.name);
     this.extractingArrivalNoticeRowIndex.set(index);
+    this.startExtractionExperience();
     this.shipmentService.extractArrivalNoticeFromDocument(formData).subscribe({
       next: (res) => {
         this.extractingArrivalNoticeRowIndex.set(null);
+        this.stopExtractionExperience();
         const group = this.formArray.at(index);
         if (!group) return;
         if (res.arrival_on) {
@@ -545,6 +598,7 @@ export class ShipmentArrivalComponent {
       },
       error: (err) => {
         this.extractingArrivalNoticeRowIndex.set(null);
+        this.stopExtractionExperience();
         this.messageService.add({
           severity: 'warn',
           summary: 'Arrival notice extraction failed',
@@ -607,24 +661,22 @@ export class ShipmentArrivalComponent {
     return date;
   }
 
-  private initializeSectionLocks(index: number): void {
-    const actual = this.shipmentData()?.actual?.[index] as Record<string, any> | undefined;
-    if (!actual) return;
-    const sectionStates: Array<[Parameters<typeof this.sectionKey>[1], boolean]> = [
-      ['arrivalNotice', !!(actual['arrivalOn'] || actual['arrivalNoticeDate'] || actual['arrivalNoticeDocumentUrl'])],
-      ['advanceRequest', !!(actual['advanceRequestDate'] || actual['advanceRequestDocumentUrl'])],
-      ['doReleased', !!(actual['doReleasedDate'] || actual['doReleasedDocumentUrl'] || actual['doReleasedRemarks'])],
-      ['dpApproval', !!(actual['dpApprovalDate'] || actual['dpApprovalDocumentUrl'] || actual['dpApprovalRemarks'])],
-      ['customsClearance', !!(actual['customsClearanceDate'] || actual['customsClearanceDocumentUrl'] || actual['customsClearanceRemarks'] || actual['tokenReceivedDate'])],
-      ['municipality', !!(actual['municipalityDate'] || actual['municipalityDocumentUrl'] || actual['municipalityRemarks'])],
-      ['transportation', (actual['transportationBooked']?.length ?? 0) > 0],
-    ];
+  private syncAllSectionLocks(): void {
+    const data = this.shipmentData();
+    if (!data?.actual || !this.formArray) return;
 
     this.lockedSections.update((current) => {
       const next = { ...current };
-      sectionStates.forEach(([section, locked]) => {
-        const key = this.sectionKey(index, section);
-        next[key] = current[key] ?? locked;
+      data.actual.forEach((actualRow: any, index: number) => {
+        const locked = actualRow['lockedLogisticsSections'] || [];
+        const sections: (Step5DocKind | 'transportation')[] = [
+          'arrivalNotice', 'advanceRequest', 'doReleased', 
+          'dpApproval', 'customsClearance', 'municipality', 'transportation'
+        ];
+        sections.forEach((s) => {
+          const key = this.sectionKey(index, s);
+          next[key] = next[key] ?? locked.includes(s);
+        });
       });
       return next;
     });

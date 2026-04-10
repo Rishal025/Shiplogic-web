@@ -89,7 +89,7 @@ export class ShipmentSummaryComponent {
     const data = this.shipmentData();
     const planned = data?.planned || [];
     const actual = data?.actual || [];
-    const baseShipmentNo = data?.shipment?.shipmentNo?.replace(/\([^)]*\)/g, '').trim() || 'Shipment';
+    const baseShipmentNo = data?.shipment?.shipmentNo?.replace(/\([^)]*\)/g, '').replace(/-\d+$/, '').trim() || 'Shipment';
     const shipmentCount = Math.max(
       Number(data?.shipment?.noOfShipments) || 0,
       planned.length,
@@ -116,8 +116,10 @@ export class ShipmentSummaryComponent {
                       ? 'Shipment Tracker'
                       : 'Shipment Entry';
 
+      const rowShipmentNo = shipmentCount > 1 ? `${baseShipmentNo}-${index + 1}` : baseShipmentNo;
+
       return {
-        shipmentNo: `${baseShipmentNo}-${index + 1}`,
+        shipmentNo: rowShipmentNo,
         stage,
         badge: stage === 'Payment & Costing' || stage === 'Quality' ? 'success' : stage === 'Shipment Tracker' ? 'info' : 'warn',
       };
