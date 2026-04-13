@@ -7,16 +7,25 @@
         <span class="extraction-overlay__badge-dot"></span>
         Royal AI
       </div>
-      <div class="extraction-orb">
-        <span></span>
-        <span></span>
-        <span></span>
+
+      <div class="extraction-video-container">
+        <video 
+          src="royalai.mp4" 
+          autoplay 
+          loop 
+          muted 
+          playsinline 
+          class="extraction-video"
+        ></video>
       </div>
+
       <h3 class="extraction-overlay__title">Royal AI is extracting your shipment data</h3>
       <p class="extraction-overlay__message">{{ currentExtractionMessage() }}</p>
+      
       <div class="extraction-progress">
         <div class="extraction-progress__bar" [style.width.%]="extractionProgress()"></div>
       </div>
+
       <div class="extraction-overlay__footer">
         <span>This usually takes a few seconds.</span>
         <span>Please keep this window open while extraction finishes.</span>
@@ -444,18 +453,18 @@
             <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
               <i class="pi pi-users"></i>
             </div>
-            <h2>Supplier Details</h2>
+            <h2>Vendor Details</h2>
           </div>
           <div class="sl-card-body grid grid-cols-1 gap-5 md:grid-cols-2">
             <div class="flex flex-col md:col-span-2">
-              <label class="sl-label">Supplier</label>
-              <input pInputText formControlName="supplier" placeholder="Enter supplier name" class="w-full" />
+              <label class="sl-label">Vendor</label>
+              <input pInputText formControlName="supplier" placeholder="Enter vendor name" class="w-full" />
             </div>
             <div class="flex flex-col">
-              <label class="sl-label">Supplier Email *</label>
-              <input pInputText formControlName="supplierEmail" type="email" placeholder="Enter supplier email" class="w-full" />
+              <label class="sl-label">Vendor Email *</label>
+              <input pInputText formControlName="supplierEmail" type="email" placeholder="Enter vendor email" class="w-full" />
               @if (shipmentForm.get('supplierEmail')?.hasError('required') && shipmentForm.get('supplierEmail')?.touched) {
-                <span class="mt-1 text-xs font-semibold text-rose-600">Supplier email is required.</span>
+                <span class="mt-1 text-xs font-semibold text-rose-600">Vendor email is required.</span>
               }
               @if (shipmentForm.get('supplierEmail')?.hasError('email') && shipmentForm.get('supplierEmail')?.touched) {
                 <span class="mt-1 text-xs font-semibold text-rose-600">Enter a valid email address.</span>

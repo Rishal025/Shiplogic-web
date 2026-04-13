@@ -439,6 +439,19 @@ export class ShipmentPaymentCostingComponent {
     );
   }
 
+  onRefBillNoInput(group: AbstractControl, rowIndex: number): void {
+    const costings = this.getPaymentCostings(group);
+    const row = costings.at(rowIndex) as FormGroup;
+    const refBillNo = String(row.get('refBillNo')?.value || '').trim();
+    
+    // If user types a bill number and date is empty, default to today
+    if (refBillNo && !row.get('refBillDate')?.value) {
+      row.get('refBillDate')?.setValue(new Date());
+    } else if (!refBillNo) {
+      row.get('refBillDate')?.setValue(null);
+    }
+  }
+
   private fileKey(shipmentIndex: number, rowIndex: number): string {
     return `${shipmentIndex}:${rowIndex}`;
   }
@@ -759,7 +772,7 @@ export class ShipmentPaymentCostingComponent {
 
   private sumFormArrayField(formArray: FormArray, field: string): string {
     const total = formArray.controls.reduce((sum, row) => sum + (Number(row.get(field)?.value) || 0), 0);
-    return total.toFixed(2);
+    return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(total);
   }
 
 }

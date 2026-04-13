@@ -233,10 +233,10 @@ export class ShipmentService {
   }
 
   /**
-   * Extract bill number from a single document (PDF or image, 1 page).
-   * POST /shipment/extract-bill-no with FormData containing file.
+   * Extract bill number + packaging details from documents.
+   * POST /shipment/extract-bill-no with FormData containing 'file' (BL), 'packaging_list_file', and 'packaging_brand'.
    */
-  extractBillNoFromDocument(formData: FormData): Observable<ExtractBillNoResponse> {
+  extractShipmentDetailsFromDocuments(formData: FormData): Observable<ExtractBillNoResponse> {
     return this.http.post<ExtractBillNoResponse>(`${this.apiUrl}/extract-bill-no`, formData);
   }
 

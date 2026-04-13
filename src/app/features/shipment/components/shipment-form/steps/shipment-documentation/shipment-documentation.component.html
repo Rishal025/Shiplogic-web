@@ -42,8 +42,8 @@
               @if (isPrecedingSubmitted(i)) {
                 <button
                   type="button"
-                  (click)="$event.stopPropagation(); confirmSubmit(i)"
-                  [disabled]="(!isRowSubmitted(i) && (group.invalid || !isBankSectionComplete(i, group))) || submittingRowIndex() === i"
+                  (click)="$event.stopPropagation(); saveActivePhase(i)"
+                  [disabled]="submittingRowIndex() === i"
                   class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   @if (submittingRowIndex() === i) {
@@ -69,172 +69,371 @@
         </p-accordion-header>
 
         <p-accordion-content styleClass="bg-white">
-          <div [formGroup]="$any(group)" class="px-4 sm:px-5 pb-5 pt-3 flex flex-col gap-6">
-            <div class="rounded-2xl border border-slate-100 bg-slate-50/40 p-4 sm:p-5">
-              <div class="mb-4 flex items-center gap-2">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Document Flow</span>
-                <div class="flex-1 h-px bg-slate-200"></div>
-              </div>
-              <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">B/L No</label>
-                <div class="flex items-center gap-2">
-                  <input pInputText formControlName="BLNo" class="table-input-text w-full" placeholder="B/L No" />
-                  @if (getBlDocumentUrl(i)) {
-                    <button
-                      type="button"
-                      (click)="openRemoteDocumentPreview(getBlDocumentUrl(i), getBlDocumentName(i))"
-                      class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-blue-50 hover:text-blue-600 shrink-0"
-                      title="View BL document"
-                    >
-                      <i class="pi pi-eye"></i>
-                    </button>
+          <div [formGroup]="$any(group)" class="px-4 sm:px-6 pb-8 pt-4 flex flex-col gap-0">
+            
+            <!-- Timeline Container -->
+            <div class="relative flex flex-col gap-8 ml-6 before:content-[''] before:absolute before:left-[-25px] before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-100 before:rounded-full">
+              
+              <!-- Milestone 1: Courier Logistics -->
+              <div class="relative group">
+                <!-- Timeline Dot -->
+                <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
+                
+                <div class="rounded-2xl border border-slate-100 bg-slate-50/40 p-5 hover:border-slate-200 transition-all shadow-sm">
+                  <div class="flex items-center justify-between mb-4">
+                    <div class="flex flex-col">
+                      <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Milestone 1</span>
+                      <h3 class="text-xs font-bold text-slate-700">Courier Logistics</h3>
+                    </div>
+                    @if (!isMilestoneEditing(i, 'courier')) {
+                      <button (click)="toggleEditMilestone(i, 'courier')" class="text-[10px] font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="pi pi-pencil text-[10px]"></i> Edit
+                      </button>
+                    }
+                  </div>
+
+                  @if (isMilestoneEditing(i, 'courier')) {
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">B/L No</label>
+                        <div class="flex items-center gap-2">
+                          <input pInputText formControlName="BLNo" class="table-input-text w-full" placeholder="B/L No" />
+                          @if (getBlDocumentUrl(i)) {
+                            <button type="button" (click)="openRemoteDocumentPreview(getBlDocumentUrl(i), getBlDocumentName(i))" class="icon-btn-secondary shrink-0"><i class="pi pi-eye"></i></button>
+                          }
+                        </div>
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Courier Track No</label>
+                        <input pInputText formControlName="courierTrackNo" class="table-input-text w-full" placeholder="Enter tracking no" />
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Courier Provider</label>
+                        <input pInputText formControlName="courierServiceProvider" class="table-input-text w-full" placeholder="Provider name" />
+                      </div>
+                      <div class="md:col-span-2 lg:col-span-3 flex flex-col gap-1.5">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Document Arrival Notes</label>
+                        <textarea pInputTextarea formControlName="docArrivalNotes" rows="2" class="table-input-text w-full py-2" placeholder="Any special notes about arrival..."></textarea>
+                      </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-100 flex justify-end">
+                      <button (click)="saveMilestone(i, 'courier')" class="primary-milestone-btn" [disabled]="isMilestoneSaving(i, 'courier')">
+                        <i class="pi" [class.pi-check]="!isMilestoneSaving(i, 'courier')" [class.pi-spin]="isMilestoneSaving(i, 'courier')" [class.pi-spinner]="isMilestoneSaving(i, 'courier')"></i>
+                        {{ isMilestoneSaving(i, 'courier') ? 'Saving...' : 'Save Milestone' }}
+                      </button>
+                    </div>
+                  } @else {
+                    <!-- Summary View -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-[11px]">
+                      <div class="flex flex-col py-1">
+                        <span class="text-slate-400 font-medium">B/L No</span>
+                        <span class="text-slate-700 font-bold">{{ group.get('BLNo')?.value || 'N/A' }}</span>
+                      </div>
+                      <div class="flex flex-col py-1">
+                        <span class="text-slate-400 font-medium">Courier Track No</span>
+                        <span class="text-slate-700 font-bold">{{ group.get('courierTrackNo')?.value || 'N/A' }}</span>
+                      </div>
+                      <div class="flex flex-col py-1">
+                        <span class="text-slate-400 font-medium">Provider</span>
+                        <span class="text-slate-700 font-bold">{{ group.get('courierServiceProvider')?.value || 'N/A' }}</span>
+                      </div>
+                      @if (group.get('docArrivalNotes')?.value) {
+                        <div class="md:col-span-3 flex flex-col py-1">
+                          <span class="text-slate-400 font-medium">Arrival Notes</span>
+                          <span class="text-slate-700">{{ group.get('docArrivalNotes')?.value }}</span>
+                        </div>
+                      }
+                    </div>
                   }
                 </div>
               </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Courier Track No</label>
-                <input pInputText formControlName="courierTrackNo" class="table-input-text w-full" placeholder="Courier tracking no" />
+
+              <!-- Milestone 2: Receiver & Bank Setup -->
+              <div class="relative group">
+                <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
+                <div class="rounded-2xl border border-slate-100 bg-slate-50/40 p-5 hover:border-slate-200 transition-all shadow-sm">
+                  <div class="flex items-center justify-between mb-4">
+                    <div class="flex flex-col">
+                      <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Milestone 2</span>
+                      <h3 class="text-xs font-bold text-slate-700">Receiver & Bank Setup</h3>
+                    </div>
+                    @if (!isMilestoneEditing(i, 'receiving')) {
+                      <button (click)="toggleEditMilestone(i, 'receiving')" class="text-[10px] font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="pi pi-pencil text-[10px]"></i> Edit
+                      </button>
+                    }
+                  </div>
+
+                  @if (isMilestoneEditing(i, 'receiving')) {
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Receiver</label>
+                        <p-select formControlName="receiver" [options]="receiverOptions" optionLabel="label" optionValue="value" placeholder="Select receiver" styleClass="w-full" appendTo="body" />
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bank Name</label>
+                        <p-select formControlName="bankName" [options]="bankOptions" optionLabel="label" optionValue="value" placeholder="Select bank" styleClass="w-full" appendTo="body" [disabled]="!isBankReceiver($any(group))" />
+                      </div>
+                      <div class="flex flex-col gap-1.5">
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Expected Date of Doc Arrival</label>
+                        <p-datepicker formControlName="expectedDocDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [showIcon]="true" />
+                      </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-slate-100 flex justify-end">
+                      <button (click)="saveMilestone(i, 'receiving')" class="primary-milestone-btn" [disabled]="isMilestoneSaving(i, 'receiving')">
+                        <i class="pi" [class.pi-check]="!isMilestoneSaving(i, 'receiving')" [class.pi-spin]="isMilestoneSaving(i, 'receiving')" [class.pi-spinner]="isMilestoneSaving(i, 'receiving')"></i>
+                        {{ isMilestoneSaving(i, 'receiving') ? 'Saving...' : 'Save Milestone' }}
+                      </button>
+                    </div>
+                  } @else {
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-[11px]">
+                      <div class="flex flex-col py-1">
+                        <span class="text-slate-400 font-medium">Receiver</span>
+                        <span class="text-slate-700 font-bold">{{ group.get('receiver')?.value || 'N/A' }}</span>
+                      </div>
+                      <div class="flex flex-col py-1">
+                        <span class="text-slate-400 font-medium">Bank Name</span>
+                        <span class="text-slate-700 font-bold" [class.text-blue-600]="group.get('bankName')?.value">{{ group.get('bankName')?.value || 'N/A' }}</span>
+                      </div>
+                      <div class="flex flex-col py-1">
+                        <span class="text-slate-400 font-medium">Expected Doc Date</span>
+                        <span class="text-slate-700 font-bold">{{ (group.get('expectedDocDate')?.value | date:'dd/MM/yyyy') || 'N/A' }}</span>
+                      </div>
+                    </div>
+                  }
+                </div>
               </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Courier Service Provider</label>
-                <input pInputText formControlName="courierServiceProvider" class="table-input-text w-full" placeholder="Courier service provider" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Expected Date of Document Arrival</label>
-                <p-datepicker formControlName="expectedDocDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Receiver</label>
-                <p-select formControlName="receiver" [options]="receiverOptions" optionLabel="label" optionValue="value" placeholder="Select receiver" styleClass="w-full" appendTo="body" />
-              </div>
+
+              @if (isBankReceiver($any(group))) {
+                <!-- Milestone 3: Inward Collection Advice -->
+                <div class="relative group">
+                  <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
+                  <div class="rounded-2xl border border-slate-100 bg-blue-50/20 p-5 hover:border-slate-200 transition-all shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                      <div class="flex flex-col">
+                        <span class="text-[9px] font-black text-blue-500 uppercase tracking-widest">Milestone 3</span>
+                        <h3 class="text-xs font-bold text-slate-700">Inward Collection Advice</h3>
+                      </div>
+                      @if (!isMilestoneEditing(i, 'inward')) {
+                        <button (click)="toggleEditMilestone(i, 'inward')" class="text-[10px] font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <i class="pi pi-pencil text-[10px]"></i> Edit
+                        </button>
+                      }
+                    </div>
+
+                    @if (isMilestoneEditing(i, 'inward')) {
+                      <div class="flex flex-col gap-4">
+                        <div class="flex flex-col gap-1.5">
+                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Notice Date & Document</label>
+                          <div class="flex flex-col sm:flex-row gap-3">
+                            <p-datepicker formControlName="inwardCollectionAdviceDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full sm:max-w-xs" dateFormat="dd/mm/yy" [showIcon]="true" />
+                            <div class="flex items-center gap-2">
+                              <button type="button" (click)="clickFileInput(i, 'inwardAdvice')" class="flex-1 sm:flex-none inline-flex h-10 px-4 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors">
+                                <i class="pi pi-upload"></i>
+                                <span class="text-[10px] font-bold uppercase">Upload</span>
+                              </button>
+                              @if (getFile(i, 'inwardAdvice')) {
+                                <button type="button" (click)="openDocumentPreview(getFile(i, 'inwardAdvice')!, 'Advice Document')" class="icon-btn-secondary"><i class="pi pi-eye"></i></button>
+                                <button type="button" (click)="clearFile(i, 'inwardAdvice')" class="icon-btn-danger"><i class="pi pi-trash"></i></button>
+                              } @else if (getSavedFileUrl(group, 'inwardAdvice')) {
+                                <button type="button" (click)="openRemoteDocumentPreview(getSavedFileUrl(group, 'inwardAdvice'), getSavedFileName(group, 'inwardAdvice'))" class="icon-btn-secondary"><i class="pi pi-eye"></i></button>
+                              }
+                            </div>
+                          </div>
+                          @if (getFile(i, 'inwardAdvice')) {
+                            <p class="text-[11px] text-blue-600 font-medium">{{ getFile(i, 'inwardAdvice')?.name }}</p>
+                          } @else if (getSavedFileName(group, 'inwardAdvice')) {
+                            <p class="text-[11px] text-slate-400">{{ getSavedFileName(group, 'inwardAdvice') }}</p>
+                          }
+                        </div>
+                        <div class="flex justify-end">
+                          <button (click)="saveMilestone(i, 'inward')" class="primary-milestone-btn" [disabled]="isMilestoneSaving(i, 'inward')">
+                            <i class="pi pi-check mr-2"></i> Save Stage
+                          </button>
+                        </div>
+                      </div>
+                    } @else {
+                      <div class="flex items-center justify-between text-[11px]">
+                        <div class="flex flex-col">
+                          <span class="text-slate-400 font-medium">Advice Date</span>
+                          <span class="text-slate-700 font-bold">{{ (group.get('inwardCollectionAdviceDate')?.value | date:'dd/MM/yyyy') || 'N/A' }}</span>
+                        </div>
+                        @if (getSavedFileUrl(group, 'inwardAdvice')) {
+                          <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg font-bold">
+                              <i class="pi pi-file-pdf"></i>
+                              <span>Advice Doc Attached</span>
+                            </div>
+                            <button type="button" (click)="openRemoteDocumentPreview(getSavedFileUrl(group, 'inwardAdvice'), getSavedFileName(group, 'inwardAdvice'))" class="icon-btn-secondary"><i class="pi pi-eye"></i></button>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <!-- Milestone 4: Murabaha Contract Phase -->
+                <div class="relative group">
+                  <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
+                  <div class="rounded-2xl border border-slate-100 bg-slate-50/40 p-5 hover:border-slate-200 transition-all shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                      <div class="flex flex-col">
+                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Milestone 4</span>
+                        <h3 class="text-xs font-bold text-slate-700">Murabaha Contract Phase</h3>
+                      </div>
+                      @if (!isMilestoneEditing(i, 'murabaha_process')) {
+                        <button (click)="toggleEditMilestone(i, 'murabaha_process')" class="text-[10px] font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <i class="pi pi-pencil text-[10px]"></i> Edit
+                        </button>
+                      }
+                    </div>
+
+                    @if (isMilestoneEditing(i, 'murabaha_process')) {
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex flex-col gap-1.5">
+                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Murabaha Released Date</label>
+                          <p-datepicker formControlName="murabahaContractReleasedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [showIcon]="true" />
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Murabaha Approved Date</label>
+                          <p-datepicker formControlName="murabahaContractApprovedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [showIcon]="true" />
+                        </div>
+                      </div>
+                      <div class="mt-4 flex justify-end">
+                        <button (click)="saveMilestone(i, 'murabaha_process')" class="primary-milestone-btn">
+                          <i class="pi pi-check mr-2"></i> Save Stage
+                        </button>
+                      </div>
+                    } @else {
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-[11px]">
+                        <div class="flex flex-col py-1">
+                          <span class="text-slate-400 font-medium">Contract Released</span>
+                          <span class="text-slate-700 font-bold">{{ (group.get('murabahaContractReleasedDate')?.value | date:'dd/MM/yyyy') || 'N/A' }}</span>
+                        </div>
+                        <div class="flex flex-col py-1">
+                          <span class="text-slate-400 font-medium">Contract Approved</span>
+                          <span class="text-slate-700 font-bold">{{ (group.get('murabahaContractApprovedDate')?.value | date:'dd/MM/yyyy') || 'N/A' }}</span>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <!-- Milestone 5: Contract Submission -->
+                <div class="relative group">
+                  <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
+                  <div class="rounded-2xl border border-slate-100 bg-blue-50/20 p-5 hover:border-slate-200 transition-all shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                      <div class="flex flex-col">
+                        <span class="text-[9px] font-black text-blue-500 uppercase tracking-widest">Milestone 5</span>
+                        <h3 class="text-xs font-bold text-slate-700">Contract Submission</h3>
+                      </div>
+                      @if (!isMilestoneEditing(i, 'murabaha_submit')) {
+                        <button (click)="toggleEditMilestone(i, 'murabaha_submit')" class="text-[10px] font-bold text-blue-600 hover:text-blue-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <i class="pi pi-pencil text-[10px]"></i> Edit
+                        </button>
+                      }
+                    </div>
+
+                    @if (isMilestoneEditing(i, 'murabaha_submit')) {
+                      <div class="flex flex-col gap-4">
+                        <div class="flex flex-col gap-1.5">
+                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Submission Date & Document</label>
+                          <div class="flex flex-col sm:flex-row gap-3">
+                            <p-datepicker formControlName="murabahaContractSubmittedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full sm:max-w-xs" dateFormat="dd/mm/yy" [showIcon]="true" />
+                            <div class="flex items-center gap-2">
+                              <button type="button" (click)="clickFileInput(i, 'murabahaSubmitted')" class="flex-1 sm:flex-none inline-flex h-10 px-4 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+                                <i class="pi pi-upload"></i>
+                                <span class="text-[10px] font-bold uppercase">Upload</span>
+                              </button>
+                              @if (getFile(i, 'murabahaSubmitted')) {
+                                <button type="button" (click)="openDocumentPreview(getFile(i, 'murabahaSubmitted')!, 'Submission Document')" class="icon-btn-secondary"><i class="pi pi-eye"></i></button>
+                              } @else if (getSavedFileUrl(group, 'murabahaSubmitted')) {
+                                <button type="button" (click)="openRemoteDocumentPreview(getSavedFileUrl(group, 'murabahaSubmitted'), getSavedFileName(group, 'murabahaSubmitted'))" class="icon-btn-secondary"><i class="pi pi-eye"></i></button>
+                              }
+                            </div>
+                          </div>
+                        </div>
+                        <div class="flex justify-end">
+                          <button (click)="saveMilestone(i, 'murabaha_submit')" class="primary-milestone-btn">
+                            <i class="pi pi-check mr-2"></i> Save Stage
+                          </button>
+                        </div>
+                      </div>
+                    } @else {
+                      <div class="flex items-center justify-between text-[11px]">
+                        <div class="flex flex-col">
+                          <span class="text-slate-400 font-medium">Submitted On</span>
+                          <span class="text-slate-700 font-bold">{{ (group.get('murabahaContractSubmittedDate')?.value | date:'dd/MM/yyyy') || 'N/A' }}</span>
+                        </div>
+                        @if (getSavedFileUrl(group, 'murabahaSubmitted')) {
+                          <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg font-bold">
+                              <i class="pi pi-file-o"></i>
+                              <span>Contract Attached</span>
+                            </div>
+                            <button type="button" (click)="openRemoteDocumentPreview(getSavedFileUrl(group, 'murabahaSubmitted'), getSavedFileName(group, 'murabahaSubmitted'))" class="icon-btn-secondary"><i class="pi pi-eye"></i></button>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+
+                <!-- Milestone 6: Documents Release -->
+                <div class="relative group">
+                  <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-emerald-300 bg-white group-hover:border-emerald-500 transition-colors z-10"></div>
+                  <div class="rounded-2xl border border-emerald-100 bg-emerald-50/20 p-5 hover:border-emerald-200 transition-all shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                      <div class="flex flex-col">
+                        <span class="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Milestone 6</span>
+                        <h3 class="text-xs font-bold text-slate-700">Final Documents Release</h3>
+                      </div>
+                      @if (!isMilestoneEditing(i, 'release')) {
+                        <button (click)="toggleEditMilestone(i, 'release')" class="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <i class="pi pi-pencil text-[10px]"></i> Edit
+                        </button>
+                      }
+                    </div>
+
+                    @if (isMilestoneEditing(i, 'release')) {
+                      <div class="flex flex-col gap-4">
+                        <div class="flex flex-col gap-1.5">
+                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Release Date & Document</label>
+                          <div class="flex flex-col sm:flex-row gap-3">
+                            <p-datepicker formControlName="documentsReleasedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full sm:max-w-xs" dateFormat="dd/mm/yy" [showIcon]="true" />
+                            <div class="flex items-center gap-2">
+                              <button type="button" (click)="clickFileInput(i, 'documentsReleased')" class="flex-1 sm:flex-none inline-flex h-10 px-4 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+                                <i class="pi pi-upload"></i>
+                                <span class="text-[10px] font-bold uppercase">Upload</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="flex justify-end">
+                          <button (click)="saveMilestone(i, 'release')" class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-[10px] font-black uppercase tracking-wider text-white hover:bg-emerald-700 shadow-lg shadow-emerald-200/50 transition-all active:scale-95 disabled:opacity-50">
+                            <i class="pi pi-check mr-2"></i> Complete Documentation
+                          </button>
+                        </div>
+                      </div>
+                    } @else {
+                      <div class="flex items-center justify-between text-[11px]">
+                        <div class="flex flex-col">
+                          <span class="text-slate-400 font-medium">Released On</span>
+                          <span class="text-slate-700 font-bold text-emerald-600">{{ (group.get('documentsReleasedDate')?.value | date:'dd/MM/yyyy') || 'N/A' }}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <span class="text-[9px] font-black uppercase bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full">Completed</span>
+                          @if (getSavedFileUrl(group, 'documentsReleased')) {
+                            <button type="button" (click)="openRemoteDocumentPreview(getSavedFileUrl(group, 'documentsReleased'), getSavedFileName(group, 'documentsReleased'))" class="icon-btn-secondary"><i class="pi pi-eye"></i></button>
+                          }
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
             </div>
-            </div>
-
-            @if (isBankReceiver($any(group))) {
-              <div class="rounded-3xl border border-blue-100 bg-gradient-to-br from-blue-50/70 to-white p-4 sm:p-5 flex flex-col gap-5 shadow-sm">
-                <div class="flex flex-col gap-1">
-                  <span class="text-[10px] font-black text-blue-600 uppercase tracking-[0.28em]">Bank Receiver</span>
-                  <p class="text-xs text-slate-500">
-                    Complete the bank workflow dates and attach the required supporting documents before tracking this row.
-                  </p>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  <div class="flex flex-col gap-1.5">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bank Name</label>
-                    <p-select formControlName="bankName" [options]="bankOptions" optionLabel="label" optionValue="value" placeholder="Select bank" styleClass="w-full" appendTo="body" />
-                  </div>
-                </div>
-
-                @if (group.get('bankName')?.value) {
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  <div class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 shadow-sm">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Inward Collection Notice Date</label>
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <p-datepicker formControlName="inwardCollectionAdviceDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
-                      <div class="flex items-center gap-2 sm:shrink-0">
-                        <button type="button" (click)="clickFileInput(i, 'inwardAdvice')" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0">
-                          <i class="pi pi-upload"></i>
-                        </button>
-                        @if (getFile(i, 'inwardAdvice')) {
-                          <button type="button" (click)="openDocumentPreview(getFile(i, 'inwardAdvice')!, 'Inward Collection Advice Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0">
-                            <i class="pi pi-eye"></i>
-                          </button>
-                          <button type="button" (click)="clearFile(i, 'inwardAdvice')" class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 shrink-0">
-                            <i class="pi pi-trash"></i>
-                          </button>
-                        } @else if (getSavedFileUrl(group, 'inwardAdvice')) {
-                          <button type="button" (click)="openRemoteDocumentPreview(getSavedFileUrl(group, 'inwardAdvice'), getSavedFileName(group, 'inwardAdvice') || 'Inward Collection Advice Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0">
-                            <i class="pi pi-eye"></i>
-                          </button>
-                        }
-                      </div>
-                    </div>
-                    @if (getFile(i, 'inwardAdvice')) {
-                      <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getFile(i, 'inwardAdvice')?.name }}</p>
-                    } @else if (getSavedFileName(group, 'inwardAdvice')) {
-                      <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getSavedFileName(group, 'inwardAdvice') }}</p>
-                    }
-                  </div>
-                  <div class="flex flex-col gap-1.5">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Murabaha Contract Release Date</label>
-                    <p-datepicker formControlName="murabahaContractReleasedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
-                  </div>
-                  <div class="flex flex-col gap-1.5">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Murabaha Contract Approved Date</label>
-                    <p-datepicker formControlName="murabahaContractApprovedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
-                  </div>
-                </div>
-
-                <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                  <div class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 shadow-sm">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Approved Murabaha Contract Submitted Date</label>
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <p-datepicker formControlName="murabahaContractSubmittedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
-                      <div class="flex items-center gap-2 sm:shrink-0">
-                        <button type="button" (click)="clickFileInput(i, 'murabahaSubmitted')" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0">
-                          <i class="pi pi-upload"></i>
-                        </button>
-                        @if (getFile(i, 'murabahaSubmitted')) {
-                          <button type="button" (click)="openDocumentPreview(getFile(i, 'murabahaSubmitted')!, 'Murabaha Contract Submitted Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0">
-                            <i class="pi pi-eye"></i>
-                          </button>
-                          <button type="button" (click)="clearFile(i, 'murabahaSubmitted')" class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 shrink-0">
-                            <i class="pi pi-trash"></i>
-                          </button>
-                        } @else if (getSavedFileUrl(group, 'murabahaSubmitted')) {
-                          <button type="button" (click)="openRemoteDocumentPreview(getSavedFileUrl(group, 'murabahaSubmitted'), getSavedFileName(group, 'murabahaSubmitted') || 'Murabaha Contract Submitted Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0">
-                            <i class="pi pi-eye"></i>
-                          </button>
-                        }
-                      </div>
-                    </div>
-                    @if (getFile(i, 'murabahaSubmitted')) {
-                      <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getFile(i, 'murabahaSubmitted')?.name }}</p>
-                    } @else if (getSavedFileName(group, 'murabahaSubmitted')) {
-                      <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getSavedFileName(group, 'murabahaSubmitted') }}</p>
-                    }
-                  </div>
-
-                  <div class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 shadow-sm">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Documents Released Date</label>
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <p-datepicker formControlName="documentsReleasedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
-                      <div class="flex items-center gap-2 sm:shrink-0">
-                        <button type="button" (click)="clickFileInput(i, 'documentsReleased')" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0">
-                          <i class="pi pi-upload"></i>
-                        </button>
-                        @if (getFile(i, 'documentsReleased')) {
-                          <button type="button" (click)="openDocumentPreview(getFile(i, 'documentsReleased')!, 'Documents Released Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0">
-                            <i class="pi pi-eye"></i>
-                          </button>
-                          <button type="button" (click)="clearFile(i, 'documentsReleased')" class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 shrink-0">
-                            <i class="pi pi-trash"></i>
-                          </button>
-                        } @else if (getSavedFileUrl(group, 'documentsReleased')) {
-                          <button type="button" (click)="openRemoteDocumentPreview(getSavedFileUrl(group, 'documentsReleased'), getSavedFileName(group, 'documentsReleased') || 'Documents Released Document')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0">
-                            <i class="pi pi-eye"></i>
-                          </button>
-                        }
-                      </div>
-                    </div>
-                    @if (getFile(i, 'documentsReleased')) {
-                      <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getFile(i, 'documentsReleased')?.name }}</p>
-                    } @else if (getSavedFileName(group, 'documentsReleased')) {
-                      <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getSavedFileName(group, 'documentsReleased') }}</p>
-                    }
-                  </div>
-                </div>
-
-                @if (group.hasError('missingBankDocumentFields')) {
-                  <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] font-medium text-amber-700">
-                    <i class="pi pi-exclamation-triangle mr-2"></i>
-                    Bank receiver requires Bank Name and all bank-related dates/documents.
-                  </div>
-                }
-                }
-              </div>
-            }
           </div>
         </p-accordion-content>
       </p-accordion-panel>

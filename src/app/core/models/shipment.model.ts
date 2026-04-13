@@ -399,6 +399,21 @@ export interface ExtractBillNoResponse {
   free_detention_days?: number;
   maximum_detention_days?: number;
   freight_prepaid?: boolean;
+  bill_extracted_data?: any;
+  packaging_list?: {
+    brand?: string;
+    expiry_date?: string;
+    packing_description?: string;
+    total_bags?: number;
+    total_gross_weight?: string;
+    total_net_weight?: string;
+    container_info?: Array<{
+      container_number?: string;
+      no_of_bags?: number;
+      gross_weight?: string;
+      net_weight?: string;
+    }>;
+  };
   containers?: Array<{
     container_no?: string;
     containerNo?: string;
@@ -582,32 +597,44 @@ export interface ActualContainer {
   billExtractionData?: {
     bill_no?: string;
     invoice_number?: string;
-    shipped_on_board_date?: string;
-    port_of_loading?: string;
-    port_of_discharge?: string;
-    number_of_containers?: number;
-    number_of_bags?: number;
-    quantity_mt?: number;
-    shipping_line?: string;
-    free_detention_days?: number;
-    maximum_detention_days?: number;
-    freight_prepaid?: boolean;
-    vessel_name?: string;
     containers?: Array<{
       container_no?: string;
-      pkg_ct?: number;
       containerNo?: string;
+      pkg_ct?: number;
       pkgCt?: number;
     }>;
   };
+  actualBags?: number;
+  expiryDate?: string;
+  hsCode?: string;
+  tokenReceivedDate?: string;
+  packagingDate?: string;
+  grossWeight?: string;
+  netWeight?: string;
   blDocumentUrl?: string;
   blDocumentName?: string;
+  packagingListDocumentUrl?: string;
+  packagingListDocumentName?: string;
+  costSheetBookingDocumentUrl?: string;
+  costSheetBookingDocumentName?: string;
+  packagingList?: {
+    brand?: string;
+    expiryDate?: string;
+    packingDescription?: string;
+    totalBags?: number;
+    totalGrossWeight?: string;
+    totalNetWeight?: string;
+    containerInfo?: Array<{
+      container_number?: string;
+      no_of_bags?: number;
+      gross_weight?: string;
+      net_weight?: string;
+    }>;
+  };
   extractedContainers?: Array<{
     containerNo?: string;
     pkgCt?: number;
   }>;
-  costSheetBookingDocumentUrl?: string;
-  costSheetBookingDocumentName?: string;
   costSheetBookings?: {
     sn?: number;
     description?: string;
@@ -731,6 +758,9 @@ export interface ActualContainer {
     batch?: string;
     productionDate?: string;
     expiryDate?: string;
+    hsCode?: string;
+    grossWeight?: string;
+    netWeight?: string;
     remarks?: string;
     documentUrl?: string;
     documentName?: string;

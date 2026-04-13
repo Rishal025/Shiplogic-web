@@ -102,7 +102,7 @@ export class ShipmentBlDetailsComponent {
   ];
   readonly costSheetDescriptions = COST_SHEET_DESCRIPTIONS;
 
-  readonly activeTabs = signal<Record<number, 'cost' | 'storage'>>({});
+  readonly activeTabs = signal<Record<number, 'cost' | 'storage' | 'packaging'>>({});
   readonly expandedCostSheet = signal<Record<number, boolean>>({});
   readonly bookingFiles = signal<Record<number, File | null>>({});
   readonly statusModalVisible = signal(false);
@@ -150,11 +150,11 @@ export class ShipmentBlDetailsComponent {
     return base?.trim() ? `${base}-${index + 1}` : '–';
   }
 
-  setActiveTab(index: number, tab: 'cost' | 'storage'): void {
+  setActiveTab(index: number, tab: 'cost' | 'storage' | 'packaging'): void {
     this.activeTabs.update((current) => ({ ...current, [index]: tab }));
   }
 
-  getActiveTab(index: number): 'cost' | 'storage' {
+  getActiveTab(index: number): 'cost' | 'storage' | 'packaging' {
     return this.activeTabs()[index] ?? 'cost';
   }
 
@@ -398,6 +398,13 @@ export class ShipmentBlDetailsComponent {
     formData.append('maximumDetentionDays', String(Number(row.get('maximumDetentionDays')?.value) || 0));
     formData.append('freightPrepared', row.get('freightPrepared')?.value || 'No');
 
+    formData.append('actualBags', String(Number(row.get('actualBags')?.value) || 0));
+    formData.append('expiryDate', toDate(row.get('expiryDate')?.value));
+    formData.append('hsCode', row.get('hsCode')?.value || '');
+    formData.append('packagingDate', toDate(row.get('packagingDate')?.value));
+    formData.append('grossWeight', row.get('grossWeight')?.value || '');
+    formData.append('netWeight', row.get('netWeight')?.value || '');
+
     this.shipmentService.submitBLDetails(containerId, formData).subscribe({
       next: () => {
         this.savingKey.set(null);
@@ -526,7 +533,7 @@ export class ShipmentBlDetailsComponent {
     const total = this.getCostSheetRows(group)
       .getRawValue()
       .reduce((sum: number, row: any) => sum + (Number(row?.[field]) || 0), 0);
-    return total.toFixed(2);
+    return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(total);
   }
 
   onStatusModalVisibleChange(visible: boolean): void {

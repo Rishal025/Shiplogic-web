@@ -7,16 +7,25 @@
         <span class="extraction-overlay__badge-dot"></span>
         Royal AI
       </div>
-      <div class="extraction-orb">
-        <span></span>
-        <span></span>
-        <span></span>
+
+      <div class="extraction-video-container">
+        <video 
+          src="royalai.mp4" 
+          autoplay 
+          loop 
+          muted 
+          playsinline 
+          class="extraction-video"
+        ></video>
       </div>
+
       <h3 class="extraction-overlay__title">Royal AI is extracting your BL details</h3>
       <p class="extraction-overlay__message">{{ currentExtractionMessage() }}</p>
+      
       <div class="extraction-progress">
         <div class="extraction-progress__bar" [style.width.%]="extractionProgress()"></div>
       </div>
+
       <div class="extraction-overlay__footer">
         <span>This usually takes a few seconds.</span>
         <span>Please keep this window open while extraction finishes.</span>
@@ -103,7 +112,7 @@
   @if (activeSplitTab() === 'planned') {
     <div class="sl-card overflow-hidden" role="tabpanel">
       <div class="sl-card-header bg-slate-50 flex flex-col sm:flex-row justify-between sm:items-center gap-3 py-2.5 px-4">
-        <h2 class="text-[10px] font-black text-slate-500 uppercase">Baseline Construction</h2>
+        <h2 class="text-[10px] font-black text-slate-500 uppercase">Scheduled Shipments</h2>
         <div class="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
           <button
             type="button"
@@ -119,10 +128,10 @@
               type="button"
               (click)="confirmPlannedSubmission()"
               [disabled]="plannedSplits.invalid || submittingPlanned() || plannedSplits.length === 0"
-              aria-label="Lock Scheduled Baseline and Continue"
+              aria-label="Lock Scheduled ETA and Continue"
               class="w-full sm:w-auto px-4 py-1.5 bg-blue-600 text-white rounded-lg text-[9px] font-black uppercase disabled:opacity-50"
             >
-              @if (submittingPlanned()) { Submitting... } @else { Lock Baseline }
+              @if (submittingPlanned()) { Submitting... } @else { Lock ETA }
             </button>
           } @else if (hasPendingPlannedEdits()) {
             <button
@@ -276,11 +285,11 @@
               <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
                 <div class="space-y-1">
                   <div class="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                    {{ entry.action === 'ScheduledBaselineCreated' ? 'Baseline Created' : 'Baseline Updated' }}
+                    {{ entry.action === 'ScheduledBaselineCreated' ? 'Created new shipment' : 'ETA Updated' }}
                   </div>
                   <div class="text-sm font-semibold text-slate-700">{{ summarizeHistoryChange(entry) }}</div>
                   <div class="text-xs text-slate-500">
-                    {{ entry.user?.name || entry.user?.email || 'System' }} • {{ formatHistoryTimestamp(entry.createdAt) }}
+                    Created by: {{ entry.user?.name || entry.user?.email || 'System' }} • {{ formatHistoryTimestamp(entry.createdAt) }}
                   </div>
                   @if (entry.remarks) {
                     <div class="text-xs text-slate-500">{{ entry.remarks }}</div>
@@ -323,9 +332,12 @@
                               </div>
                             }
                           } @else if (diff.status === 'Added') {
-                            <div class="text-[10px] font-semibold text-emerald-700 italic">Created new shipment baseline</div>
+                            <div class="text-[10px] font-semibold text-emerald-700 italic flex flex-col items-end">
+                              <span>Created new shipment</span>
+                              <span>ETA: {{ stripTime(entry.after[diff.index]?.eta) }}</span>
+                            </div>
                           } @else if (diff.status === 'Removed') {
-                            <div class="text-[10px] font-semibold text-red-700 italic">Removed from baseline</div>
+                            <div class="text-[10px] font-semibold text-red-700 italic">Removed from schedule</div>
                           }
                         </div>
                       </div>
@@ -337,7 +349,7 @@
           }
         } @else {
           <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-500">
-            Scheduled history will appear here after the baseline is created or updated.
+            Scheduled history will appear here after shipments are created or updated.
           </div>
         }
       </div>
@@ -368,6 +380,7 @@
             <th scope="col" class="actual-col-num">QTY(MT)</th>
             <th scope="col" class="actual-col-num">BAGS</th>
             <th scope="col" class="actual-col-num">PALLET</th>
+            <th scope="col" class="actual-col-bl">PACKAGING BRAND</th>
             <th scope="col" class="actual-col-bl">BL NO</th>
             <th scope="col" class="actual-col-ci">COMMERCIAL INVOICE NO</th>
             <th scope="col" class="actual-col-date">SHIP ONBOARD DATE</th>
@@ -416,22 +429,76 @@
               <div class="flex items-center gap-1.5 w-full">
                 <input
                   pInputText
+                  [ngModel]="packagingBrands()[i]"
+                  (ngModelChange)="onPackagingBrandChange($event, i)"
+                  [ngModelOptions]="{standalone: true}"
+                  class="table-input-text flex-1 min-w-0"
+                  aria-label="Packaging Brand"
+                  placeholder="e.g. MELYAR"
+                  [disabled]="isRowSubmitted(i)"
+                />
+                @if (!isRowSubmitted(i)) {
+                  <!-- Packaging List Upload -->
+                  <label
+                    class="flex-shrink-0 w-8 h-8 rounded border border-slate-200 flex items-center justify-center cursor-pointer text-emerald-600 hover:text-emerald-700 transition-colors"
+                    [class.bg-emerald-50]="!getPackagingListFile(i)"
+                    [class.bg-emerald-100]="getPackagingListFile(i)"
+                    title="Upload Packaging List"
+                  >
+                    <i class="pi text-xs" [class.pi-plus-circle]="!getPackagingListFile(i)" [class.pi-check]="getPackagingListFile(i)" [class.text-emerald-800]="getPackagingListFile(i)" aria-hidden="true"></i>
+                    <input
+                      type="file"
+                      class="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
+                      (change)="onPackagingListFileSelected($event, i)"
+                    />
+                  </label>
+                }
+
+                @if (getPackagingListFile(i)) {
+                  <button
+                    type="button"
+                    (click)="openLocalPackagingListPreview(i)"
+                    class="flex-shrink-0 w-8 h-8 rounded border border-slate-200 bg-white hover:bg-emerald-50 flex items-center justify-center text-slate-500 hover:text-emerald-600 transition-colors"
+                    title="Preview Packaging List"
+                  >
+                    <i class="pi pi-eye text-xs" aria-hidden="true"></i>
+                  </button>
+                } @else if (getSavedPackagingListUrl(i)) {
+                  <button
+                    type="button"
+                    (click)="openSavedPackagingListPreview(i)"
+                    class="flex-shrink-0 w-8 h-8 rounded border border-slate-200 bg-white hover:bg-emerald-50 flex items-center justify-center text-slate-500 hover:text-emerald-600 transition-colors"
+                    title="Preview saved Packaging List"
+                  >
+                    <i class="pi pi-eye text-xs" aria-hidden="true"></i>
+                  </button>
+                }
+              </div>
+            </td>
+            <td class="actual-col-bl">
+              <div class="flex items-center gap-1.5 w-full">
+                <input
+                  pInputText
                   formControlName="BLNo"
                   class="table-input-text flex-1 min-w-0"
                   aria-label="Bill of Lading Number"
                   placeholder="BL123..."
                 />
                 @if (!isRowSubmitted(i)) {
+                  <!-- BL Upload -->
                   <label
-                    class="flex-shrink-0 w-8 h-8 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 flex items-center justify-center cursor-pointer text-slate-500 hover:text-blue-600 transition-colors"
+                    class="flex-shrink-0 w-8 h-8 rounded border border-slate-200 flex items-center justify-center cursor-pointer text-slate-500 hover:text-blue-600 transition-colors"
+                    [class.bg-slate-50]="!getBillDocumentFile(i)"
+                    [class.bg-blue-50]="getBillDocumentFile(i)"
                     [class.pointer-events-none]="extractingBillNoRowIndex() === i"
                     [class.opacity-70]="extractingBillNoRowIndex() === i"
-                    title="Upload PDF or image to extract BL No."
+                    title="Upload BL document"
                   >
                     @if (extractingBillNoRowIndex() === i) {
                       <i class="pi pi-spin pi-spinner text-xs" aria-hidden="true"></i>
                     } @else {
-                      <i class="pi pi-upload text-xs" aria-hidden="true"></i>
+                      <i class="pi text-xs" [class.pi-upload]="!getBillDocumentFile(i)" [class.pi-check]="getBillDocumentFile(i)" [class.text-blue-600]="getBillDocumentFile(i)" aria-hidden="true"></i>
                     }
                     <input
                       type="file"
@@ -440,6 +507,16 @@
                       (change)="onBillNoFileSelected($event, i)"
                     />
                   </label>
+
+                  <!-- Extract Button -->
+                  <button
+                    type="button"
+                    (click)="onExtractDetails(i)"
+                    [disabled]="extractingBillNoRowIndex() === i || !getBillDocumentFile(i)"
+                    class="flex-shrink-0 px-2 py-1 rounded bg-slate-900 text-white text-[9px] font-black uppercase disabled:opacity-50"
+                  >
+                    {{ extractingBillNoRowIndex() === i ? '...' : 'Extract' }}
+                  </button>
                 }
                 @if (getBillDocumentFile(i)) {
                   <button
@@ -477,6 +554,7 @@
                 [dateFormat]="appDateFormat"
                 [readonlyInput]="true"
                 [showIcon]="true"
+                [showOnFocus]="true"
               ></p-datepicker>
             </td>
             <td class="actual-col-date">
@@ -485,6 +563,7 @@
                 [dateFormat]="appDateFormat"
                 [readonlyInput]="true"
                 [showIcon]="true"
+                [showOnFocus]="true"
                 [minDate]="getStrictMinDate($any(group), 'shipOnBoardDate')"
               ></p-datepicker>
             </td>
@@ -494,6 +573,7 @@
                 [dateFormat]="appDateFormat"
                 [readonlyInput]="true"
                 [showIcon]="true"
+                [showOnFocus]="true"
                 [minDate]="getStrictMinDate($any(group), group.get('updatedETD')?.value ? 'updatedETD' : 'shipOnBoardDate')"
               ></p-datepicker>
             </td>

@@ -6,16 +6,25 @@
         <span class="extraction-overlay__badge-dot"></span>
         Royal AI
       </div>
-      <div class="extraction-orb">
-        <span></span>
-        <span></span>
-        <span></span>
+
+      <div class="extraction-video-container">
+        <video 
+          src="royalai.mp4" 
+          autoplay 
+          loop 
+          muted 
+          playsinline 
+          class="extraction-video"
+        ></video>
       </div>
+
       <h3 class="extraction-overlay__title">Royal AI is extracting Arrival details</h3>
       <p class="extraction-overlay__message">{{ currentExtractionMessage() }}</p>
+      
       <div class="extraction-progress">
         <div class="extraction-progress__bar" [style.width.%]="extractionProgress()"></div>
       </div>
+
       <div class="extraction-overlay__footer">
         <span>This usually takes a few seconds.</span>
         <span>Please keep this window open while extraction finishes.</span>
@@ -73,6 +82,15 @@
                     <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
                       <i class="pi pi-lock text-[10px]"></i> Saved
                     </span>
+                    <button
+                      type="button"
+                      (click)="unlockLogisticsSection(i, 'arrivalNotice')"
+                      [disabled]="isRowSubmitted(i)"
+                      class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50"
+                      title="Edit section"
+                    >
+                      <i class="pi pi-pencil text-[11px]"></i>
+                    </button>
                   } @else {
                     <button
                       type="button"
@@ -174,26 +192,37 @@
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                       {{ doc.label }}
                     </label>
-                    @if (isLogisticsSectionLocked(i, doc.kind)) {
-                      <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
-                        <i class="pi pi-lock text-[10px]"></i> Saved
-                      </span>
-                    } @else {
-                      <button
-                        type="button"
-                        (click)="saveLogisticsSection(i, doc.kind)"
-                        [disabled]="isSectionSaving(i, doc.kind) || isRowSubmitted(i)"
-                        class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
-                      >
-                        @if (isSectionSaving(i, doc.kind)) {
-                          <i class="pi pi-spin pi-spinner text-[10px]"></i>
-                          Saving...
-                        } @else {
-                          <i class="pi pi-check text-[10px]"></i>
-                          Save
-                        }
-                      </button>
-                    }
+                    <div class="flex items-center gap-2">
+                      @if (isLogisticsSectionLocked(i, doc.kind)) {
+                        <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
+                          <i class="pi pi-lock text-[10px]"></i> Saved
+                        </span>
+                        <button
+                          type="button"
+                          (click)="unlockLogisticsSection(i, doc.kind)"
+                          [disabled]="isRowSubmitted(i)"
+                          class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50"
+                          title="Edit section"
+                        >
+                          <i class="pi pi-pencil text-[11px]"></i>
+                        </button>
+                      } @else {
+                        <button
+                          type="button"
+                          (click)="saveLogisticsSection(i, doc.kind)"
+                          [disabled]="isSectionSaving(i, doc.kind) || isRowSubmitted(i)"
+                          class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
+                        >
+                          @if (isSectionSaving(i, doc.kind)) {
+                            <i class="pi pi-spin pi-spinner text-[10px]"></i>
+                            Saving...
+                          } @else {
+                            <i class="pi pi-check text-[10px]"></i>
+                            Save
+                          }
+                        </button>
+                      }
+                    </div>
                   </div>
                   <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                     <p-datepicker [formControlName]="doc.dateControl" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
@@ -265,6 +294,15 @@
                     <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
                       <i class="pi pi-lock text-[10px]"></i> Saved
                     </span>
+                    <button
+                      type="button"
+                      (click)="unlockLogisticsSection(i, 'transportation')"
+                      [disabled]="isRowSubmitted(i)"
+                      class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50"
+                      title="Edit section"
+                    >
+                      <i class="pi pi-pencil text-[11px]"></i>
+                    </button>
                   } @else {
                     <button
                       type="button"
@@ -284,7 +322,7 @@
                 </div>
               </div>
 
-              <div class="hidden md:grid md:grid-cols-[70px_minmax(0,1.2fr)_minmax(0,1.55fr)_140px_120px_140px_120px_110px] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
+              <div class="hidden md:grid md:grid-cols-[70px_minmax(0,1.8fr)_minmax(0,2.2fr)_140px_120px_140px_120px_110px] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Container No</span>
                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transport Company Name</span>
@@ -298,7 +336,7 @@
               <div class="flex flex-col">
                 @for (row of getVisibleTransportationRows(group, i); track $index) {
                   <div [formGroup]="$any(row)" class="border-b last:border-b-0 border-slate-100 p-4">
-                    <div class="hidden md:grid md:grid-cols-[70px_minmax(0,1.2fr)_minmax(0,1.55fr)_140px_120px_140px_120px_110px] gap-3 items-start">
+                    <div class="hidden md:grid md:grid-cols-[70px_minmax(0,1.8fr)_minmax(0,2.2fr)_140px_120px_140px_120px_110px] gap-3 items-start">
                       <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
                       <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container No" />
                       <input pInputText formControlName="transportCompanyName" class="table-input-text w-full" placeholder="Company name" />

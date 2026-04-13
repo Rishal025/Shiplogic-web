@@ -26,7 +26,7 @@ import {
 } from '../../../../../../store/shipment/shipment.selectors';
 import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
-import { ScheduledHistoryEntry } from '../../../../../../core/models/shipment.model';
+import { ScheduledHistoryEntry, ExtractBillNoResponse } from '../../../../../../core/models/shipment.model';
 
 export interface HistoryDiffRow {
   index: number;
@@ -98,10 +98,12 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   /** Row index for which bill-no extraction is in progress (show spinner). */
   readonly extractingBillNoRowIndex = signal<number | null>(null);
   readonly billDocumentFiles = signal<Record<number, File | null>>({});
+  readonly packagingListFiles = signal<Record<number, File | null>>({});
+  readonly packagingBrands = signal<Record<number, string>>({});
+  readonly showEtaShareModal = signal(false);
   readonly showEtaCalendar = signal(false);
   readonly etaCalendarDates = signal<Date[]>([]);
   readonly editablePlannedRows = signal<number[]>([]);
-  readonly showEtaShareModal = signal(false);
 
   /** True after user clicks Confirm (No of Shipments) so the input becomes readonly until lock. */
   readonly noOfShipmentsConfirmed = signal(false);
@@ -138,6 +140,43 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
         this.noOfShipmentsConfirmed.set(false);
         this.editablePlannedRows.set([]);
       }
+    });
+
+    effect(() => {
+      const data = this.shipmentData();
+      const actual = data?.actual;
+      const shipment = data?.shipment as any;
+      if (!actual) return;
+      
+      const brands: Record<number, string> = {};
+      
+      // 1. Map brands from existing actual container data (saved in DB)
+      actual.forEach((container, index) => {
+        if (container.packagingList?.brand) {
+          brands[index] = container.packagingList.brand;
+        }
+      });
+      
+      // 2. Auto-map brand if it's a single-item shipment and field is empty
+      const items = shipment?.lineItems || shipment?.items || [];
+      const autoBrand = (items.length === 1 ? (items[0]?.brandName || items[0]?.brand) : null) || shipment?.brandName || shipment?.brand;
+      
+      if (autoBrand) {
+        console.log(`🏷️ [ShipmentSplit] Auto-mapping detected brand: "${autoBrand}"`);
+        // Consider all rows currently in the UI (actualSplits)
+        const uiRowsCount = this.actualSplits?.length || actual.length;
+        
+        for (let i = 0; i < uiRowsCount; i++) {
+          if (!brands[i]) {
+            console.log(`   🔸 Auto-filling row ${i} with brand`);
+            brands[i] = autoBrand;
+          }
+        }
+      } else {
+        console.warn(`🏷️ [ShipmentSplit] Auto-mapping skipped: No single brand found in shipment data`, { itemsCount: items.length, shipment });
+      }
+      
+      this.packagingBrands.set(brands);
     });
 
     effect(() => {
@@ -605,6 +644,117 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     return this.submittedActualIndices().includes(index);
   }
 
+  onPackagingListFileSelected(event: Event, rowIndex: number): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    this.packagingListFiles.update((current) => ({ ...current, [rowIndex]: file }));
+    input.value = '';
+  }
+
+  onPackagingBrandChange(value: string, rowIndex: number): void {
+    this.packagingBrands.update((current) => ({ ...current, [rowIndex]: value }));
+  }
+
+  /** Upload documents to extract details and autopopulate for the given row. */
+  onExtractDetails(rowIndex: number): void {
+    const blFile = this.billDocumentFiles()[rowIndex];
+    const pkgFile = this.packagingListFiles()[rowIndex];
+    const brand = this.packagingBrands()[rowIndex] || '';
+
+    if (!blFile) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Missing BL',
+        detail: 'Please upload the Bill of Lading document first.'
+      });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', blFile, blFile.name);
+    if (pkgFile) {
+      formData.append('packaging_list_file', pkgFile, pkgFile.name);
+    }
+    if (brand) {
+      formData.append('packaging_brand', brand);
+    }
+
+    this.extractingBillNoRowIndex.set(rowIndex);
+    this.startExtractionExperience();
+    this.shipmentService.extractShipmentDetailsFromDocuments(formData).subscribe({
+      next: (res: ExtractBillNoResponse) => {
+        this.extractingBillNoRowIndex.set(null);
+        this.stopExtractionExperience();
+        
+        const billData = res.bill_extracted_data || {};
+        const pkgData = res.packaging_list || {};
+        const billNo = billData.bill_no?.trim() || res.bill_no?.trim() || '';
+        const invoiceNumber = billData.invoice_number?.trim() || res.invoice_number?.trim() || '';
+        
+        if (this.actualSplits?.at(rowIndex)) {
+          const row = this.actualSplits.at(rowIndex);
+          
+          if (billNo) row.get('BLNo')?.setValue(billNo);
+          if (invoiceNumber) row.get('commercialInvoiceNo')?.setValue(invoiceNumber);
+          
+          // Bill data
+          if (billData.shipped_on_board_date) row.get('shipOnBoardDate')?.setValue(new Date(billData.shipped_on_board_date));
+          if (billData.port_of_loading) row.get('portOfLoading')?.setValue(billData.port_of_loading);
+          if (billData.port_of_discharge) row.get('portOfDischarge')?.setValue(billData.port_of_discharge);
+          if (billData.number_of_containers != null) row.get('noOfContainers')?.setValue(billData.number_of_containers);
+          if (billData.number_of_bags != null) row.get('noOfBags')?.setValue(billData.number_of_bags);
+          if (billData.quantity_mt != null) row.get('quantityByMt')?.setValue(billData.quantity_mt);
+          if (billData.shipping_line) row.get('shippingLine')?.setValue(billData.shipping_line);
+          if (billData.free_detention_days != null) row.get('freeDetentionDays')?.setValue(billData.free_detention_days);
+          if (billData.maximum_detention_days != null) row.get('maximumDetentionDays')?.setValue(billData.maximum_detention_days);
+          if (typeof billData.freight_prepaid === 'boolean') row.get('freightPrepared')?.setValue(billData.freight_prepaid ? 'Yes' : 'No');
+          
+          row.get('billExtractionData')?.setValue(billData);
+          
+          // Extract brand from multiple possible locations in response
+          const extractedBrand = 
+            pkgData.brand || 
+            billData.lineItems?.[0]?.brandName || 
+            billData.brandName || 
+            (res as any).brandName || 
+            '';
+
+          if (extractedBrand) {
+            this.onPackagingBrandChange(extractedBrand, rowIndex);
+          }
+
+          // Packaging data
+          row.get('packagingList')?.setValue(pkgData);
+          if (Array.isArray(pkgData.container_info)) {
+             row.get('extractedContainers')?.setValue(pkgData.container_info.map((c: any) => ({
+                containerNo: c.container_number,
+                pkgCt: c.no_of_bags
+             })));
+          } else if (Array.isArray(billData.containers)) {
+             row.get('extractedContainers')?.setValue(billData.containers);
+          }
+
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Details extracted',
+            detail: 'Shipment and packaging details populated.'
+          });
+        }
+      },
+      error: (err: any) => {
+        this.extractingBillNoRowIndex.set(null);
+        this.stopExtractionExperience();
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Extraction failed',
+          detail: err.error?.message ?? 'Could not extract details from documents.'
+        });
+      }
+    });
+  }
+
   /** Upload a document to extract bill number and autopopulate BL No for the given row. */
   onBillNoFileSelected(event: Event, rowIndex: number): void {
     const input = event.target as HTMLInputElement;
@@ -623,71 +773,24 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('file', file, file.name);
     this.billDocumentFiles.update((current) => ({ ...current, [rowIndex]: file }));
-
-    this.extractingBillNoRowIndex.set(rowIndex);
-    this.startExtractionExperience();
-    this.shipmentService.extractBillNoFromDocument(formData).subscribe({
-      next: (res) => {
-        this.extractingBillNoRowIndex.set(null);
-        this.stopExtractionExperience();
-        const billNo = res.bill_no?.trim() ?? '';
-        const invoiceNumber = res.invoice_number?.trim() ?? '';
-        if (billNo && this.actualSplits?.at(rowIndex)) {
-          const row = this.actualSplits.at(rowIndex);
-          row.get('BLNo')?.setValue(billNo);
-          if (invoiceNumber) {
-            row.get('commercialInvoiceNo')?.setValue(invoiceNumber);
-          }
-          if (res.shipped_on_board_date) row.get('shipOnBoardDate')?.setValue(new Date(res.shipped_on_board_date));
-          if (res.port_of_loading) row.get('portOfLoading')?.setValue(res.port_of_loading);
-          if (res.port_of_discharge) row.get('portOfDischarge')?.setValue(res.port_of_discharge);
-          if (res.number_of_containers != null) row.get('noOfContainers')?.setValue(res.number_of_containers);
-          if (res.number_of_bags != null) row.get('noOfBags')?.setValue(res.number_of_bags);
-          if (res.quantity_mt != null) row.get('quantityByMt')?.setValue(res.quantity_mt);
-          if (res.shipping_line) row.get('shippingLine')?.setValue(res.shipping_line);
-          if (res.free_detention_days != null) row.get('freeDetentionDays')?.setValue(res.free_detention_days);
-          if (res.maximum_detention_days != null) row.get('maximumDetentionDays')?.setValue(res.maximum_detention_days);
-          if (typeof res.freight_prepaid === 'boolean') row.get('freightPrepared')?.setValue(res.freight_prepaid ? 'Yes' : 'No');
-          row.get('billExtractionData')?.setValue(res);
-          if (Array.isArray((res as any).containers)) row.get('extractedContainers')?.setValue((res as any).containers);
-          this.messageService.add({
-            severity: 'success',
-            summary: 'Bill number extracted',
-            detail: invoiceNumber
-              ? `BL No. set to "${billNo}" and commercial invoice populated.`
-              : `BL No. set to "${billNo}".`
-          });
-        } else if (!billNo) {
-          this.messageService.add({
-            severity: 'warn',
-            summary: 'No bill number found',
-            detail: 'The document did not contain a recognizable bill number.'
-          });
-        }
-        input.value = '';
-      },
-      error: (err) => {
-        this.extractingBillNoRowIndex.set(null);
-        this.stopExtractionExperience();
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Extraction failed',
-          detail: err.error?.message ?? 'Could not extract bill number from document.'
-        });
-        input.value = '';
-      }
-    });
+    input.value = '';
   }
 
   getBillDocumentFile(rowIndex: number): File | null {
     return this.billDocumentFiles()[rowIndex] ?? null;
   }
 
+  getPackagingListFile(rowIndex: number): File | null {
+    return this.packagingListFiles()[rowIndex] ?? null;
+  }
+
   clearBillDocumentFile(rowIndex: number): void {
     this.billDocumentFiles.update((current) => ({ ...current, [rowIndex]: null }));
+  }
+
+  clearPackagingListFile(rowIndex: number): void {
+    this.packagingListFiles.update((current) => ({ ...current, [rowIndex]: null }));
   }
 
   openLocalBillDocumentPreview(rowIndex: number): void {
@@ -712,6 +815,28 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     return this.shipmentData()?.actual?.[index]?.blDocumentName || '';
   }
 
+  openLocalPackagingListPreview(rowIndex: number): void {
+    const file = this.getPackagingListFile(rowIndex);
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    window.open(url, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  openSavedPackagingListPreview(rowIndex: number): void {
+    const url = this.getSavedPackagingListUrl(rowIndex);
+    if (!url) return;
+    window.open(url, '_blank', 'noopener');
+  }
+
+  getSavedPackagingListUrl(index: number): string {
+    return this.shipmentData()?.actual?.[index]?.packagingListDocumentUrl || '';
+  }
+
+  getSavedPackagingListName(index: number): string {
+    return this.shipmentData()?.actual?.[index]?.packagingListDocumentName || '';
+  }
+
   confirmPlannedSubmission() {
     if (this.plannedSplits.invalid) return;
 
@@ -719,8 +844,8 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     if (!shipmentData) return;
 
     this.confirmationService.confirm({
-      message: 'Lock the scheduled baseline? This will submit to the server and cannot be undone.',
-      header: 'Confirm Scheduled Submission',
+      message: 'Lock the scheduled ETA? This will submit to the server and cannot be undone.',
+      header: 'Confirm Scheduled ETA',
       icon: 'pi pi-lock',
       accept: () => {
         const targetNoOfShipments = Number(this.noOfShipmentsControl.value) || this.plannedSplits.length;
@@ -795,7 +920,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     return diffs;
   }
 
-  private stripTime(val: any): string {
+  stripTime(val: any): string {
     if (!val) return '—';
     const date = val instanceof Date ? val : new Date(val);
     if (isNaN(date.getTime())) return '—';
@@ -818,9 +943,16 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   summarizeHistoryChange(entry: ScheduledHistoryEntry): string {
     const beforeCount = entry.before?.length || 0;
     const afterCount = entry.after?.length || 0;
-    const beforeQty = (entry.before || []).reduce((sum, row) => sum + (Number(row.qtyMT) || 0), 0);
-    const afterQty = (entry.after || []).reduce((sum, row) => sum + (Number(row.qtyMT) || 0), 0);
-    return `${beforeCount} -> ${afterCount} rows, ${beforeQty} MT -> ${afterQty} MT`;
+    
+    // Get shipment IDs (SCG IDs) of modified/added rows
+    const diffs = this.getRowDiffs(entry);
+    const affectedIds = diffs
+      .filter(d => d.status !== 'Unchanged')
+      .map(d => d.shipmentId.split('/').pop()) // Get just 'SCG01' etc.
+      .filter(Boolean);
+    
+    const idList = affectedIds.length > 0 ? ` (${affectedIds.join(', ')})` : '';
+    return `${beforeCount} -> ${afterCount} shipments${idList}`;
   }
 
   confirmActualSubmission(index: number) {
@@ -872,6 +1004,16 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
         const billDocument = this.getBillDocumentFile(index);
         if (billDocument) {
           payload.append('blDocument', billDocument, billDocument.name);
+        }
+
+        const packagingListDocument = this.getPackagingListFile(index);
+        if (packagingListDocument) {
+          payload.append('packaging_list_document', packagingListDocument, packagingListDocument.name);
+        }
+
+        const packagingList = row.get('packagingList')?.value;
+        if (packagingList) {
+          payload.append('packagingList', JSON.stringify(packagingList));
         }
 
         this.store.dispatch(

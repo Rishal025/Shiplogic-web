@@ -127,6 +127,34 @@
               </div>
             </div>
 
+            <!-- New Details Section (Single Column Layout) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 p-4 bg-slate-50/50 rounded-xl border border-slate-100">
+               <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">HS Code</label>
+                <input pInputText formControlName="hsCode" class="table-input-text w-full" placeholder="HS Code" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Bags</label>
+                <p-inputNumber formControlName="actualBags" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Expiry Date</label>
+                <p-datepicker formControlName="expiryDate" appendTo="body" inputStyleClass="table-input" placeholder="Expiry Date" styleClass="w-full" dateFormat="dd/mm/yy" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Packaging Date</label>
+                <p-datepicker formControlName="packagingDate" appendTo="body" inputStyleClass="table-input" placeholder="Pkg Date" styleClass="w-full" dateFormat="dd/mm/yy" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Gross Weight</label>
+                <input pInputText formControlName="grossWeight" class="table-input-text w-full" placeholder="Gross Wt" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Net Weight</label>
+                <input pInputText formControlName="netWeight" class="table-input-text w-full" placeholder="Net Wt" />
+              </div>
+            </div>
+
             <div class="flex flex-col gap-4">
               <div class="flex flex-wrap gap-2">
                 <button
@@ -150,6 +178,17 @@
                   [class.text-slate-500]="getActiveTab(i) !== 'storage'"
                 >
                   Storage Allocations
+                </button>
+                <button
+                  type="button"
+                  (click)="setActiveTab(i, 'packaging')"
+                  class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                  [class.bg-slate-900]="getActiveTab(i) === 'packaging'"
+                  [class.text-white]="getActiveTab(i) === 'packaging'"
+                  [class.bg-slate-100]="getActiveTab(i) !== 'packaging'"
+                  [class.text-slate-500]="getActiveTab(i) !== 'packaging'"
+                >
+                  Packaging List
                 </button>
               </div>
 
@@ -216,8 +255,8 @@
                         <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.8fr)_160px_160px] gap-3 items-start">
                           <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
                           <div class="flex items-center min-h-10 text-sm font-semibold text-slate-700">{{ row.get('description')?.value }}</div>
-                          <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" />
-                          <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" [readonly]="true" />
+                          <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" [useGrouping]="true" />
+                          <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" [readonly]="true" [useGrouping]="true" />
                         </div>
 
                         <div class="md:hidden flex flex-col gap-3">
@@ -276,6 +315,48 @@
                       </button>
                     </div>
                   }
+                </div>
+              } @else if (getActiveTab(i) === 'packaging') {
+                <div class="rounded-2xl border border-slate-200 overflow-hidden">
+                  <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-3">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Packaging List</span>
+                  </div>
+                  <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.5fr)_140px_minmax(0,1.5fr)] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Container No</span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">No of Bags</span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Packaging</span>
+                  </div>
+                  <div class="flex flex-col">
+                    @for (pkg of (group.get('packagingList')?.value?.containerInfo || []); track $index; let pkgIndex = $index) {
+                      <div class="border-b last:border-b-0 border-slate-100 p-4">
+                        <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.5fr)_140px_minmax(0,1.5fr)] gap-3 items-center">
+                          <div class="text-sm font-bold text-slate-700">{{ pkgIndex + 1 }}</div>
+                          <div class="text-sm text-slate-600 font-medium">{{ pkg.container_number || 'N/A' }}</div>
+                          <div class="text-sm text-slate-600 font-medium">{{ pkg.no_of_bags || 0 }}</div>
+                          <div class="text-sm text-slate-600 font-semibold">{{ group.get('packagingList')?.value?.brand || 'N/A' }}</div>
+                        </div>
+                        <div class="md:hidden flex flex-col gap-2">
+                           <div class="flex justify-between items-center">
+                             <span class="text-[10px] font-black text-slate-400 uppercase">Container No</span>
+                             <span class="text-sm font-bold text-slate-700">{{ pkg.container_number || 'N/A' }}</span>
+                           </div>
+                           <div class="flex justify-between items-center">
+                             <span class="text-[10px] font-black text-slate-400 uppercase">No of Bags</span>
+                             <span class="text-sm text-slate-600">{{ pkg.no_of_bags || 0 }}</span>
+                           </div>
+                           <div class="flex justify-between items-center">
+                             <span class="text-[10px] font-black text-slate-400 uppercase">Packaging</span>
+                             <span class="text-sm font-semibold text-slate-600">{{ group.get('packagingList')?.value?.brand || 'N/A' }}</span>
+                           </div>
+                        </div>
+                      </div>
+                    } @empty {
+                      <div class="p-8 text-center text-slate-400 text-xs italic">
+                        No packaging list data available.
+                      </div>
+                    }
+                  </div>
                 </div>
               } @else {
                 <div class="rounded-2xl border border-slate-200 overflow-hidden">

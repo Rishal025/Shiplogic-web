@@ -12,6 +12,7 @@ import { AccordionModule } from 'primeng/accordion';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
+import { NotificationService } from '../../../../../../core/services/notification.service';
 import {
   selectShipmentData,
   selectSubmittedStep3Indices,
@@ -114,10 +115,11 @@ export class ShipmentArrivalComponent {
   });
 
   private store = inject(Store);
-  private confirmationService = inject(ConfirmationService);
   private sanitizer = inject(DomSanitizer);
   private shipmentService = inject(ShipmentService);
+  private confirmationService = inject(ConfirmationService);
   private messageService = inject(MessageService);
+  private notificationService = inject(NotificationService);
 
   readonly submittedIndices = toSignal(this.store.select(selectSubmittedStep4Indices), { initialValue: [] });
   readonly precedingIndices = toSignal(this.store.select(selectSubmittedStep3Indices), { initialValue: [] });
@@ -143,6 +145,7 @@ export class ShipmentArrivalComponent {
       this.formArray.controls.forEach((_, index) => {
         this.updateDerivedDates(index);
         this.updateDelayHours(index);
+        this.setTransportationDefaults(index);
       });
     });
 
@@ -153,7 +156,31 @@ export class ShipmentArrivalComponent {
       if (!this.formArray) return;
       this.formArray.controls.forEach((_, index) => {
         this.applySectionLocks(index);
+        this.setTransportationDefaults(index);
       });
+    });
+  }
+
+  private setTransportationDefaults(index: number): void {
+    const group = this.formArray.at(index);
+    if (!group) return;
+    const transportation = this.getTransportationRows(group);
+    if (!transportation) return;
+
+    const now = new Date();
+    transportation.controls.forEach((row) => {
+      if (!row.get('bookedDate')?.value) {
+        row.get('bookedDate')?.patchValue(now, { emitEvent: false });
+      }
+      if (!row.get('bookingTime')?.value) {
+        row.get('bookingTime')?.patchValue(now, { emitEvent: false });
+      }
+      if (!row.get('transportDate')?.value) {
+        row.get('transportDate')?.patchValue(now, { emitEvent: false });
+      }
+      if (!row.get('transportTime')?.value) {
+        row.get('transportTime')?.patchValue(now, { emitEvent: false });
+      }
     });
   }
 
@@ -353,6 +380,38 @@ export class ShipmentArrivalComponent {
   }
 
   onTransportationTimeChange(index: number): void {
+    const group = this.formArray.at(index);
+    if (!group) return;
+    const transportation = this.getTransportationRows(group);
+    
+    transportation.controls.forEach((row) => {
+      const bookedDate = row.get('bookedDate')?.value;
+      const transportDate = row.get('transportDate')?.value;
+      
+      if (bookedDate && transportDate) {
+        const bd = new Date(bookedDate);
+        bd.setHours(0, 0, 0, 0);
+        const td = new Date(transportDate);
+        td.setHours(0, 0, 0, 0);
+        
+        if (td < bd) {
+          this.notificationService.warn('Invalid Date', 'Transportation date cannot be earlier than arranged date.');
+          row.get('transportDate')?.patchValue(bookedDate, { emitEvent: false });
+        } else if (td.getTime() === bd.getTime()) {
+          const bt = row.get('bookingTime')?.value;
+          const tt = row.get('transportTime')?.value;
+          if (bt && tt) {
+            const bTime = new Date(bt).getHours() * 60 + new Date(bt).getMinutes();
+            const tTime = new Date(tt).getHours() * 60 + new Date(tt).getMinutes();
+            if (tTime < bTime) {
+              this.notificationService.warn('Invalid Time', 'Transportation time cannot be earlier than booking time on the same day.');
+              row.get('transportTime')?.patchValue(bt, { emitEvent: false });
+            }
+          }
+        }
+      }
+    });
+
     this.updateDelayHours(index);
   }
 
@@ -446,6 +505,18 @@ export class ShipmentArrivalComponent {
     return this.isLogisticsSectionLocked(index, 'transportation');
   }
 
+  unlockLogisticsSection(
+    index: number,
+    section: 'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'
+  ): void {
+    if (this.isRowSubmitted(index)) return;
+    this.lockedSections.update((current) => ({
+      ...current,
+      [this.sectionKey(index, section)]: false,
+    }));
+    this.applySectionLocks(index);
+  }
+
   saveLogisticsSection(index: number, section: 'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'): void {
     const group = this.formArray.at(index);
     const containerId = group?.get('containerId')?.value;
@@ -457,6 +528,16 @@ export class ShipmentArrivalComponent {
     payload.append('sectionKey', section);
 
     if (section === 'transportation') {
+      const transportationRows = this.getTransportationRows(group);
+      transportationRows.markAllAsTouched();
+      if (transportationRows.invalid) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Invalid transportation timing',
+          detail: 'Transportation date and time must be the same as or later than the arranged date and booking time.',
+        });
+        return;
+      }
       this.updateDelayHours(index);
       const transportationBooked = this.getTransportationRows(group).getRawValue().map((tb: any) => ({
         containerSerialNo: tb.containerSerialNo || '',
@@ -495,6 +576,11 @@ export class ShipmentArrivalComponent {
       const file = this.getFile(index, section);
       if (file) payload.append(config.file, file, file.name);
     }
+
+    console.log(`📡 [ShipmentArrival] Saving section "${section}" for container ${containerId}`);
+    payload.forEach((value, key) => {
+      console.log(`   🔸 ${key}:`, value instanceof File ? `File(${value.name}, ${value.size} bytes)` : value);
+    });
 
     this.sectionSavingKey.set(`${section}-${index}`);
     this.shipmentService.submitLogistics(containerId, payload).subscribe({

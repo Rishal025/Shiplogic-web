@@ -84,7 +84,7 @@
             .cell-dates {
                 @apply flex gap-1 items-center;
                 .date-mini {
-                    @apply border-none bg-transparent py-1 px-1 text-[10px] font-bold text-slate-700 w-20;
+                    @apply border-none bg-transparent py-1 px-1 text-[10px] font-bold text-slate-700;
                     @apply focus:ring-1 focus:ring-blue-400 focus:bg-white rounded;
                 }
             }
@@ -251,7 +251,7 @@
             th.actual-col-compact, td.actual-col-compact { width: 78px; min-width: 78px; }
             th.actual-col-ci, td.actual-col-ci { width: 220px; min-width: 220px; }
             th.actual-col-bl, td.actual-col-bl { width: 200px; min-width: 200px; }
-            th.actual-col-date, td.actual-col-date { width: 132px; min-width: 132px; }
+            th.actual-col-date, td.actual-col-date { width: 165px; min-width: 165px; }
             th.actual-col-action, td.actual-col-action { width: 100px; min-width: 100px; }
 
             .actual-col-serial .table-input-text,

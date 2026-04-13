@@ -57,8 +57,8 @@ import { WarehouseService, Warehouse } from '../../../core/services/warehouse.se
             <tr>
               <th class="bg-slate-50 text-slate-600 font-semibold py-4">Name</th>
               <th class="bg-slate-50 text-slate-600 font-semibold py-4">Code</th>
-              <th class="bg-slate-50 text-slate-600 font-semibold py-4">Location</th>
-              <th class="bg-slate-50 text-slate-600 font-semibold py-4">Manager</th>
+              <!-- <th class="bg-slate-50 text-slate-600 font-semibold py-4">Location</th>
+              <th class="bg-slate-50 text-slate-600 font-semibold py-4">Manager</th> -->
               <th class="bg-slate-50 text-slate-600 font-semibold py-4 text-center">Status</th>
               <th class="bg-slate-50 text-slate-600 font-semibold py-4 text-right px-6">Actions</th>
             </tr>
@@ -67,8 +67,8 @@ import { WarehouseService, Warehouse } from '../../../core/services/warehouse.se
             <tr class="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
               <td class="py-4 font-medium text-slate-700">{{ warehouse.name }}</td>
               <td class="py-4 text-slate-500 font-mono text-sm">{{ warehouse.code || '–' }}</td>
-              <td class="py-4 text-slate-500">{{ warehouse.location || '–' }}</td>
-              <td class="py-4 text-slate-500">{{ warehouse.managerName || '–' }}</td>
+              <!-- <td class="py-4 text-slate-500">{{ warehouse.location || '–' }}</td>
+              <td class="py-4 text-slate-500">{{ warehouse.managerName || '–' }}</td> -->
               <td class="py-4 text-center">
                 <span 
                   [class]="warehouse.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-600 border-slate-200'"
@@ -124,7 +124,7 @@ import { WarehouseService, Warehouse } from '../../../core/services/warehouse.se
           <input pInputText id="code" formControlName="code" placeholder="e.g. DXB-01" />
         </div>
 
-        <div class="field">
+        <!-- <div class="field">
           <label for="location" class="block text-sm font-semibold text-slate-700 mb-1">Location</label>
           <input pInputText id="location" formControlName="location" placeholder="e.g. Al Quoz, Dubai" />
         </div>
@@ -138,7 +138,7 @@ import { WarehouseService, Warehouse } from '../../../core/services/warehouse.se
             <label for="capacity" class="block text-sm font-semibold text-slate-700 mb-1">Capacity (MT)</label>
             <p-inputNumber id="capacity" formControlName="capacity"></p-inputNumber>
           </div>
-        </div>
+        </div> -->
 
         <div class="field">
           <label for="status" class="block text-sm font-semibold text-slate-700 mb-1">Status</label>
@@ -193,9 +193,9 @@ export class WarehouseManagementComponent implements OnInit {
   warehouseForm: FormGroup = this.fb.group({
     name: ['', Validators.required],
     code: [''],
-    location: [''],
-    managerName: [''],
-    capacity: [null],
+    // location: [''],
+    // managerName: [''],
+    // capacity: [null],
     status: ['Active', Validators.required]
   });
 

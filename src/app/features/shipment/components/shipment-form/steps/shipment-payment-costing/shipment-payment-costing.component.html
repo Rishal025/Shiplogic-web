@@ -90,7 +90,7 @@
                       <col />
                       <col class="w-[170px]" />
                       <col class="w-[180px]" />
-                      <col class="w-[190px]" />
+                      <col class="w-[300px]" />
                     </colgroup>
                     <thead class="bg-white">
                       <tr class="border-b border-slate-100">
@@ -198,9 +198,9 @@
                         <th class="min-w-[160px]">REQUEST AMOUNT</th>
                         <th class="min-w-[160px]">PAID AMOUNT</th>
                         <th class="min-w-[160px]">ACTUAL PAID</th>
-                        <th class="min-w-[160px]">REF BILL NO</th>
+                        <th class="min-w-[250px]">REF BILL NO</th>
                         <th class="min-w-[160px]">REF BILL DATE</th>
-                        <th class="min-w-[180px]">REF BILL VENDOR</th>
+                        <th class="min-w-[200px]">REF BILL VENDOR</th>
                         <th class="min-w-[120px] text-center">DOCUMENT</th>
                       </tr>
                     </ng-template>
@@ -220,7 +220,7 @@
                           <p-inputNumber formControlName="actualPaid" styleClass="w-full" inputStyleClass="table-input w-full" />
                         </td>
                         <td>
-                          <input pInputText formControlName="refBillNo" class="table-input-text w-full" placeholder="Ref bill no" />
+                          <input pInputText formControlName="refBillNo" class="table-input-text w-full" placeholder="Ref bill no" (input)="onRefBillNoInput(group, r)" />
                         </td>
                         <td>
                           <p-datepicker formControlName="refBillDate" appendTo="body" inputStyleClass="table-input w-full" styleClass="w-full" placeholder="Date" dateFormat="dd/mm/yy"></p-datepicker>
@@ -362,20 +362,20 @@
           <table class="min-w-[1800px] text-sm">
             <thead class="bg-white sticky top-0 z-10">
               <tr class="border-b border-slate-100">
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">SN</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Item</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Packing</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Qty</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">UOM</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Unit Cost FC</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Unit Cost DH</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Total Cost FC</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Total Cost DH</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Expense Allocation Factor</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Expenses Allocated</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Total Value With Expenses</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Landed Cost / Unit</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Reference</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-16">SN</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 min-w-[300px]">Item</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 min-w-[250px]">Packing</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-32">Qty</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-24">UOM</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-32">Unit Cost FC</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-32">Unit Cost DH</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-32">Total Cost FC</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-32">Total Cost DH</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-40">Allocation Factor</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-40">Expenses Allocated</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-48">Value With Expenses</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-40">Landed Cost / Unit</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 min-w-[200px]">Reference</th>
               </tr>
             </thead>
             <tbody>

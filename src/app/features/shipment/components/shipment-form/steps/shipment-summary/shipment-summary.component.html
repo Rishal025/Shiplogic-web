@@ -73,16 +73,16 @@
       <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
         <i class="pi pi-users"></i>
       </div>
-      <h2>Supplier & Item</h2>
+      <h2>Vendor & Item</h2>
     </div>
     <div class="sl-card-body flex flex-col gap-5">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Supplier</span>
+          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Vendor</span>
           <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.supplier || '–' }}</span>
         </div>
         <div class="flex flex-col gap-1">
-          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Supplier Email</span>
+          <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Vendor Email</span>
           <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.supplierEmail || '–' }}</span>
         </div>
       </div>
@@ -101,6 +101,8 @@
                   <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Packing</th>
                   <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Qty MT</th>
                   <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">FCL</th>
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Pallet</th>
+                  <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Bags</th>
                   <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Barcode</th>
                   <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Variant</th>
                   <th class="border-b border-slate-200 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">H.S Code</th>
@@ -118,6 +120,8 @@
                     <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.packagingType || '–' }}</td>
                     <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.plannedContainers ?? '–' }}</td>
                     <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.fcl ?? '–' }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.pallet ?? '–' }}</td>
+                    <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.bags ?? '–' }}</td>
                     <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.barcode || '–' }}</td>
                     <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.variant || '–' }}</td>
                     <td class="border-t border-slate-100 px-4 py-4 text-sm text-slate-700">{{ item.hsCode || '–' }}</td>
@@ -144,6 +148,8 @@
                   <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Packing</span><span class="text-sm text-slate-700">{{ item.packagingType || '–' }}</span></div>
                   <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Qty MT</span><span class="text-sm text-slate-700">{{ item.plannedContainers ?? '–' }}</span></div>
                   <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">FCL</span><span class="text-sm text-slate-700">{{ item.fcl ?? '–' }}</span></div>
+                  <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Pallet</span><span class="text-sm text-slate-700">{{ item.pallet ?? '–' }}</span></div>
+                  <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Bags</span><span class="text-sm text-slate-700">{{ item.bags ?? '–' }}</span></div>
                   <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Barcode</span><span class="text-sm text-slate-700">{{ item.barcode || '–' }}</span></div>
                   <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Variant</span><span class="text-sm text-slate-700">{{ item.variant || '–' }}</span></div>
                   <div class="flex flex-col gap-1"><span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">H.S Code</span><span class="text-sm text-slate-700">{{ item.hsCode || '–' }}</span></div>

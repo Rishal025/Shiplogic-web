@@ -177,7 +177,7 @@ export class ShipmentFormComponent implements OnDestroy {
         editPermissionKey: 'shipment.tab.bl_details.edit',
         label: 'BL Details',
         subLabel: 'Purchase',
-        completed: this.allSubmitted(total, this.submittedActualIndices()),
+        completed: total > 0 && this.submittedActualIndices().length > 0 && this.allSubmitted(this.submittedActualIndices().length, this.submittedStep3Indices()),
       },
       {
         index: 3,
@@ -186,7 +186,7 @@ export class ShipmentFormComponent implements OnDestroy {
         editPermissionKey: 'shipment.tab.document_tracker.edit',
         label: 'Document Tracker',
         subLabel: 'FAS',
-        completed: this.allSubmitted(total, this.submittedStep3Indices()),
+        completed: this.submittedActualIndices().length > 0 && this.allSubmitted(this.submittedActualIndices().length, this.submittedStep3Indices()),
       },
       {
         index: 4,
@@ -195,7 +195,7 @@ export class ShipmentFormComponent implements OnDestroy {
         editPermissionKey: 'shipment.tab.port_customs.edit',
         label: 'Port and Customs Clearance Tracker',
         subLabel: 'Logistics',
-        completed: this.allSubmitted(total, this.submittedStep4Indices()),
+        completed: this.submittedActualIndices().length > 0 && this.allSubmitted(this.submittedActualIndices().length, this.submittedStep4Indices()),
       },
       {
         index: 5,
@@ -204,7 +204,7 @@ export class ShipmentFormComponent implements OnDestroy {
         editPermissionKey: 'shipment.tab.storage_arrival.edit',
         label: 'Storage Allocation & Arrival',
         subLabel: 'Logistics',
-        completed: this.allSubmitted(total, this.submittedStep5Indices()),
+        completed: this.submittedActualIndices().length > 0 && this.allSubmitted(this.submittedActualIndices().length, this.submittedStep5Indices()),
       },
       {
         index: 6,
@@ -213,7 +213,7 @@ export class ShipmentFormComponent implements OnDestroy {
         editPermissionKey: 'shipment.tab.quality.edit',
         label: 'Quality',
         subLabel: 'QA',
-        completed: this.allSubmitted(total, this.submittedStep6Indices()),
+        completed: this.submittedActualIndices().length > 0 && this.allSubmitted(this.submittedActualIndices().length, this.submittedStep6Indices()),
       },
       {
         index: 7,
@@ -222,7 +222,7 @@ export class ShipmentFormComponent implements OnDestroy {
         editPermissionKey: 'shipment.tab.payment_costing.edit',
         label: 'Payment & Costing',
         subLabel: 'FAS',
-        completed: this.allSubmitted(total, this.submittedStep7Indices()),
+        completed: this.submittedActualIndices().length > 0 && this.allSubmitted(this.submittedActualIndices().length, this.submittedStep7Indices()),
       },
     ];
   });
@@ -287,6 +287,11 @@ export class ShipmentFormComponent implements OnDestroy {
 
   isStepReadOnly(stepIndex: number): boolean {
     if (stepIndex === 0) {
+      return true;
+    }
+
+    // Restriction: Step 3 (BL Details) and beyond require at least one Actual row to be submitted
+    if (stepIndex >= 2 && this.submittedActualIndices().length === 0) {
       return true;
     }
 
@@ -560,7 +565,7 @@ export class ShipmentFormComponent implements OnDestroy {
 
         this.actualSplits.push(
           this.fb.group({
-            containerId: [plannedContainer.containerId],
+            containerId: [plannedContainer?.containerId],
             actualSerialNo: [actualData?.actualSerialNo || `${this.actualSplits.length + 1}`],
             commercialInvoiceNo: [actualData?.commercialInvoiceNo || ''],
             shipOnBoardDate: [actualData?.shipOnBoardDate ? new Date(actualData.shipOnBoardDate) : null, Validators.required],
@@ -573,8 +578,17 @@ export class ShipmentFormComponent implements OnDestroy {
             freeDetentionDays: [actualData?.freeDetentionDays ?? null],
             maximumDetentionDays: [actualData?.maximumDetentionDays ?? null],
             freightPrepared: [actualData?.freightPrepared || 'No'],
+            actualBags: [actualData?.actualBags ?? null],
+            expiryDate: [actualData?.expiryDate ? new Date(actualData.expiryDate) : null],
+            hsCode: [actualData?.hsCode || ''],
+            packagingDate: [actualData?.packagingDate ? new Date(actualData.packagingDate) : null],
+            grossWeight: [actualData?.grossWeight || ''],
+            netWeight: [actualData?.netWeight || ''],
             billExtractionData: [actualData?.billExtractionData || null],
             extractedContainers: [actualData?.extractedContainers || []],
+            packagingList: [actualData?.packagingList || null],
+            packagingListDocumentUrl: [actualData?.packagingListDocumentUrl || ''],
+            packagingListDocumentName: [actualData?.packagingListDocumentName || ''],
             FCL: [plannedContainer.FCL ?? null],
             size: [plannedContainer.size ?? data.shipment.containerSize ?? null],
             qtyMT: [
@@ -599,19 +613,30 @@ export class ShipmentFormComponent implements OnDestroy {
                   : null,
               Validators.required,
             ],
+            receivedOn: [actualData?.receivedOn ? new Date(actualData.receivedOn) : null],
+            status: [actualData ? 'Actual' : 'Planned'],
             BLNo: [actualData?.BLNo || '', Validators.required],
           }, { validators: this.actualDateOrderValidator() })
         );
+      });
+    }
+
+    // Step 3+ connection: Driven by Actual containers
+    const actualContainers = data.actual || [];
+    actualContainers.forEach((actualData, shipmentIndex) => {
+        const plannedContainer = data.planned?.find(p => p.containerId === actualData.containerId);
+        if (!plannedContainer) return;
 
         this.documentationSplits.push(
           this.fb.group({
-            containerId: [plannedContainer.containerId],
+            containerId: [plannedContainer?.containerId],
             BLNo: [actualData?.BLNo || '', Validators.required],
             courierTrackNo: [actualData?.courierTrackNo || actualData?.DHL || ''],
             courierServiceProvider: [actualData?.courierServiceProvider || ''],
+            docArrivalNotes: [actualData?.docArrivalNotes || ''],
             expectedDocDate: [actualData?.expectedDocDate ? new Date(actualData.expectedDocDate) : null],
-            receiver: [actualData?.receiver || '', Validators.required],
-            bankName: [actualData?.bankName || ''],
+            receiver: [actualData?.receiver || (data.shipment?.bankName ? 'Bank' : ''), Validators.required],
+            bankName: [actualData?.bankName || data.shipment?.bankName || ''],
             inwardCollectionAdviceDate: [actualData?.inwardCollectionAdviceDate ? new Date(actualData.inwardCollectionAdviceDate) : null],
             inwardCollectionAdviceDocumentUrl: [actualData?.inwardCollectionAdviceDocumentUrl || ''],
             inwardCollectionAdviceDocumentName: [actualData?.inwardCollectionAdviceDocumentName || ''],
@@ -641,7 +666,7 @@ export class ShipmentFormComponent implements OnDestroy {
 
         this.arrivalTimeSplits.push(
           this.fb.group({
-            containerId: [plannedContainer.containerId],
+            containerId: [plannedContainer?.containerId],
             arrivalOn: [actualData?.arrivalOn ? new Date(actualData.arrivalOn) : null],
             shipmentFreeRetentionDate: [actualData?.shipmentFreeRetentionDate ? new Date(actualData.shipmentFreeRetentionDate) : null],
             portRetentionWithPenaltyDate: [actualData?.portRetentionWithPenaltyDate ? new Date(actualData.portRetentionWithPenaltyDate) : null],
@@ -701,7 +726,7 @@ export class ShipmentFormComponent implements OnDestroy {
 
         this.clearancePaidSplits.push(
           this.fb.group({
-            containerId: [plannedContainer.containerId],
+            containerId: [plannedContainer?.containerId],
             paid_amount: [actualData?.paid_amount ?? null, Validators.required],
             paidOn: [
               actualData?.paidOn ? new Date(actualData.paidOn) : null,
@@ -713,7 +738,7 @@ export class ShipmentFormComponent implements OnDestroy {
 
         this.clearanceFinalSplits.push(
           this.fb.group({
-            containerId: [plannedContainer.containerId],
+            containerId: [plannedContainer?.containerId],
             paymentAllocations: this.createPaymentAllocationRows(
               (actualData as any)?.paymentAllocations?.length
                 ? (actualData as any).paymentAllocations
@@ -733,7 +758,7 @@ export class ShipmentFormComponent implements OnDestroy {
 
         this.grnSplits.push(
           this.fb.group({
-            containerId: [plannedContainer.containerId],
+            containerId: [plannedContainer?.containerId],
             qualityRows: this.createQualityRows((actualData as any)?.qualityRows, (actualData as any)?.qualityReports),
             qualityReports: this.createQualityReportRows((actualData as any)?.qualityReports),
           })
@@ -758,6 +783,7 @@ export class ShipmentFormComponent implements OnDestroy {
               existingStorage?.containerSerialNo ||
               existingAllocation?.containerSerialNo ||
               extractedContainer?.containerNo ||
+              (extractedContainer as any)?.container_no ||
               `${shipmentNo}-C${c + 1}`;
             return this.fb.group({
               containerSerialNo: [containerLabel],
@@ -771,6 +797,9 @@ export class ShipmentFormComponent implements OnDestroy {
               batch: [existingStorage?.batch || ''],
               productionDate: [existingStorage?.productionDate ? new Date(existingStorage.productionDate) : null],
               expiryDate: [existingStorage?.expiryDate ? new Date(existingStorage.expiryDate) : null],
+              hsCode: [existingStorage?.hsCode || ''],
+              grossWeight: [existingStorage?.grossWeight || ''],
+              netWeight: [existingStorage?.netWeight || ''],
               remarks: [existingStorage?.remarks || ''],
               documentUrl: [existingStorage?.documentUrl || ''],
               documentName: [existingStorage?.documentName || ''],
@@ -780,7 +809,7 @@ export class ShipmentFormComponent implements OnDestroy {
 
         this.storageSplits.push(
           this.fb.group({
-            containerId: [plannedContainer.containerId],
+            containerId: [plannedContainer?.containerId],
             noOfContainers: [storageContainerCount],
             storageDocumentUrl: [actualData?.storageDocumentUrl || ''],
             storageDocumentName: [actualData?.storageDocumentName || ''],
@@ -788,7 +817,6 @@ export class ShipmentFormComponent implements OnDestroy {
           })
         );
       });
-    }
   }
 
   // --- Child Event Handlers ---
@@ -1010,10 +1038,20 @@ export class ShipmentFormComponent implements OnDestroy {
       freeDetentionDays: [actualData?.freeDetentionDays ?? null],
       maximumDetentionDays: [actualData?.maximumDetentionDays ?? null],
       freightPrepared: [actualData?.freightPrepared || 'No'],
+      actualBags: [actualData?.actualBags ?? actualData?.packagingList?.totalBags ?? null],
+      expiryDate: [this.parseExpiryDate(actualData?.expiryDate || actualData?.packagingList?.expiryDate)],
+      hsCode: [actualData?.hsCode || ''],
+      packagingDate: [actualData?.packagingDate ? new Date(actualData.packagingDate) : null],
+      grossWeight: [actualData?.grossWeight || actualData?.packagingList?.totalGrossWeight || ''],
+      netWeight: [actualData?.netWeight || actualData?.packagingList?.totalNetWeight || ''],
       blDocumentUrl: [actualData?.blDocumentUrl || ''],
       blDocumentName: [actualData?.blDocumentName || ''],
       costSheetBookingDocumentUrl: [actualData?.costSheetBookingDocumentUrl || ''],
       costSheetBookingDocumentName: [actualData?.costSheetBookingDocumentName || ''],
+      packagingListDocumentUrl: [actualData?.packagingListDocumentUrl || ''],
+      packagingListDocumentName: [actualData?.packagingListDocumentName || ''],
+      packagingList: [actualData?.packagingList || null],
+      extractedContainers: [actualData?.extractedContainers || []],
       costSheetBookings: this.createCostSheetBookingRows(actualData?.costSheetBookings),
       storageAllocations: this.createStorageAllocationRows(
         noOfContainers,
@@ -1074,6 +1112,8 @@ export class ShipmentFormComponent implements OnDestroy {
     const rows = new FormArray<FormGroup>([]);
     const safeCount = Math.max(1, extractedContainers?.length || count || 1);
     const shipmentNo = this.shipmentData()?.shipment?.shipmentNo || 'SHIPMENT';
+    const defaultDate = this.createTodayDate();
+    const defaultTime = this.createCurrentTimeDate();
     for (let i = 0; i < safeCount; i++) {
       const existing = existingRows[i];
       const extracted = extractedContainers?.[i];
@@ -1087,12 +1127,12 @@ export class ShipmentFormComponent implements OnDestroy {
             `${shipmentNo}-${shipmentIndex + 1}-C${i + 1}`
           ],
           transportCompanyName: [existing?.transportCompanyName || ''],
-          bookedDate: [existing?.bookedDate ? new Date(existing.bookedDate) : null],
-          bookingTime: [this.parseTimeValue(existing?.bookingTime)],
-          transportDate: [existing?.transportDate ? new Date(existing.transportDate) : null],
-          transportTime: [this.parseTimeValue(existing?.transportTime)],
+          bookedDate: [existing?.bookedDate ? new Date(existing.bookedDate) : defaultDate],
+          bookingTime: [this.parseTimeValue(existing?.bookingTime) || defaultTime],
+          transportDate: [existing?.transportDate ? new Date(existing.transportDate) : defaultDate],
+          transportTime: [this.parseTimeValue(existing?.transportTime) || defaultTime],
           delayHours: [existing?.delayHours ?? null],
-        })
+        }, { validators: this.transportationDateOrderValidator() })
       );
     }
     return rows;
@@ -1103,22 +1143,23 @@ export class ShipmentFormComponent implements OnDestroy {
     return this.fb.array(
       source.map((row: any, index: number) => {
         const fallbackReport = existingReports[index] || {};
+        const defaultDate = this.createTodayDate();
         return (
         this.fb.group({
           sn: [row?.sn ?? index + 1],
           sampleNo: [row?.sampleNo || ''],
           phase: [row?.phase || 'S1'],
-          date: [row?.date ? new Date(row.date) : null],
+          date: [row?.date ? new Date(row.date) : defaultDate],
           inhouseReportNo: [row?.inhouseReportNo || ''],
-          inhouseReportDate: [row?.inhouseReportDate ? new Date(row.inhouseReportDate) : null],
+          inhouseReportDate: [row?.inhouseReportDate ? new Date(row.inhouseReportDate) : defaultDate],
           inhouseReportDocumentUrl: [row?.inhouseReportDocumentUrl || ''],
           inhouseReportDocumentName: [row?.inhouseReportDocumentName || ''],
           strategicReportNo: [row?.strategicReportNo || ''],
-          strategicReportDate: [row?.strategicReportDate ? new Date(row.strategicReportDate) : null],
+          strategicReportDate: [row?.strategicReportDate ? new Date(row.strategicReportDate) : defaultDate],
           strategicReportDocumentUrl: [row?.strategicReportDocumentUrl || ''],
           strategicReportDocumentName: [row?.strategicReportDocumentName || ''],
           thirdPartyReportNo: [row?.thirdPartyReportNo || ''],
-          thirdPartyReportDate: [row?.thirdPartyReportDate ? new Date(row.thirdPartyReportDate) : null],
+          thirdPartyReportDate: [row?.thirdPartyReportDate ? new Date(row.thirdPartyReportDate) : defaultDate],
           thirdPartyReportDocumentUrl: [row?.thirdPartyReportDocumentUrl || ''],
           thirdPartyReportDocumentName: [row?.thirdPartyReportDocumentName || ''],
           remarks: [row?.remarks || fallbackReport?.remarks || ''],
@@ -1139,13 +1180,25 @@ export class ShipmentFormComponent implements OnDestroy {
     return date;
   }
 
+  private createTodayDate(): Date {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+  }
+
+  private createCurrentTimeDate(): Date {
+    const date = new Date();
+    date.setSeconds(0, 0);
+    return date;
+  }
+
   private createQualityReportRows(existingRows: any[] = []): FormArray {
     const source = existingRows.length > 0 ? existingRows : [{}];
     return this.fb.array(
       source.map((row: any) =>
         this.fb.group({
           phase: [row?.phase || 'S1'],
-          reportDate: [row?.reportDate ? new Date(row.reportDate) : null],
+          reportDate: [row?.reportDate ? new Date(row.reportDate) : this.createTodayDate()],
           remarks: [row?.remarks || ''],
           documentUrl: [row?.documentUrl || ''],
           documentName: [row?.documentName || ''],
@@ -1372,6 +1425,26 @@ export class ShipmentFormComponent implements OnDestroy {
   }
 
   // --- Helpers ---
+  private parseExpiryDate(v: any): Date | null {
+    if (!v) return null;
+    if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+    
+    // If it's a string, try various formats
+    const str = String(v).trim();
+    if (!str) return null;
+
+    // Handle "MM/YYYY" format common in packaging lists
+    const mmYyyy = /^(\d{1,2})\/(\d{4})$/.exec(str);
+    if (mmYyyy) {
+      const month = parseInt(mmYyyy[1], 10) - 1;
+      const year = parseInt(mmYyyy[2], 10);
+      return new Date(year, month, 1);
+    }
+
+    const parsed = new Date(str);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
   private allSubmitted(total: number, indices: number[]): boolean {
     if (total === 0) return false;
     for (let i = 0; i < total; i++) {
@@ -1458,6 +1531,38 @@ export class ShipmentFormComponent implements OnDestroy {
       }
 
       return Object.keys(errors).length > 0 ? errors : null;
+    };
+  }
+
+  private transportationDateOrderValidator(): ValidatorFn {
+    return (control: AbstractControl): ValidationErrors | null => {
+      const bookedDateValue = control.get('bookedDate')?.value;
+      const bookingTimeValue = control.get('bookingTime')?.value;
+      const transportDateValue = control.get('transportDate')?.value;
+      const transportTimeValue = control.get('transportTime')?.value;
+
+      if (!bookedDateValue || !bookingTimeValue || !transportDateValue || !transportTimeValue) {
+        return null;
+      }
+
+      const bookedDate = new Date(bookedDateValue as string | Date);
+      const transportDate = new Date(transportDateValue as string | Date);
+      const bookingTime = bookingTimeValue instanceof Date ? bookingTimeValue : this.parseTimeValue(bookingTimeValue);
+      const transportTime = transportTimeValue instanceof Date ? transportTimeValue : this.parseTimeValue(transportTimeValue);
+
+      if (
+        Number.isNaN(bookedDate.getTime()) ||
+        Number.isNaN(transportDate.getTime()) ||
+        !bookingTime ||
+        !transportTime
+      ) {
+        return null;
+      }
+
+      bookedDate.setHours(bookingTime.getHours(), bookingTime.getMinutes(), 0, 0);
+      transportDate.setHours(transportTime.getHours(), transportTime.getMinutes(), 0, 0);
+
+      return transportDate < bookedDate ? { transportBeforeArranged: true } : null;
     };
   }
 

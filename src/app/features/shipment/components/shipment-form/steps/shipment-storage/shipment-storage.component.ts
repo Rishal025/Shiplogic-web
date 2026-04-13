@@ -42,6 +42,43 @@ export class ShipmentStorageComponent {
   private notificationService = inject(NotificationService);
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
 
+  constructor() {
+    effect(() => {
+      const data = this.shipmentData();
+      if (!data || !this.formArray || this.formArray.length === 0) return;
+
+      const now = new Date();
+      this.formArray.controls.forEach((group: AbstractControl, i: number) => {
+        const containers = this.getContainersArray(group);
+        const actualRow = data.actual?.[i];
+        if (!actualRow) return;
+
+        containers.forEach((rowGroup: AbstractControl) => {
+          const row = rowGroup as FormGroup;
+          
+          // 1. Default Received On Date/Time
+          if (!row.get('receivedOnDate')?.value) {
+            row.get('receivedOnDate')?.patchValue(now, { emitEvent: false });
+          }
+          if (!row.get('receivedOnTime')?.value) {
+            row.get('receivedOnTime')?.patchValue(now, { emitEvent: false });
+          }
+
+          // 2. Populate Production/Expiry from actual data (Packaging List source)
+          if (!row.get('productionDate')?.value && actualRow.packagingDate) {
+            row.get('productionDate')?.patchValue(new Date(actualRow.packagingDate), { emitEvent: false });
+          }
+          
+          // Check expiry in ActualContainer level or inside packagingList object
+          const expirySource = actualRow.expiryDate || actualRow.packagingList?.expiryDate;
+          if (!row.get('expiryDate')?.value && expirySource) {
+            row.get('expiryDate')?.patchValue(new Date(expirySource), { emitEvent: false });
+          }
+        });
+      });
+    });
+  }
+
   // Tab state uses compound key "shipmentIndex-containerIndex"
   readonly activeTabs = signal<Record<string, 'allocation' | 'arrival'>>({});
   readonly expandedContainers = signal<Record<number, boolean>>({});

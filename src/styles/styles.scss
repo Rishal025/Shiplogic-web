@@ -3,6 +3,8 @@
 @use 'tokens';
 @use 'typography';
 
+@reference "tailwindcss";
+
 @import 'primeicons/primeicons.css';
 
 /* Global UI Components - Shiplogic Design System */
@@ -256,4 +258,76 @@
   overflow-x: auto;
   overflow-y: visible;
   -webkit-overflow-scrolling: touch;
+}
+
+/* 4. Extraction Overlay (Royal AI) */
+.extraction-overlay {
+    @apply fixed inset-0 z-[1200] flex items-center justify-center p-4;
+}
+
+.extraction-overlay__backdrop {
+    @apply absolute inset-0 bg-slate-950/60 backdrop-blur-xl;
+    transition: opacity 0.5s ease;
+}
+
+.extraction-overlay__card {
+    @apply relative z-[1] flex w-full max-w-2xl flex-col items-center gap-6 rounded-[40px] border border-white/40 bg-white/80 p-10 text-center shadow-[0_32px_120px_-20px_rgba(0,0,0,0.5)] sm:p-12;
+    backdrop-filter: blur(24px) saturate(180%);
+    animation: modal-slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.extraction-overlay__badge {
+    @apply inline-flex items-center gap-2 rounded-full border border-blue-200/50 bg-blue-100/30 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.3em] text-blue-700;
+    backdrop-filter: blur(4px);
+}
+
+.extraction-overlay__badge-dot {
+    @apply h-2 w-2 rounded-full bg-blue-600;
+    box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.15);
+    animation: pulse-dot 2s infinite;
+}
+
+.extraction-video-container {
+    @apply relative mb-2 flex h-80 w-full items-center justify-center rounded-3xl overflow-hidden bg-slate-100 shadow-2xl;
+    box-shadow: 
+        0 20px 50px -12px rgba(59, 130, 246, 0.4),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+}
+
+.extraction-video {
+    @apply h-full w-full object-cover;
+}
+
+.extraction-overlay__title {
+    @apply text-3xl font-black tracking-tight text-slate-900;
+    font-family: 'Outfit', 'Inter', sans-serif;
+}
+
+.extraction-overlay__message {
+    @apply min-h-[60px] max-w-[340px] text-[15px] font-medium leading-relaxed text-slate-500;
+}
+
+.extraction-progress {
+    @apply h-2.5 w-full overflow-hidden rounded-full bg-slate-200/50;
+}
+
+.extraction-progress__bar {
+    @apply h-full rounded-full bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500;
+    transition: width 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+}
+
+.extraction-overlay__footer {
+    @apply mt-2 flex flex-col gap-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wider;
+}
+
+@keyframes modal-slide-up {
+    0% { transform: translateY(20px) scale(0.96); opacity: 0; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes pulse-dot {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
 }
