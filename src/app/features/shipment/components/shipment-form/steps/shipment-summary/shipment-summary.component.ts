@@ -89,7 +89,8 @@ export class ShipmentSummaryComponent {
     const data = this.shipmentData();
     const planned = data?.planned || [];
     const actual = data?.actual || [];
-    const baseShipmentNo = data?.shipment?.shipmentNo?.replace(/\([^)]*\)/g, '').replace(/-\d+$/, '').trim() || 'Shipment';
+    const shipmentNo = data?.shipment?.shipmentNo?.replace(/\([^)]*\)/g, '').trim() || '';
+    const baseShipmentNo = shipmentNo.match(/^(RHST-\d+\/[A-Z0-9-]+)/i)?.[1] || shipmentNo || 'Shipment';
     const shipmentCount = Math.max(
       Number(data?.shipment?.noOfShipments) || 0,
       planned.length,

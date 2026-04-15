@@ -1,6 +1,14 @@
 @reference "tailwindcss";
 
 :host ::ng-deep {
+    button:not(:disabled),
+    .split-toolbar button:not(:disabled),
+    .custom-tracker-table button:not(:disabled),
+    .custom-tracker-table label,
+    .p-dialog button:not(:disabled) {
+        cursor: pointer;
+    }
+
     .extraction-overlay {
         @apply fixed inset-0 z-[1200] flex items-center justify-center p-4;
     }

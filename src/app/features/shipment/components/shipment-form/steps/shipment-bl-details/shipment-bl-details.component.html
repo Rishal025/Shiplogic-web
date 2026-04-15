@@ -376,6 +376,23 @@
                       Save
                     </button>
                   </div>
+                  @if (getStorageCloseMismatchWarnings(group).length) {
+                    <div class="border-b border-amber-100 bg-amber-50/80 px-4 py-3">
+                      <div class="flex items-start gap-2">
+                        <i class="pi pi-exclamation-triangle mt-0.5 text-[12px] text-amber-600"></i>
+                        <div class="flex flex-col gap-1">
+                          <span class="text-[11px] font-bold text-amber-800">Some container numbers look very close but do not match.</span>
+                          @for (warning of getStorageCloseMismatchWarnings(group); track $index) {
+                            <span class="text-[11px] text-amber-700">
+                              Container in Storage: <strong>{{ warning.storage }}</strong>
+                              <span class="mx-1">|</span>
+                              Container in Packaging: <strong>{{ warning.packaging }}</strong>
+                            </span>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  }
                   <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.45fr)_140px_minmax(0,1.25fr)] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Container Serial No</span>
@@ -387,7 +404,14 @@
                       <div [formGroup]="$any(row)" class="border-b last:border-b-0 border-slate-100 p-4">
                         <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.45fr)_140px_minmax(0,1.25fr)] gap-3 items-start">
                           <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
-                          <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container Serial No" />
+                          <div class="flex flex-col gap-1.5">
+                            <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container Serial No" />
+                            @if (getStorageRowMismatch(group, $index); as mismatch) {
+                              <span class="text-[10px] font-medium text-rose-600">
+                                Expected packaging container: <strong>{{ mismatch.packaging }}</strong>
+                              </span>
+                            }
+                          </div>
                           <p-inputNumber formControlName="bags" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
                           <p-select
                             [options]="warehouseOptions"
@@ -404,6 +428,11 @@
                           <div class="flex flex-col gap-1.5">
                             <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Container Serial No</label>
                             <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container Serial No" />
+                            @if (getStorageRowMismatch(group, $index); as mismatch) {
+                              <span class="text-[10px] font-medium text-rose-600">
+                                Expected packaging container: <strong>{{ mismatch.packaging }}</strong>
+                              </span>
+                            }
                           </div>
                           <div class="flex flex-col gap-1.5">
                             <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Warehouse</label>
@@ -469,6 +498,45 @@
     }
   </div>
 </p-dialog>
+
+@if (storageValidationModalVisible()) {
+  <p-dialog
+    header="Storage container mismatch"
+    [visible]="true"
+    (visibleChange)="closeStorageValidationModal()"
+    [modal]="true"
+    [dismissableMask]="false"
+    [style]="{ width: '92vw', maxWidth: '520px' }"
+    [draggable]="false"
+    [resizable]="false"
+    appendTo="body">
+    <div class="flex flex-col gap-4">
+      <p class="text-sm text-slate-600">{{ storageValidationMessage() }}</p>
+      @if (storageValidationDetails().length) {
+        <div class="rounded-xl border border-rose-100 bg-rose-50/80 p-4">
+          <div class="mb-2 text-[10px] font-black uppercase tracking-widest text-rose-600">Mismatched containers</div>
+          <div class="flex flex-col gap-2">
+            @for (item of storageValidationDetails(); track $index) {
+              <div class="grid grid-cols-1 gap-1 rounded-lg bg-white/70 px-3 py-2 text-[11px] text-slate-700">
+                <span>Container in Storage: <strong>{{ item.storage }}</strong></span>
+                <span>Container in Packaging: <strong>{{ item.packaging }}</strong></span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+      <div class="flex justify-end">
+        <button
+          type="button"
+          (click)="closeStorageValidationModal()"
+          class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-[11px] font-black uppercase text-white"
+        >
+          Update Containers
+        </button>
+      </div>
+    </div>
+  </p-dialog>
+}
 
 <p-dialog
   [header]="'Track Order Status'"

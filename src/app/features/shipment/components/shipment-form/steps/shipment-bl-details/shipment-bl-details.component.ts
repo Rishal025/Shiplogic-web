@@ -108,6 +108,9 @@ export class ShipmentBlDetailsComponent {
   readonly statusModalVisible = signal(false);
   readonly statusModalShipmentIndex = signal<number | null>(null);
   readonly savingKey = signal<string | null>(null);
+  readonly storageValidationModalVisible = signal(false);
+  readonly storageValidationMessage = signal('');
+  readonly storageValidationDetails = signal<Array<{ storage: string; packaging: string }>>([]);
   readonly shipmentStages = [
     'Shipment Entry',
     'Shipment Tracker',
@@ -164,6 +167,166 @@ export class ShipmentBlDetailsComponent {
 
   getStorageRows(group: AbstractControl): FormArray {
     return group.get('storageAllocations') as FormArray;
+  }
+
+  private normalizeContainerNumber(value: unknown): string {
+    return String(value ?? '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .trim();
+  }
+
+  private isCloseContainerMismatch(left: string, right: string): boolean {
+    if (!left || !right || left === right || left.length !== right.length) {
+      return false;
+    }
+
+    let diffCount = 0;
+    for (let index = 0; index < left.length; index++) {
+      if (left[index] !== right[index]) {
+        diffCount += 1;
+        if (diffCount > 1) return false;
+      }
+    }
+
+    return diffCount === 1;
+  }
+
+  private getPackagingContainerEntries(group: AbstractControl): Array<{ raw: string; normalized: string }> {
+    const packagingList = group.get('packagingList')?.value;
+    const containerInfo =
+      packagingList?.containerInfo ||
+      packagingList?.container_info ||
+      [];
+    const containerNumberList = packagingList?.container_number_list || [];
+    const extractedContainers = group.get('extractedContainers')?.value || [];
+
+    const entrySource = Array.isArray(containerInfo) && containerInfo.length
+      ? containerInfo
+      : Array.isArray(containerNumberList) && containerNumberList.length
+        ? containerNumberList
+        : extractedContainers;
+
+    return entrySource
+      .map((entry: any) => {
+        const raw = typeof entry === 'string'
+          ? entry.trim()
+          : String(
+              entry?.container_number ||
+              entry?.containerNo ||
+              entry?.container_no ||
+              entry?.containerNumber ||
+              ''
+            ).trim();
+        return { raw, normalized: this.normalizeContainerNumber(raw) };
+      })
+      .filter((entry: { raw: string; normalized: string }) => !!entry.normalized);
+  }
+
+  private getStorageContainerEntries(group: AbstractControl): Array<{ raw: string; normalized: string }> {
+    return this.getStorageRows(group)
+      .getRawValue()
+      .map((entry: any) => {
+        const raw = String(entry?.containerSerialNo || '').trim();
+        return { raw, normalized: this.normalizeContainerNumber(raw) };
+      })
+      .filter((entry: { raw: string; normalized: string }) => !!entry.normalized);
+  }
+
+  private getStorageContainerValidationState(group: AbstractControl): {
+    valid: boolean;
+    message: string;
+    mismatches: Array<{ storage: string; packaging: string }>;
+    warnings: Array<{ storage: string; packaging: string }>;
+  } {
+    const packagingEntries = this.getPackagingContainerEntries(group);
+    const storageEntries = this.getStorageContainerEntries(group);
+
+    if (!packagingEntries.length || !storageEntries.length) {
+      return {
+        valid: false,
+        message: 'Container names are required in both Packaging List and Storage Allocations before saving.',
+        mismatches: [],
+        warnings: [],
+      };
+    }
+
+    if (packagingEntries.length !== storageEntries.length) {
+      return {
+        valid: false,
+        message: `Container count mismatch: Packaging List has ${packagingEntries.length}, while Storage Allocations has ${storageEntries.length}. Please update the container rows before saving.`,
+        mismatches: [],
+        warnings: [],
+      };
+    }
+
+    const mismatches: Array<{ storage: string; packaging: string }> = [];
+    const warnings: Array<{ storage: string; packaging: string }> = [];
+
+    for (let index = 0; index < packagingEntries.length; index++) {
+      const packagingEntry = packagingEntries[index];
+      const storageEntry = storageEntries[index];
+
+      if (packagingEntry.normalized === storageEntry.normalized) {
+        continue;
+      }
+
+      const mismatch = {
+        storage: storageEntry.raw || '—',
+        packaging: packagingEntry.raw || '—',
+      };
+
+      mismatches.push(mismatch);
+
+      if (this.isCloseContainerMismatch(storageEntry.normalized, packagingEntry.normalized)) {
+        warnings.push(mismatch);
+      }
+    }
+
+    if (!mismatches.length) {
+      return { valid: true, message: '', mismatches: [], warnings: [] };
+    }
+
+    return {
+      valid: false,
+      message: 'Storage Allocation container names do not match the Packaging List. Please update the container names before saving.',
+      mismatches,
+      warnings,
+    };
+  }
+
+  getStorageCloseMismatchWarnings(group: AbstractControl): Array<{ storage: string; packaging: string }> {
+    return this.getStorageContainerValidationState(group).warnings;
+  }
+
+  getStorageContainerMismatches(group: AbstractControl): Array<{ storage: string; packaging: string }> {
+    return this.getStorageContainerValidationState(group).mismatches;
+  }
+
+  getStorageRowMismatch(
+    group: AbstractControl,
+    rowIndex: number
+  ): { storage: string; packaging: string } | null {
+    return this.getStorageContainerValidationState(group).mismatches[rowIndex] ?? null;
+  }
+
+  private validateStorageAllocationContainers(group: AbstractControl): {
+    valid: boolean;
+    message: string;
+    mismatches: Array<{ storage: string; packaging: string }>;
+  } {
+    const state = this.getStorageContainerValidationState(group);
+    return {
+      valid: state.valid,
+      message: state.message,
+      mismatches: state.mismatches,
+    };
+  }
+
+  closeStorageValidationModal(): void {
+    this.storageValidationModalVisible.set(false);
+    this.storageValidationMessage.set('');
+    this.storageValidationDetails.set([]);
   }
 
   getVisibleCostSheetRows(group: AbstractControl, shipmentIndex: number): AbstractControl[] {
@@ -375,6 +538,16 @@ export class ShipmentBlDetailsComponent {
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!row || !shipmentId) return;
 
+    if (this.getActiveTab(index) === 'storage') {
+      const validation = this.validateStorageAllocationContainers(row);
+      if (!validation.valid) {
+        this.storageValidationMessage.set(validation.message);
+        this.storageValidationDetails.set(validation.mismatches);
+        this.storageValidationModalVisible.set(true);
+        return;
+      }
+    }
+
     const containerId = row.get('containerId')?.value;
     if (!containerId) {
       this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
@@ -467,6 +640,14 @@ export class ShipmentBlDetailsComponent {
     const containerId = row.get('containerId')?.value;
     if (!containerId) {
       this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
+      return;
+    }
+
+    const validation = this.validateStorageAllocationContainers(row);
+    if (!validation.valid) {
+      this.storageValidationMessage.set(validation.message);
+      this.storageValidationDetails.set(validation.mismatches);
+      this.storageValidationModalVisible.set(true);
       return;
     }
 

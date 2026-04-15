@@ -103,7 +103,13 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   readonly showEtaShareModal = signal(false);
   readonly showEtaCalendar = signal(false);
   readonly etaCalendarDates = signal<Date[]>([]);
+  readonly etaCalendarViewDate = signal<Date>(new Date());
   readonly editablePlannedRows = signal<number[]>([]);
+  readonly actualBagCapacityError = signal<string | null>(null);
+  readonly manualActualBagRows = signal<Record<number, boolean>>({});
+  readonly actualExtractionErrors = signal<Record<number, string | null>>({});
+  readonly showExtractionValidationModal = signal(false);
+  readonly extractionValidationMessage = signal('');
 
   /** True after user clicks Confirm (No of Shipments) so the input becomes readonly until lock. */
   readonly noOfShipmentsConfirmed = signal(false);
@@ -118,6 +124,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   readonly extractionProgress = signal(18);
   readonly currentExtractionMessage = computed(() => this.extractionMessages[this.extractionMessageIndex()] || this.extractionMessages[0]);
   private extractionTicker: any = null;
+  private isRebalancingPlannedRows = false;
 
   private actualRecalcSub?: Subscription;
   private plannedLockSub?: Subscription;
@@ -139,6 +146,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
       if (len === 0) {
         this.noOfShipmentsConfirmed.set(false);
         this.editablePlannedRows.set([]);
+        this.manualActualBagRows.set({});
       }
     });
 
@@ -186,21 +194,11 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
       this.applyPlannedRowLockState();
     });
 
-    // Auto-calculate bags and pallet for Actual tab rows from FCL, size, and packing
+    // Auto-fill bag values for untouched rows and keep capacity validation in sync.
     effect(() => {
       if (this.activeSplitTab() !== 'actual' || !this.actualSplits?.length) return;
-      const packingKg = this.getPackingKg();
-      const submitted = this.submittedActualIndices();
-      for (let i = 0; i < this.actualSplits.length; i++) {
-        if (submitted.includes(i)) continue;
-        const computed = this.computeBagsAndPalletForRow(i, packingKg);
-        if (computed) {
-          this.actualSplits.at(i).patchValue(
-            { bags: computed.bags, pallet: computed.pallet },
-            { emitEvent: false }
-          );
-        }
-      }
+      this.syncActualAutoBagValues();
+      this.updateActualBagCapacityError();
     });
 
     // Re-run bags/pallet calc when actual form values change (e.g. parent patched after add/load)
@@ -211,18 +209,8 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     if (this.actualSplits?.valueChanges) {
       this.actualRecalcSub = this.actualSplits.valueChanges.pipe(debounceTime(0)).subscribe(() => {
         if (this.activeSplitTab() !== 'actual' || !this.actualSplits?.length) return;
-        const packingKg = this.getPackingKg();
-        const submitted = this.submittedActualIndices();
-        for (let i = 0; i < this.actualSplits.length; i++) {
-          if (submitted.includes(i)) continue;
-          const computed = this.computeBagsAndPalletForRow(i, packingKg);
-          if (computed) {
-            this.actualSplits.at(i).patchValue(
-              { bags: computed.bags, pallet: computed.pallet },
-              { emitEvent: false }
-            );
-          }
-        }
+        this.syncActualAutoBagValues();
+        this.updateActualBagCapacityError();
       });
     }
 
@@ -297,24 +285,126 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     return 25; // 20ft default
   }
 
-  computeBagsAndPalletForRow(
-    rowIndex: number,
-    packingKg?: number
-  ): { bags: number; pallet: number } | null {
-    const row = this.actualSplits?.at(rowIndex);
-    if (!row) return null;
-    const kg = packingKg ?? this.getPackingKg();
+  private getShipmentBagCapacity(): number {
+    const shipment = this.shipmentData()?.shipment as any;
+    const items = shipment?.lineItems || shipment?.items || [];
+    const lineItemBagTotal = items.reduce((sum: number, item: any) => {
+      const bags = Number(item?.bags) || 0;
+      return sum + (bags > 0 ? bags : 0);
+    }, 0);
 
-    // Calculate based tightly on actual assigned MT instead of theoretical capacity
-    const qtyMT = Number(row.get('qtyMT')?.value) || 0;
-    if (qtyMT <= 0) return null;
+    if (lineItemBagTotal > 0) {
+      return lineItemBagTotal;
+    }
 
-    const totalKg = qtyMT * 1000;
-    const bags = Math.round(totalKg / kg);
-    
-    // Each pallet fits 50 bags (adjusts down properly)
-    const pallet = Math.round(bags / 50);
-    return { bags, pallet };
+    return Number(shipment?.bags) || 0;
+  }
+
+  private getAutoCalculatedBagDistribution(): number[] {
+    if (!this.actualSplits?.length) return [];
+
+    const totalBagCapacity = this.getShipmentBagCapacity();
+    if (totalBagCapacity <= 0) {
+      return this.actualSplits.controls.map(() => 0);
+    }
+
+    const submitted = new Set(this.submittedActualIndices());
+    const manualRows = this.manualActualBagRows();
+
+    const fixedBagTotal = this.actualSplits.controls.reduce((sum, row, index) => {
+      if (!submitted.has(index) && !manualRows[index]) return sum;
+      const bags = Number(row.get('bags')?.value) || 0;
+      return sum + Math.max(0, Math.round(bags));
+    }, 0);
+
+    const autoRows = this.actualSplits.controls
+      .map((row, index) => ({ row, index, qtyMT: Number(row.get('qtyMT')?.value) || 0 }))
+      .filter(({ index }) => !submitted.has(index) && !manualRows[index]);
+
+    const distribution = this.actualSplits.controls.map((row) => Math.max(0, Math.round(Number(row.get('bags')?.value) || 0)));
+    if (!autoRows.length) {
+      return distribution;
+    }
+
+    const remainingBagCapacity = Math.max(0, totalBagCapacity - fixedBagTotal);
+    const totalAutoQty = autoRows.reduce((sum, entry) => sum + Math.max(0, entry.qtyMT), 0);
+    let allocated = 0;
+
+    autoRows.forEach((entry, autoIndex) => {
+      let nextBags = 0;
+      if (remainingBagCapacity > 0 && totalAutoQty > 0 && entry.qtyMT > 0) {
+        if (autoIndex === autoRows.length - 1) {
+          nextBags = Math.max(0, remainingBagCapacity - allocated);
+        } else {
+          nextBags = Math.max(0, Math.round((remainingBagCapacity * entry.qtyMT) / totalAutoQty));
+          allocated += nextBags;
+        }
+      }
+      distribution[entry.index] = nextBags;
+    });
+
+    return distribution;
+  }
+
+  private syncActualAutoBagValues(): void {
+    if (!this.actualSplits?.length) return;
+
+    const submitted = new Set(this.submittedActualIndices());
+    const manualRows = this.manualActualBagRows();
+    const nextDistribution = this.getAutoCalculatedBagDistribution();
+
+    this.actualSplits.controls.forEach((row, index) => {
+      if (submitted.has(index) || manualRows[index]) {
+        return;
+      }
+
+      const nextBags = nextDistribution[index] ?? 0;
+      const currentBags = Math.max(0, Math.round(Number(row.get('bags')?.value) || 0));
+      const nextPallet = nextBags > 0 ? Math.round(nextBags / 50) : 0;
+      const currentPallet = Math.max(0, Math.round(Number(row.get('pallet')?.value) || 0));
+
+      if (currentBags !== nextBags || currentPallet !== nextPallet) {
+        row.patchValue(
+          { bags: nextBags, pallet: nextPallet },
+          { emitEvent: false }
+        );
+      }
+    });
+  }
+
+  private getActualAssignedBagsTotal(): number {
+    if (!this.actualSplits?.length) return 0;
+    return this.actualSplits.controls.reduce((sum, row) => {
+      const bags = Number(row.get('bags')?.value) || 0;
+      return sum + Math.max(0, Math.round(bags));
+    }, 0);
+  }
+
+  private updateActualBagCapacityError(): void {
+    const totalBagCapacity = this.getShipmentBagCapacity();
+    if (totalBagCapacity <= 0 || !this.actualSplits?.length) {
+      this.actualBagCapacityError.set(null);
+      return;
+    }
+
+    const assignedBags = this.getActualAssignedBagsTotal();
+    if (assignedBags > totalBagCapacity) {
+      this.actualBagCapacityError.set(
+        `Assigned bags (${assignedBags}) cannot be greater than shipment bag capacity (${totalBagCapacity}).`
+      );
+      return;
+    }
+
+    this.actualBagCapacityError.set(null);
+  }
+
+  markActualBagsAsManual(index: number): void {
+    this.manualActualBagRows.update((current) => ({ ...current, [index]: true }));
+    const row = this.actualSplits?.at(index);
+    if (!row) return;
+    const bags = Math.max(0, Math.round(Number(row.get('bags')?.value) || 0));
+    row.get('pallet')?.setValue(bags > 0 ? Math.round(bags / 50) : 0, { emitEvent: false });
+    this.updateActualBagCapacityError();
   }
 
   setTab(tab: 'planned' | 'actual' | 'history') {
@@ -396,7 +486,9 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   }
 
   openEtaCalendar(): void {
-    this.etaCalendarDates.set(this.getEtaCalendarDates());
+    const etaDates = this.getEtaCalendarDates();
+    this.etaCalendarDates.set(etaDates);
+    this.etaCalendarViewDate.set(etaDates[0] ? new Date(etaDates[0]) : new Date());
     this.showEtaShareModal.set(false);
     this.showEtaCalendar.set(true);
   }
@@ -419,10 +511,132 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
       );
   }
 
+  getEtaCalendarMonthLabel(): string {
+    return this.etaCalendarViewDate().toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    });
+  }
+
+  showPreviousEtaCalendarMonth(): void {
+    const current = this.etaCalendarViewDate();
+    this.etaCalendarViewDate.set(new Date(current.getFullYear(), current.getMonth() - 1, 1));
+  }
+
+  showNextEtaCalendarMonth(): void {
+    const current = this.etaCalendarViewDate();
+    this.etaCalendarViewDate.set(new Date(current.getFullYear(), current.getMonth() + 1, 1));
+  }
+
+  getEtaCalendarWeekRows(): Array<Array<{ date: Date; inCurrentMonth: boolean; isSelected: boolean; isToday: boolean }>> {
+    const viewDate = this.etaCalendarViewDate();
+    const monthStart = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+    const gridStart = new Date(monthStart);
+    gridStart.setDate(monthStart.getDate() - monthStart.getDay());
+
+    const selectedDates = new Set(this.etaCalendarDates().map((date) => this.getDateKey(date)));
+    const todayKey = this.getDateKey(new Date());
+    const weeks: Array<Array<{ date: Date; inCurrentMonth: boolean; isSelected: boolean; isToday: boolean }>> = [];
+
+    for (let weekIndex = 0; weekIndex < 6; weekIndex++) {
+      const week: Array<{ date: Date; inCurrentMonth: boolean; isSelected: boolean; isToday: boolean }> = [];
+      for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+        const date = new Date(gridStart);
+        date.setDate(gridStart.getDate() + (weekIndex * 7) + dayIndex);
+        const key = this.getDateKey(date);
+        week.push({
+          date,
+          inCurrentMonth: date.getMonth() === viewDate.getMonth(),
+          isSelected: selectedDates.has(key),
+          isToday: key === todayKey,
+        });
+      }
+      weeks.push(week);
+    }
+
+    return weeks;
+  }
+
+  formatEtaCalendarDay(date: Date): string {
+    return String(date.getDate());
+  }
+
+  onPlannedFclBlur(rowIndex: number): void {
+    if (!this.plannedSplits?.length || this.isRebalancingPlannedRows) {
+      return;
+    }
+
+    const totalFcl = Number(this.shipmentData()?.shipment?.fcl) || 0;
+    const totalQtyMT = Number(this.shipmentData()?.shipment?.plannedQtyMT ?? this.totalQtyMT) || 0;
+    if (totalFcl <= 0 || rowIndex < 0 || rowIndex >= this.plannedSplits.length) {
+      return;
+    }
+
+    const currentFclValues = this.plannedSplits.controls.map((control) => {
+      const value = Number(control.get('FCL')?.value);
+      return Number.isFinite(value) && value > 0 ? Math.round(value) : 0;
+    });
+
+    const allocatedBefore = currentFclValues.slice(0, rowIndex).reduce((sum, value) => sum + value, 0);
+    currentFclValues[rowIndex] = Math.min(currentFclValues[rowIndex], Math.max(0, totalFcl - allocatedBefore));
+
+    const remainingRows = this.plannedSplits.length - rowIndex - 1;
+    const remainingFcl = Math.max(0, totalFcl - allocatedBefore - currentFclValues[rowIndex]);
+    const nextFclValues = [
+      ...currentFclValues.slice(0, rowIndex + 1),
+      ...this.distributeRemainingFcl(remainingFcl, remainingRows),
+    ];
+    const nextQtyValues = this.distributeQtyByFcl(totalQtyMT, nextFclValues, totalFcl);
+
+    this.isRebalancingPlannedRows = true;
+    this.plannedSplits.controls.forEach((control, index) => {
+      control.get('FCL')?.setValue(nextFclValues[index] ?? 0, { emitEvent: false });
+      control.get('qtyMT')?.setValue(nextQtyValues[index] ?? 0, { emitEvent: false });
+    });
+    this.isRebalancingPlannedRows = false;
+  }
+
+  private distributeRemainingFcl(totalFcl: number, rowCount: number): number[] {
+    if (rowCount <= 0) return [];
+    if (totalFcl <= 0) return Array.from({ length: rowCount }, () => 0);
+
+    const base = Math.floor(totalFcl / rowCount);
+    const remainder = totalFcl % rowCount;
+    return Array.from({ length: rowCount }, (_, index) => base + (index < remainder ? 1 : 0));
+  }
+
+  private distributeQtyByFcl(totalQtyMT: number, fclValues: number[], totalFcl: number): number[] {
+    if (!fclValues.length) return [];
+    if (totalQtyMT <= 0 || totalFcl <= 0) return Array.from({ length: fclValues.length }, () => 0);
+
+    const distributed: number[] = [];
+    let allocated = 0;
+    for (let index = 0; index < fclValues.length; index++) {
+      if (index === fclValues.length - 1) {
+        distributed.push(this.roundQty(totalQtyMT - allocated));
+        continue;
+      }
+
+      const qty = this.roundQty(totalQtyMT * ((fclValues[index] || 0) / totalFcl));
+      distributed.push(qty);
+      allocated += qty;
+    }
+
+    return distributed;
+  }
+
+  private roundQty(value: number): number {
+    return Math.round((Number.isFinite(value) ? value : 0) * 100) / 100;
+  }
+
+  private getDateKey(date: Date): string {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
+  }
+
   private getShipmentTrackerBase(): string {
     const shipment = this.shipmentData()?.shipment as any;
     const shipmentNo = String(shipment?.shipmentNo || '').trim();
-    const trackerPrefix = shipmentNo.match(/^(RHST-\d+\/[A-Z0-9]+)/i)?.[1];
+    const trackerPrefix = shipmentNo.match(/^(RHST-\d+\/[A-Z0-9-]+)/i)?.[1];
     return trackerPrefix || shipment?.poNumber || shipment?.fpoNo || shipment?.orderNumber || shipmentNo || shipment?._id || '';
   }
 
@@ -650,11 +864,81 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     if (!file) return;
 
     this.packagingListFiles.update((current) => ({ ...current, [rowIndex]: file }));
+    this.setActualExtractionError(rowIndex, null);
     input.value = '';
   }
 
   onPackagingBrandChange(value: string, rowIndex: number): void {
     this.packagingBrands.update((current) => ({ ...current, [rowIndex]: value }));
+  }
+
+  canExtractDetails(rowIndex: number): boolean {
+    return !!this.getBillDocumentFile(rowIndex) && !!this.getPackagingListFile(rowIndex);
+  }
+
+  private normalizeContainerNumber(value: any): string {
+    return String(value || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .trim();
+  }
+
+  private getBillContainerNumbers(billData: any): string[] {
+    const containers = Array.isArray(billData?.containers) ? billData.containers : [];
+    return containers
+      .map((entry: any) => {
+        if (typeof entry === 'string') return this.normalizeContainerNumber(entry);
+        return this.normalizeContainerNumber(
+          entry?.container_number ??
+          entry?.containerNo ??
+          entry?.container_no ??
+          entry?.containerNumber ??
+          ''
+        );
+      })
+      .filter(Boolean);
+  }
+
+  private getPackagingContainerNumbers(pkgData: any): string[] {
+    const explicitList = Array.isArray(pkgData?.container_number_list) ? pkgData.container_number_list : [];
+    const infoList = Array.isArray(pkgData?.container_info) ? pkgData.container_info : [];
+    const fromExplicit = explicitList.map((entry: any) => this.normalizeContainerNumber(entry)).filter(Boolean);
+    const fromInfo = infoList
+      .map((entry: any) => this.normalizeContainerNumber(entry?.container_number ?? entry?.containerNo ?? entry?.container_no ?? ''))
+      .filter(Boolean);
+    return (fromExplicit.length ? fromExplicit : fromInfo).filter(Boolean);
+  }
+
+  private validateExtractedContainers(billData: any, pkgData: any): string | null {
+    const billContainers = this.getBillContainerNumbers(billData);
+    const packagingContainers = this.getPackagingContainerNumbers(pkgData);
+
+    if (!billContainers.length || !packagingContainers.length) {
+      return 'Container lists could not be extracted from both the Bill of Lading and Packaging List. Please re-upload both documents.';
+    }
+
+    if (billContainers.length !== packagingContainers.length) {
+      return `Container count mismatch: BL has ${billContainers.length} container(s) while Packaging List has ${packagingContainers.length}. Please re-upload both documents.`;
+    }
+
+    return null;
+  }
+
+  private setActualExtractionError(rowIndex: number, message: string | null): void {
+    this.actualExtractionErrors.update((current) => ({ ...current, [rowIndex]: message }));
+  }
+
+  getActualExtractionError(rowIndex: number): string | null {
+    return this.actualExtractionErrors()[rowIndex] || null;
+  }
+
+  canSaveActualRow(index: number, group: FormGroup): boolean {
+    return !group.invalid && !this.getActualExtractionError(index) && !this.actualBagCapacityError();
+  }
+
+  closeExtractionValidationModal(): void {
+    this.showExtractionValidationModal.set(false);
+    this.extractionValidationMessage.set('');
   }
 
   /** Upload documents to extract details and autopopulate for the given row. */
@@ -663,20 +947,18 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     const pkgFile = this.packagingListFiles()[rowIndex];
     const brand = this.packagingBrands()[rowIndex] || '';
 
-    if (!blFile) {
+    if (!blFile || !pkgFile) {
       this.messageService.add({
         severity: 'warn',
-        summary: 'Missing BL',
-        detail: 'Please upload the Bill of Lading document first.'
+        summary: 'Documents required',
+        detail: 'Please upload both the Bill of Lading and Packaging List before extracting.'
       });
       return;
     }
 
     const formData = new FormData();
     formData.append('file', blFile, blFile.name);
-    if (pkgFile) {
-      formData.append('packaging_list_file', pkgFile, pkgFile.name);
-    }
+    formData.append('packaging_list_file', pkgFile, pkgFile.name);
     if (brand) {
       formData.append('packaging_brand', brand);
     }
@@ -692,15 +974,39 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
         const pkgData = res.packaging_list || {};
         const billNo = billData.bill_no?.trim() || res.bill_no?.trim() || '';
         const invoiceNumber = billData.invoice_number?.trim() || res.invoice_number?.trim() || '';
+        const containerValidationError = this.validateExtractedContainers(billData, pkgData);
         
         if (this.actualSplits?.at(rowIndex)) {
           const row = this.actualSplits.at(rowIndex);
+
+          if (containerValidationError) {
+            this.setActualExtractionError(rowIndex, containerValidationError);
+            row.get('billExtractionData')?.setValue(null);
+            row.get('packagingList')?.setValue(null);
+            row.get('extractedContainers')?.setValue([]);
+            this.extractionValidationMessage.set(containerValidationError);
+            this.showExtractionValidationModal.set(true);
+            return;
+          }
+
+          this.setActualExtractionError(rowIndex, null);
           
           if (billNo) row.get('BLNo')?.setValue(billNo);
           if (invoiceNumber) row.get('commercialInvoiceNo')?.setValue(invoiceNumber);
           
           // Bill data
-          if (billData.shipped_on_board_date) row.get('shipOnBoardDate')?.setValue(new Date(billData.shipped_on_board_date));
+          const shippedOnBoardRaw =
+            billData.shipped_on_board_date ??
+            billData.shipped_on_board ??
+            billData.ship_on_board_date ??
+            billData.ship_on_board ??
+            billData.shipOnBoardDate ??
+            (res as any).shipped_on_board_date ??
+            (res as any).shipped_on_board ??
+            (res as any).ship_on_board_date ??
+            (res as any).ship_on_board ??
+            null;
+          if (shippedOnBoardRaw) row.get('shipOnBoardDate')?.setValue(new Date(shippedOnBoardRaw));
           if (billData.port_of_loading) row.get('portOfLoading')?.setValue(billData.port_of_loading);
           if (billData.port_of_discharge) row.get('portOfDischarge')?.setValue(billData.port_of_discharge);
           if (billData.number_of_containers != null) row.get('noOfContainers')?.setValue(billData.number_of_containers);
@@ -774,6 +1080,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     }
 
     this.billDocumentFiles.update((current) => ({ ...current, [rowIndex]: file }));
+    this.setActualExtractionError(rowIndex, null);
     input.value = '';
   }
 
@@ -787,10 +1094,12 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
 
   clearBillDocumentFile(rowIndex: number): void {
     this.billDocumentFiles.update((current) => ({ ...current, [rowIndex]: null }));
+    this.setActualExtractionError(rowIndex, null);
   }
 
   clearPackagingListFile(rowIndex: number): void {
     this.packagingListFiles.update((current) => ({ ...current, [rowIndex]: null }));
+    this.setActualExtractionError(rowIndex, null);
   }
 
   openLocalBillDocumentPreview(rowIndex: number): void {
@@ -941,18 +1250,17 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   }
 
   summarizeHistoryChange(entry: ScheduledHistoryEntry): string {
-    const beforeCount = entry.before?.length || 0;
-    const afterCount = entry.after?.length || 0;
-    
-    // Get shipment IDs (SCG IDs) of modified/added rows
     const diffs = this.getRowDiffs(entry);
     const affectedIds = diffs
       .filter(d => d.status !== 'Unchanged')
-      .map(d => d.shipmentId.split('/').pop()) // Get just 'SCG01' etc.
+      .map(d => d.shipmentId.split('/').pop())
       .filter(Boolean);
-    
+
     const idList = affectedIds.length > 0 ? ` (${affectedIds.join(', ')})` : '';
-    return `${beforeCount} -> ${afterCount} shipments${idList}`;
+    if (entry.action === 'ScheduledBaselineCreated') {
+      return `ETA scheduled${idList}`;
+    }
+    return `ETA updated${idList}`;
   }
 
   confirmActualSubmission(index: number) {
@@ -960,6 +1268,18 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     if (row.invalid) return;
 
     if (!this.isPlannedLocked()) return;
+
+    const totalBagCapacity = this.getShipmentBagCapacity();
+    const totalAssignedBags = this.getActualAssignedBagsTotal();
+
+    if (totalBagCapacity > 0 && totalAssignedBags > totalBagCapacity) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Bag allocation exceeded',
+        detail: `Assigned bags (${totalAssignedBags}) cannot be greater than shipment bag capacity (${totalBagCapacity}).`,
+      });
+      return;
+    }
 
     this.confirmationService.confirm({
       message: `Finalize record for Container #${index + 1}?`,

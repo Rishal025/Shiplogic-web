@@ -171,6 +171,7 @@
               <p-inputNumber formControlName="FCL" styleClass="w-full"
                 inputStyleClass="table-input text-center" ariaLabel="FCL Units" placeholder="1"
                 [min]="0" [max]="999" [minFractionDigits]="0" [maxFractionDigits]="0"
+                (onBlur)="onPlannedFclBlur(i)"
               ></p-inputNumber>
             </td>
             <td class="planned-col-compact">
@@ -284,9 +285,7 @@
             <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
                 <div class="space-y-1">
-                  <div class="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                    {{ entry.action === 'ScheduledBaselineCreated' ? 'Created new shipment' : 'ETA Updated' }}
-                  </div>
+                  <div class="text-[11px] font-black uppercase tracking-widest text-slate-500">ETA</div>
                   <div class="text-sm font-semibold text-slate-700">{{ summarizeHistoryChange(entry) }}</div>
                   <div class="text-xs text-slate-500">
                     Created by: {{ entry.user?.name || entry.user?.email || 'System' }} • {{ formatHistoryTimestamp(entry.createdAt) }}
@@ -380,7 +379,7 @@
             <th scope="col" class="actual-col-num">QTY(MT)</th>
             <th scope="col" class="actual-col-num">BAGS</th>
             <th scope="col" class="actual-col-num">PALLET</th>
-            <th scope="col" class="actual-col-bl">PACKAGING BRAND</th>
+            <th scope="col" class="actual-col-bl">PACKAGING</th>
             <th scope="col" class="actual-col-bl">BL NO</th>
             <th scope="col" class="actual-col-ci">COMMERCIAL INVOICE NO</th>
             <th scope="col" class="actual-col-date">SHIP ONBOARD DATE</th>
@@ -418,6 +417,7 @@
             <td class="actual-col-num">
               <p-inputNumber formControlName="bags" styleClass="w-full"
                 inputStyleClass="table-input" ariaLabel="Bags" placeholder="0"
+                (onInput)="markActualBagsAsManual(i)"
               ></p-inputNumber>
             </td>
             <td class="actual-col-num">
@@ -433,7 +433,7 @@
                   (ngModelChange)="onPackagingBrandChange($event, i)"
                   [ngModelOptions]="{standalone: true}"
                   class="table-input-text flex-1 min-w-0"
-                  aria-label="Packaging Brand"
+                  aria-label="Packaging"
                   placeholder="e.g. MELYAR"
                   [disabled]="isRowSubmitted(i)"
                 />
@@ -509,14 +509,16 @@
                   </label>
 
                   <!-- Extract Button -->
-                  <button
-                    type="button"
-                    (click)="onExtractDetails(i)"
-                    [disabled]="extractingBillNoRowIndex() === i || !getBillDocumentFile(i)"
-                    class="flex-shrink-0 px-2 py-1 rounded bg-slate-900 text-white text-[9px] font-black uppercase disabled:opacity-50"
-                  >
-                    {{ extractingBillNoRowIndex() === i ? '...' : 'Extract' }}
-                  </button>
+                  @if (canExtractDetails(i)) {
+                    <button
+                      type="button"
+                      (click)="onExtractDetails(i)"
+                      [disabled]="extractingBillNoRowIndex() === i"
+                      class="flex-shrink-0 px-2 py-1 rounded bg-slate-900 text-white text-[9px] font-black uppercase disabled:opacity-50"
+                    >
+                      {{ extractingBillNoRowIndex() === i ? '...' : 'Extract' }}
+                    </button>
+                  }
                 }
                 @if (getBillDocumentFile(i)) {
                   <button
@@ -582,7 +584,7 @@
                 <div class="flex justify-center gap-1.5">
                   <button
                     (click)="confirmActualSubmission(i)"
-                    [disabled]="group.invalid || submittingRowIndex() === i"
+                    [disabled]="!canSaveActualRow(i, $any(group)) || submittingRowIndex() === i"
                     class="action-btn-save"
                     [attr.aria-label]="'Submit Record for Container #' + (i + 1)"
                   >
@@ -610,6 +612,13 @@
               </td>
             </tr>
           }
+          @if (getActualExtractionError(i); as extractionError) {
+            <tr class="bg-rose-50/70">
+              <td colspan="13" class="px-4 py-2 text-[11px] font-medium text-rose-700">
+                <i class="pi pi-times-circle mr-2"></i>{{ extractionError }}
+              </td>
+            </tr>
+          }
         </ng-template>
         <ng-template pTemplate="emptymessage">
           <tr>
@@ -627,11 +636,47 @@
           </tr>
         </ng-template>
       </p-table>
+      @if (actualBagCapacityError(); as bagError) {
+        <div class="px-4 py-3 border-t border-rose-100 bg-rose-50/70 text-[11px] font-semibold text-rose-700">
+          {{ bagError }}
+        </div>
+      }
     </div>
   }
 </div>
 
 <p-confirmDialog breakpoints="{'960px': '75vw', '640px': '90vw'}" [closable]="false"></p-confirmDialog>
+
+@if (showExtractionValidationModal()) {
+  <p-dialog
+    header="Container mismatch detected"
+    [visible]="true"
+    (visibleChange)="closeExtractionValidationModal()"
+    [modal]="true"
+    [dismissableMask]="false"
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{ width: 'min(92vw, 30rem)' }"
+    appendTo="body">
+    <div class="flex flex-col gap-4">
+      <p class="text-sm text-slate-600">
+        {{ extractionValidationMessage() }}
+      </p>
+      <div class="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-xs font-medium text-rose-700">
+        Please re-upload the Bill of Lading and Packaging List for this row before saving.
+      </div>
+      <div class="flex justify-end">
+        <button
+          type="button"
+          (click)="closeExtractionValidationModal()"
+          class="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-[11px] font-black uppercase text-white"
+        >
+          Okay
+        </button>
+      </div>
+    </div>
+  </p-dialog>
+}
 
 @if (showEtaCalendar()) {
   <p-dialog
@@ -664,15 +709,56 @@
         <div class="text-[11px] font-black uppercase tracking-widest text-slate-500">Shipment Tracker ID</div>
         <div class="mt-1 text-sm font-semibold text-slate-700">{{ getShipmentTrackerId() || '—' }}</div>
       </div>
-      <p-datepicker
-        [ngModel]="etaCalendarDates()"
-        selectionMode="multiple"
-        [inline]="true"
-        [readonlyInput]="true"
-        [dateFormat]="appDateFormat"
-        inputId="etaCalendarOverview"
-        styleClass="w-full">
-      </p-datepicker>
+      <div class="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            (click)="showPreviousEtaCalendarMonth()"
+            class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:border-blue-200 hover:text-blue-600"
+            aria-label="Previous ETA month"
+          >
+            <i class="pi pi-chevron-left text-xs"></i>
+          </button>
+          <div class="text-center">
+            <div class="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">ETA Calendar</div>
+            <div class="mt-1 text-lg font-semibold text-slate-900">{{ getEtaCalendarMonthLabel() }}</div>
+          </div>
+          <button
+            type="button"
+            (click)="showNextEtaCalendarMonth()"
+            class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 hover:border-blue-200 hover:text-blue-600"
+            aria-label="Next ETA month"
+          >
+            <i class="pi pi-chevron-right text-xs"></i>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-7 gap-2 text-center">
+          @for (day of ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; track day) {
+            <div class="py-2 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+              {{ day }}
+            </div>
+          }
+          @for (week of getEtaCalendarWeekRows(); track $index) {
+            @for (day of week; track day.date.toISOString()) {
+              <div
+                class="flex h-12 items-center justify-center rounded-2xl border text-sm font-semibold transition-colors"
+                [class.bg-blue-600]="day.isSelected"
+                [class.border-blue-600]="day.isSelected"
+                [class.text-white]="day.isSelected"
+                [class.bg-white]="!day.isSelected"
+                [class.border-slate-200]="!day.isSelected"
+                [class.text-slate-900]="day.inCurrentMonth && !day.isSelected"
+                [class.text-slate-300]="!day.inCurrentMonth && !day.isSelected"
+                [class.ring-2]="day.isToday"
+                [class.ring-blue-100]="day.isToday"
+              >
+                {{ formatEtaCalendarDay(day.date) }}
+              </div>
+            }
+          }
+        </div>
+      </div>
       <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
         <div class="mb-3 flex items-center justify-between gap-3">
           <p class="text-[11px] font-black uppercase tracking-widest text-slate-500">

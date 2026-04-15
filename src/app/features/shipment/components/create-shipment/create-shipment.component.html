@@ -547,7 +547,7 @@
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div class="flex flex-col">
                 <label class="sl-label">Payment Terms</label>
-                <p-select [options]="paymentTerms" formControlName="paymentTerms" optionLabel="label" optionValue="value" placeholder="Select Terms" [showClear]="true" styleClass="w-full" appendTo="body"></p-select>
+                <p-select [options]="paymentTerms" formControlName="paymentTerms" optionLabel="label" optionValue="value" placeholder="Select Terms" [showClear]="true" [filter]="true" filterBy="label,value" styleClass="w-full" appendTo="body"></p-select>
               </div>
               @if (requiresBankName(shipmentForm.get('paymentTerms')?.value)) {
                 <div class="flex flex-col">

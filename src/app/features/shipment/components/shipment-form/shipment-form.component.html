@@ -288,7 +288,7 @@
           (click)="prevStep()"
           [disabled]="!hasPreviousAccessibleStep()"
           aria-label="Previous Step"
-          class="flex items-center justify-center gap-2 px-6 py-2 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-30 text-[10px] uppercase w-full sm:w-auto"
+          class="flex items-center justify-center gap-2 px-6 py-2 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 transition-all disabled:opacity-30 disabled:cursor-not-allowed text-[10px] uppercase w-full sm:w-auto cursor-pointer"
         >
           <i class="pi pi-chevron-left" aria-hidden="true"></i> Back
         </button>
@@ -297,7 +297,7 @@
           <button
             (click)="nextStep()"
             aria-label="Continue to Next Step"
-            class="flex items-center justify-center gap-3 px-8 py-2.5 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 shadow-lg text-[10px] uppercase w-full sm:w-auto"
+            class="flex items-center justify-center gap-3 px-8 py-2.5 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 shadow-lg text-[10px] uppercase w-full sm:w-auto cursor-pointer"
           >
             Continue to {{ getNextVisibleStepLabel() }}
             <i class="pi pi-chevron-right" aria-hidden="true"></i>

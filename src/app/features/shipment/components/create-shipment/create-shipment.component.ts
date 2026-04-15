@@ -264,6 +264,72 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     return typeof term === 'string' && term.includes('CAD');
   }
 
+  private normalizeSearchText(value: string | null | undefined): string {
+    return String(value || '')
+      .toUpperCase()
+      .replace(/[%]/g, ' PERCENT ')
+      .replace(/[^A-Z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private getPaymentTermMatch(extractedValue: string | null | undefined): string | null {
+    const normalized = this.normalizeSearchText(extractedValue);
+    if (!normalized) return null;
+
+    const specialCases: Array<{ test: (value: string) => boolean; result: string }> = [
+      {
+        test: (value) => value.includes('ADVANCE 20') && value.includes('BALANCE 80') && value.includes('CAD'),
+        result: 'Advance 20% BT, Balance 80% CAD',
+      },
+      {
+        test: (value) => value.includes('ADVANCE 30') && value.includes('BALANCE 70') && value.includes('CAD'),
+        result: 'Advance 30% BT, Balance 70% CAD',
+      },
+      {
+        test: (value) => value.includes('ADVANCE 10') && value.includes('BALANCE 90') && value.includes('CAD'),
+        result: 'Advance 10% BT, Balance 90% CAD',
+      },
+      {
+        test: (value) => value.includes('BT AGAINST DELIVERY') && value.includes('100'),
+        result: 'BT against Delivery 100%',
+      },
+      {
+        test: (value) => value.includes('BT AGAINST DOCUMENT') && value.includes('100'),
+        result: 'BT against Documents 100%',
+      },
+      {
+        test: (value) =>
+          value.includes('100') &&
+          value.includes('CAD') &&
+          (value.includes('BANK TO BANK') || value.includes('PAYMENT')),
+        result: 'CAD 100%',
+      },
+    ];
+
+    const directMatch = specialCases.find((entry) => entry.test(normalized));
+    if (directMatch) {
+      return directMatch.result;
+    }
+
+    const sourceTokens = normalized.split(' ').filter(Boolean);
+    let bestScore = 0;
+    let bestMatch: string | null = null;
+
+    for (const option of this.paymentTerms) {
+      const optionNormalized = this.normalizeSearchText(option.value);
+      const optionTokens = optionNormalized.split(' ').filter(Boolean);
+      const sharedTokenCount = optionTokens.filter((token) => sourceTokens.includes(token)).length;
+      const score = sharedTokenCount / Math.max(optionTokens.length, 1);
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = option.value;
+      }
+    }
+
+    return bestScore >= 0.45 ? bestMatch : null;
+  }
+
   // Purchase order (document1) & Pro-forma Invoice (document2) for extraction
   onDocument1Selected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -428,13 +494,20 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
 
       const directKeys = [
         'piNo', 'fpoNo', 'incoTerms', 'portOfLoading', 'portOfDischarge',
-        'paymentTerms', 'advanceAmount'
+        'advanceAmount'
       ];
       for (const key of directKeys) {
         const v = (data as Record<string, unknown>)[key];
         if (v == null) continue;
         if (typeof v === 'string' && v.trim() === '') continue;
         patch[key] = v;
+      }
+
+      const matchedPaymentTerm = this.getPaymentTermMatch(data.paymentTerms);
+      if (matchedPaymentTerm) {
+        patch['paymentTerms'] = matchedPaymentTerm;
+      } else if (typeof data.paymentTerms === 'string' && data.paymentTerms.trim()) {
+        patch['paymentTerms'] = data.paymentTerms.trim();
       }
 
       const rawName = data.supplierName;

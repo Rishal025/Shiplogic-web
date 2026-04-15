@@ -282,7 +282,9 @@ export class ShipmentFormComponent implements OnDestroy {
 
   getDisplayShipmentNo(): string {
     const shipmentNo = this.shipmentForm.get('shipmentNo')?.value;
-    return typeof shipmentNo === 'string' ? shipmentNo.replace(/\([^)]*\)/g, '').replace(/-\d+$/, '').trim() : '';
+    if (typeof shipmentNo !== 'string') return '';
+    const clean = shipmentNo.replace(/\([^)]*\)/g, '').trim();
+    return clean.match(/^(RHST-\d+\/[A-Z0-9-]+)/i)?.[1] || clean;
   }
 
   isStepReadOnly(stepIndex: number): boolean {
