@@ -33,29 +33,41 @@
         <p-accordion-content styleClass="bg-white">
           <div [formGroup]="$any(group)" class="px-4 sm:px-5 pb-5 pt-3 flex flex-col gap-5">
             <div class="flex flex-wrap gap-2">
-              <button
-                type="button"
-                (click)="setActiveTab(i, 'allocation')"
-                class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
-                [class.bg-slate-900]="getActiveTab(i) === 'allocation'"
-                [class.text-white]="getActiveTab(i) === 'allocation'"
-                [class.bg-slate-100]="getActiveTab(i) !== 'allocation'"
-                [class.text-slate-500]="getActiveTab(i) !== 'allocation'">
-                Payment Allocation
-              </button>
-              <button
-                type="button"
-                (click)="setActiveTab(i, 'costing')"
-                class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
-                [class.bg-slate-900]="getActiveTab(i) === 'costing'"
-                [class.text-white]="getActiveTab(i) === 'costing'"
-                [class.bg-slate-100]="getActiveTab(i) !== 'costing'"
-                [class.text-slate-500]="getActiveTab(i) !== 'costing'">
-                Payment Costing
-              </button>
+              @if (hasAllocationRequestAmount(group)) {
+                <button
+                  type="button"
+                  (click)="setActiveTab(i, 'allocation')"
+                  class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                  [class.bg-slate-900]="getActiveTab(i) === 'allocation'"
+                  [class.text-white]="getActiveTab(i) === 'allocation'"
+                  [class.bg-slate-100]="getActiveTab(i) !== 'allocation'"
+                  [class.text-slate-500]="getActiveTab(i) !== 'allocation'">
+                  Payment Allocation
+                </button>
+              } @else {
+                <span class="inline-flex items-center rounded-xl bg-amber-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-amber-700">
+                  Awaiting BL Request Amount
+                </span>
+              }
+              @if (isAllocationSaved(i)) {
+                <button
+                  type="button"
+                  (click)="setActiveTab(i, 'costing')"
+                  class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                  [class.bg-slate-900]="getActiveTab(i) === 'costing'"
+                  [class.text-white]="getActiveTab(i) === 'costing'"
+                  [class.bg-slate-100]="getActiveTab(i) !== 'costing'"
+                  [class.text-slate-500]="getActiveTab(i) !== 'costing'">
+                  Payment Costing
+                </button>
+              } @else {
+                <span class="inline-flex items-center rounded-xl bg-amber-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-amber-700">
+                  Awaiting Payment Allocation Save
+                </span>
+              }
             </div>
 
-            @if (getActiveTab(i) === 'allocation') {
+            @if (getActiveTab(i) === 'allocation' && hasAllocationRequestAmount(group)) {
               <div class="rounded-2xl border border-slate-200 overflow-hidden">
                 <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-slate-50 border-b border-slate-100">
                   <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Payment Allocation</span>
@@ -96,7 +108,7 @@
                       <tr class="border-b border-slate-100">
                         <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-16">SN</th>
                         <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Description</th>
-                        <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Request Amount</th>
+                        <th class="px-4 py-3 text-center text-[10px] font-black uppercase tracking-wider text-slate-500">Request Amount</th>
                         <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Paid Amount</th>
                         <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Reference</th>
                       </tr>
@@ -111,7 +123,7 @@
                             <div class="font-semibold text-slate-800 break-words">{{ row.get('description')?.value || '—' }}</div>
                           </td>
                           <td class="px-4 py-4 align-middle">
-                            <div class="table-input-text w-full bg-slate-50 min-h-[52px] flex items-center">{{ row.get('requestAmount')?.value ?? 0 }}</div>
+                            <div class="table-input-text w-full bg-slate-50 min-h-[52px] flex items-center justify-center">{{ row.get('requestAmount')?.value ?? 0 }}</div>
                           </td>
                           <td class="px-4 py-4 align-middle">
                             <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber>
@@ -126,7 +138,7 @@
                       <tr>
                         <td class="px-4 py-3 text-[10px] font-black uppercase tracking-wider text-slate-500">Total</td>
                         <td class="px-4 py-3"></td>
-                        <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getAllocationTotal(group, 'requestAmount') }}</td>
+                        <td class="px-4 py-3 text-sm font-black text-slate-800 text-center">{{ getAllocationTotal(group, 'requestAmount') }}</td>
                         <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getAllocationTotal(group, 'paidAmount') }}</td>
                         <td class="px-4 py-3"></td>
                       </tr>
@@ -146,19 +158,21 @@
                   </div>
                 }
               </div>
-            } @else {
+            } @else if (getActiveTab(i) === 'costing' && isAllocationSaved(i)) {
                 <div class="rounded-2xl border border-slate-200 overflow-hidden payment-costing-shell">
                 <div class="flex flex-wrap items-center justify-between gap-3 px-4 py-3 bg-slate-50 border-b border-slate-100">
                   <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Payment Costing</span>
                   <div class="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      (click)="openPackagingExpensesModal(i)"
-                      class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50"
-                    >
-                      <i class="pi pi-box"></i>
-                      Expense For Packaging
-                    </button>
+                    @if (isCostingSaved(i)) {
+                      <button
+                        type="button"
+                        (click)="openPackagingExpensesModal(i)"
+                        class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50"
+                      >
+                        <i class="pi pi-box"></i>
+                        Expense For Packaging
+                      </button>
+                    }
                     <button
                       type="button"
                       (click)="generateReport(i)"
@@ -188,7 +202,7 @@
                   <p-table
                     [value]="getVisiblePaymentCostings(group, i)"
                     styleClass="p-datatable-sm custom-tracker-table payment-costing-scroll-table"
-                    [tableStyle]="{ 'min-width': '1600px' }"
+                    [tableStyle]="{ 'min-width': '1900px' }"
                     formArrayName="paymentCostings"
                   >
                     <ng-template pTemplate="header">
@@ -197,7 +211,7 @@
                         <th class="min-w-[320px]">DESCRIPTION</th>
                         <th class="min-w-[160px]">REQUEST AMOUNT</th>
                         <th class="min-w-[160px]">PAID AMOUNT</th>
-                        <th class="min-w-[160px]">ACTUAL PAID</th>
+                        <th class="min-w-[190px]">ACTUAL PAID</th>
                         <th class="min-w-[250px]">REF BILL NO</th>
                         <th class="min-w-[160px]">REF BILL DATE</th>
                         <th class="min-w-[200px]">REF BILL VENDOR</th>
@@ -211,13 +225,13 @@
                           <input pInputText formControlName="description" class="table-input-text w-full bg-slate-50" readonly />
                         </td>
                         <td>
-                          <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full bg-slate-50" [readonly]="true" />
+                          <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full bg-slate-50" [readonly]="true" placeholder="0.00" />
                         </td>
                         <td>
-                          <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full bg-slate-50" [readonly]="true" />
+                          <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full bg-slate-50" [readonly]="true" placeholder="0.00" />
                         </td>
                         <td>
-                          <p-inputNumber formControlName="actualPaid" styleClass="w-full" inputStyleClass="table-input w-full" />
+                          <p-inputNumber formControlName="actualPaid" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" />
                         </td>
                         <td>
                           <input pInputText formControlName="refBillNo" class="table-input-text w-full" placeholder="Ref bill no" (input)="onRefBillNoInput(group, r)" />
@@ -267,6 +281,10 @@
                   </div>
                 }
 
+              </div>
+            } @else {
+              <div class="rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-sm font-medium text-amber-700">
+                Complete the previous payment section and save it to continue.
               </div>
             }
           </div>
@@ -359,22 +377,22 @@
         </div>
 
         <div class="overflow-x-auto" formArrayName="packagingExpenses">
-          <table class="min-w-[1800px] text-sm">
+          <table class="min-w-[2200px] text-sm">
             <thead class="bg-white sticky top-0 z-10">
               <tr class="border-b border-slate-100">
                 <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-16">SN</th>
                 <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 min-w-[300px]">Item</th>
                 <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 min-w-[250px]">Packing</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-32">Qty</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-24">UOM</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-32">Unit Cost FC</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-32">Unit Cost DH</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-32">Total Cost FC</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-32">Total Cost DH</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-40">Allocation Factor</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-40">Expenses Allocated</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-48">Value With Expenses</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-40">Landed Cost / Unit</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-52">Qty</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-52">UOM</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Unit Cost FC</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Unit Cost DH</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Total Cost FC</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Total Cost DH</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Allocation Factor</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Expenses Allocated</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Value With Expenses</th>
+                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Landed Cost / Unit</th>
                 <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 min-w-[200px]">Reference</th>
               </tr>
             </thead>

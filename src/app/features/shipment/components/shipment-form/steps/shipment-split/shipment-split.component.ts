@@ -167,7 +167,16 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
       
       // 2. Auto-map brand if it's a single-item shipment and field is empty
       const items = shipment?.lineItems || shipment?.items || [];
-      const autoBrand = (items.length === 1 ? (items[0]?.brandName || items[0]?.brand) : null) || shipment?.brandName || shipment?.brand;
+      const normalizeBrand = (value: unknown) => String(value || '').trim();
+      const itemBrands = (Array.isArray(items) ? items : [])
+        .map((item: any) => normalizeBrand(item?.brandName || item?.brand))
+        .filter(Boolean);
+      const uniqueItemBrands = [...new Set(itemBrands)];
+
+      // Prefer shipment-level brand; otherwise auto-map if all items share the same brand (including 2-item shipments).
+      const autoBrand =
+        normalizeBrand(shipment?.brandName || shipment?.brand) ||
+        (uniqueItemBrands.length === 1 ? uniqueItemBrands[0] : '');
       
       if (autoBrand) {
         console.log(`🏷️ [ShipmentSplit] Auto-mapping detected brand: "${autoBrand}"`);
@@ -181,7 +190,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
           }
         }
       } else {
-        console.warn(`🏷️ [ShipmentSplit] Auto-mapping skipped: No single brand found in shipment data`, { itemsCount: items.length, shipment });
+        console.warn(`🏷️ [ShipmentSplit] Auto-mapping skipped: No unique brand found in shipment data`, { itemsCount: items.length, shipment });
       }
       
       this.packagingBrands.set(brands);
@@ -791,11 +800,22 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     return Number.isNaN(date.getTime()) ? null : date;
   }
 
+  private strictMinDateCache = new WeakMap<FormGroup, Record<string, { baseTime: number; minDate: Date }>>();
+
   getStrictMinDate(row: FormGroup, controlName: string): Date | undefined {
     const baseDate = this.getActualRowDate(row, controlName);
     if (!baseDate) return undefined;
+    // PrimeNG DatePicker uses object identity on minDate changes.
+    // Returning a new Date() on every change detection can break month navigation.
+    const baseTime = baseDate.getTime();
+    const perRow = this.strictMinDateCache.get(row) || {};
+    const cached = perRow[controlName];
+    if (cached && cached.baseTime === baseTime) return cached.minDate;
+
     const minDate = new Date(baseDate);
     minDate.setDate(minDate.getDate() + 1);
+    perRow[controlName] = { baseTime, minDate };
+    this.strictMinDateCache.set(row, perRow);
     return minDate;
   }
 
@@ -1334,6 +1354,32 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
         const packagingList = row.get('packagingList')?.value;
         if (packagingList) {
           payload.append('packagingList', JSON.stringify(packagingList));
+
+          // Derive packagingDate from production_date in packaging list
+          const rawProductionDate =
+            packagingList.production_date ||
+            packagingList.productionDate ||
+            packagingList.packing_date ||
+            packagingList.packingDate ||
+            null;
+
+          if (rawProductionDate) {
+            // Parse MM/YYYY format (e.g. "01/2026") → first day of that month
+            const mmYyyyMatch = String(rawProductionDate).match(/^(\d{1,2})\/(\d{4})$/);
+            if (mmYyyyMatch) {
+              const parsedDate = new Date(
+                Number(mmYyyyMatch[2]),
+                Number(mmYyyyMatch[1]) - 1,
+                1
+              );
+              payload.append('packagingDate', parsedDate.toISOString().split('T')[0]);
+            } else {
+              const parsedDate = new Date(rawProductionDate);
+              if (!isNaN(parsedDate.getTime())) {
+                payload.append('packagingDate', parsedDate.toISOString().split('T')[0]);
+              }
+            }
+          }
         }
 
         this.store.dispatch(

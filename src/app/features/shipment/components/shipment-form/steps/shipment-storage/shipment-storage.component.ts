@@ -14,6 +14,7 @@ import { SelectModule } from 'primeng/select';
 import { DialogModule } from 'primeng/dialog';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
 import { NotificationService } from '../../../../../../core/services/notification.service';
+import { WarehouseService } from '../../../../../../core/services/warehouse.service';
 
 @Component({
   selector: 'app-shipment-storage',
@@ -40,9 +41,23 @@ export class ShipmentStorageComponent {
   private sanitizer = inject(DomSanitizer);
   private shipmentService = inject(ShipmentService);
   private notificationService = inject(NotificationService);
+  private warehouseService = inject(WarehouseService);
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
 
   constructor() {
+    this.warehouseService.getWarehouses().subscribe({
+      next: (warehouses) => {
+        const activeWarehouses = warehouses
+          .filter((warehouse) => warehouse.status === 'Active')
+          .map((warehouse) => {
+            const codeSuffix = warehouse.code ? ` - ${warehouse.code}` : '';
+            const label = `${warehouse.name}${codeSuffix}`;
+            return { label, value: label };
+          });
+        this.warehouseOptions.set(activeWarehouses);
+      },
+    });
+
     effect(() => {
       const data = this.shipmentData();
       if (!data || !this.formArray || this.formArray.length === 0) return;
@@ -99,10 +114,7 @@ export class ShipmentStorageComponent {
 
   private pendingRowUpload: { shipmentIndex: number; containerIndex: number } | null = null;
 
-  readonly warehouseOptions = [
-    { label: 'Warehouse DIC - RH006', value: 'Warehouse DIC - RH006' },
-    { label: 'Warehouse Musaffah- RH001P1', value: 'Warehouse Musaffah- RH001P1' },
-  ];
+  readonly warehouseOptions = signal<Array<{ label: string; value: string }>>([]);
 
   /** Returns the nested containers FormArray for a given shipment group */
   getContainersArray(group: AbstractControl): AbstractControl[] {

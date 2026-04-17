@@ -197,6 +197,23 @@
                   <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
                     <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Clearing Advance</span>
                   <div class="flex items-center gap-2">
+                      <input
+                        pInputText
+                        class="table-input-text w-52"
+                        placeholder="Search description"
+                        [value]="costSheetSearchTerm()[i] || ''"
+                        (input)="setCostSheetSearchTerm(i, $any($event.target).value)"
+                      />
+                      @if (!isCostSheetEditing(i) && isCostSheetSaved(i)) {
+                        <button
+                          type="button"
+                          (click)="enableCostSheetEdit(i)"
+                          class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600"
+                          title="Edit Clearing Advance"
+                        >
+                          <i class="pi pi-pencil"></i>
+                        </button>
+                      }
                       <button
                         type="button"
                         (click)="generateCostSheetReport(i)"
@@ -208,7 +225,7 @@
                       <button
                         type="button"
                         (click)="saveCostSheet(i)"
-                        [disabled]="isSaving(i, 'cost')"
+                        [disabled]="isSaving(i, 'cost') || !isCostSheetEditing(i)"
                         class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
                       >
                         @if (isSaving(i, 'cost')) {
@@ -218,6 +235,15 @@
                         }
                         Save
                       </button>
+                      @if (isCostSheetEditing(i) && isCostSheetSaved(i)) {
+                        <button
+                          type="button"
+                          (click)="cancelCostSheetEdit(i)"
+                          class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-600 hover:bg-slate-50"
+                        >
+                          Cancel
+                        </button>
+                      }
                       <label class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0">
                         <i class="pi pi-upload"></i>
                         <input type="file" class="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" (change)="onBookingFileSelected($event, i)" />
@@ -256,7 +282,7 @@
                           <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
                           <div class="flex items-center min-h-10 text-sm font-semibold text-slate-700">{{ row.get('description')?.value }}</div>
                           <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" [useGrouping]="true" />
-                          <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" [readonly]="true" [useGrouping]="true" />
+                          <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" [readonly]="!isCostSheetEditing(i)" [useGrouping]="true" />
                         </div>
 
                         <div class="md:hidden flex flex-col gap-3">
@@ -277,7 +303,7 @@
                               </div>
                               <div class="flex flex-col gap-1.5">
                                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Paid Amount</label>
-                                <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" [readonly]="true" />
+                                <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" [readonly]="!isCostSheetEditing(i)" />
                               </div>
                             </div>
                           </div>
@@ -334,7 +360,7 @@
                           <div class="text-sm font-bold text-slate-700">{{ pkgIndex + 1 }}</div>
                           <div class="text-sm text-slate-600 font-medium">{{ pkg.container_number || 'N/A' }}</div>
                           <div class="text-sm text-slate-600 font-medium">{{ pkg.no_of_bags || 0 }}</div>
-                          <div class="text-sm text-slate-600 font-semibold">{{ group.get('packagingList')?.value?.brand || 'N/A' }}</div>
+                          <div class="text-sm text-slate-600 font-semibold">{{ pkg.packaging || pkg.brand || group.get('packagingList')?.value?.brand || 'N/A' }}</div>
                         </div>
                         <div class="md:hidden flex flex-col gap-2">
                            <div class="flex justify-between items-center">
@@ -347,7 +373,7 @@
                            </div>
                            <div class="flex justify-between items-center">
                              <span class="text-[10px] font-black text-slate-400 uppercase">Packaging</span>
-                             <span class="text-sm font-semibold text-slate-600">{{ group.get('packagingList')?.value?.brand || 'N/A' }}</span>
+                             <span class="text-sm font-semibold text-slate-600">{{ pkg.packaging || pkg.brand || group.get('packagingList')?.value?.brand || 'N/A' }}</span>
                            </div>
                         </div>
                       </div>
@@ -414,7 +440,7 @@
                           </div>
                           <p-inputNumber formControlName="bags" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
                           <p-select
-                            [options]="warehouseOptions"
+                            [options]="warehouseOptions()"
                             formControlName="warehouse"
                             optionLabel="label"
                             optionValue="value"
@@ -437,7 +463,7 @@
                           <div class="flex flex-col gap-1.5">
                             <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Warehouse</label>
                             <p-select
-                              [options]="warehouseOptions"
+                              [options]="warehouseOptions()"
                               formControlName="warehouse"
                               optionLabel="label"
                               optionValue="value"

@@ -11,6 +11,7 @@ import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MessageService, ConfirmationService } from 'primeng/api';
 import { WarehouseService, Warehouse } from '../../../core/services/warehouse.service';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 
 @Component({
   selector: 'app-warehouse-management',
@@ -19,6 +20,8 @@ import { WarehouseService, Warehouse } from '../../../core/services/warehouse.se
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
+    RouterLink,
+    RouterLinkActive,
     TableModule,
     ButtonModule,
     DialogModule,
@@ -30,22 +33,46 @@ import { WarehouseService, Warehouse } from '../../../core/services/warehouse.se
   ],
   providers: [MessageService, ConfirmationService],
   template: `
-    <div class="p-6">
+    <div class="p-6 max-w-[1600px] mx-auto">
+      <!-- Tab Navigation -->
+      <div class="mb-6 flex items-center gap-3">
+        <a
+          routerLink="/settings/warehouses"
+          routerLinkActive="bg-slate-900 text-white"
+          [routerLinkActiveOptions]="{exact: true}"
+          class="px-5 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+        >
+          <i class="pi pi-warehouse mr-2"></i>
+          Warehouses
+        </a>
+        <a
+          routerLink="/settings/item-codes"
+          routerLinkActive="bg-slate-900 text-white"
+          [routerLinkActiveOptions]="{exact: true}"
+          class="px-5 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+        >
+          <i class="pi pi-box mr-2"></i>
+          Items
+        </a>
+      </div>
+
+      <!-- Page Header -->
       <div class="flex justify-between items-center mb-6">
         <div>
-          <h1 class="text-2xl font-bold text-slate-800">Warehouse Management</h1>
-          <p class="text-slate-500">Create, edit and manage storage locations</p>
+          <h1 class="text-2xl font-bold text-slate-900">Warehouse Management</h1>
+          <p class="text-slate-500 mt-1">Create, edit and manage storage locations</p>
         </div>
         <button 
           pButton 
           label="Add Warehouse" 
           icon="pi pi-plus" 
-          class="p-button-primary shadow-sm"
+          class="p-button-primary"
           (click)="openAddDialog()">
         </button>
       </div>
 
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <!-- Table Card -->
+      <div class="bg-white rounded-lg shadow border border-slate-200 overflow-hidden">
         <p-table 
           [value]="warehouses()" 
           [loading]="loading()"
@@ -55,24 +82,20 @@ import { WarehouseService, Warehouse } from '../../../core/services/warehouse.se
           [paginator]="true">
           <ng-template pTemplate="header">
             <tr>
-              <th class="bg-slate-50 text-slate-600 font-semibold py-4">Name</th>
-              <th class="bg-slate-50 text-slate-600 font-semibold py-4">Code</th>
-              <!-- <th class="bg-slate-50 text-slate-600 font-semibold py-4">Location</th>
-              <th class="bg-slate-50 text-slate-600 font-semibold py-4">Manager</th> -->
-              <th class="bg-slate-50 text-slate-600 font-semibold py-4 text-center">Status</th>
-              <th class="bg-slate-50 text-slate-600 font-semibold py-4 text-right px-6">Actions</th>
+              <th class="bg-slate-50 text-slate-700 font-semibold py-4 text-[11px] uppercase tracking-wider">Name</th>
+              <th class="bg-slate-50 text-slate-700 font-semibold py-4 text-[11px] uppercase tracking-wider">Code</th>
+              <th class="bg-slate-50 text-slate-700 font-semibold py-4 text-[11px] uppercase tracking-wider text-center">Status</th>
+              <th class="bg-slate-50 text-slate-700 font-semibold py-4 text-[11px] uppercase tracking-wider text-right px-6">Actions</th>
             </tr>
           </ng-template>
           <ng-template pTemplate="body" let-warehouse>
-            <tr class="hover:bg-slate-50/50 transition-colors border-b border-slate-100 last:border-0">
-              <td class="py-4 font-medium text-slate-700">{{ warehouse.name }}</td>
-              <td class="py-4 text-slate-500 font-mono text-sm">{{ warehouse.code || '–' }}</td>
-              <!-- <td class="py-4 text-slate-500">{{ warehouse.location || '–' }}</td>
-              <td class="py-4 text-slate-500">{{ warehouse.managerName || '–' }}</td> -->
+            <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0">
+              <td class="py-4 font-semibold text-slate-800">{{ warehouse.name }}</td>
+              <td class="py-4 text-slate-600 font-mono text-sm">{{ warehouse.code || '–' }}</td>
               <td class="py-4 text-center">
                 <span 
-                  [class]="warehouse.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-600 border-slate-200'"
-                  class="px-2.5 py-1 rounded-full text-xs font-medium border">
+                  [class]="warehouse.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'"
+                  class="px-3 py-1 rounded-full text-xs font-semibold border">
                   {{ warehouse.status }}
                 </span>
               </td>
@@ -81,13 +104,13 @@ import { WarehouseService, Warehouse } from '../../../core/services/warehouse.se
                   <button 
                     pButton 
                     icon="pi pi-pencil" 
-                    class="p-button-text p-button-sm p-button-info"
+                    class="p-button-text p-button-sm p-button-info hover:bg-blue-50"
                     (click)="openEditDialog(warehouse)">
                   </button>
                   <button 
                     pButton 
                     icon="pi pi-trash" 
-                    class="p-button-text p-button-sm p-button-danger"
+                    class="p-button-text p-button-sm p-button-danger hover:bg-red-50"
                     (click)="confirmDelete(warehouse)">
                   </button>
                 </div>
@@ -96,9 +119,10 @@ import { WarehouseService, Warehouse } from '../../../core/services/warehouse.se
           </ng-template>
           <ng-template pTemplate="emptymessage">
             <tr>
-              <td colspan="6" class="p-12 text-center text-slate-400">
-                <i class="pi pi-box text-4xl mb-3 block opacity-20"></i>
-                No warehouses found. Click "Add Warehouse" to create one.
+              <td colspan="4" class="p-16 text-center text-slate-400">
+                <i class="pi pi-warehouse text-5xl mb-4 block opacity-20"></i>
+                <p class="text-lg font-semibold mb-2">No warehouses found</p>
+                <p class="text-sm">Click "Add Warehouse" to create one.</p>
               </td>
             </tr>
           </ng-template>
@@ -111,46 +135,31 @@ import { WarehouseService, Warehouse } from '../../../core/services/warehouse.se
       [(visible)]="displayDialog" 
       [header]="editingWarehouse() ? 'Edit Warehouse' : 'Add New Warehouse'" 
       [modal]="true" 
-      [style]="{width: '450px'}" 
+      [style]="{width: '500px'}" 
       class="p-fluid">
-      <form [formGroup]="warehouseForm" (ngSubmit)="saveWarehouse()" class="flex flex-col gap-4 pt-4">
+      <form [formGroup]="warehouseForm" (ngSubmit)="saveWarehouse()" class="flex flex-col gap-5 pt-4">
         <div class="field">
-          <label for="name" class="block text-sm font-semibold text-slate-700 mb-1">Warehouse Name *</label>
-          <input pInputText id="name" formControlName="name" placeholder="e.g. Dubai Central Hub" />
+          <label for="name" class="block text-sm font-bold text-slate-800 mb-2">Warehouse Name *</label>
+          <input pInputText id="name" formControlName="name" placeholder="e.g. Dubai Central Hub" class="w-full" />
         </div>
         
         <div class="field">
-          <label for="code" class="block text-sm font-semibold text-slate-700 mb-1">Warehouse Code</label>
-          <input pInputText id="code" formControlName="code" placeholder="e.g. DXB-01" />
+          <label for="code" class="block text-sm font-bold text-slate-800 mb-2">Warehouse Code</label>
+          <input pInputText id="code" formControlName="code" placeholder="e.g. DXB-01" class="w-full" />
         </div>
-
-        <!-- <div class="field">
-          <label for="location" class="block text-sm font-semibold text-slate-700 mb-1">Location</label>
-          <input pInputText id="location" formControlName="location" placeholder="e.g. Al Quoz, Dubai" />
-        </div>
-
-        <div class="flex gap-4">
-          <div class="field flex-1">
-            <label for="managerName" class="block text-sm font-semibold text-slate-700 mb-1">Manager Name</label>
-            <input pInputText id="managerName" formControlName="managerName" />
-          </div>
-          <div class="field flex-1">
-            <label for="capacity" class="block text-sm font-semibold text-slate-700 mb-1">Capacity (MT)</label>
-            <p-inputNumber id="capacity" formControlName="capacity"></p-inputNumber>
-          </div>
-        </div> -->
 
         <div class="field">
-          <label for="status" class="block text-sm font-semibold text-slate-700 mb-1">Status</label>
+          <label for="status" class="block text-sm font-bold text-slate-800 mb-2">Status</label>
           <p-select 
             id="status" 
             [options]="statusOptions" 
             formControlName="status" 
-            placeholder="Select Status">
+            placeholder="Select Status"
+            styleClass="w-full">
           </p-select>
         </div>
 
-        <div class="flex justify-end gap-3 mt-6">
+        <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-slate-200">
           <button 
             type="button" 
             pButton 
@@ -162,7 +171,7 @@ import { WarehouseService, Warehouse } from '../../../core/services/warehouse.se
             type="submit" 
             pButton 
             [label]="editingWarehouse() ? 'Update' : 'Save'" 
-            class="p-button-primary shadow-sm"
+            class="p-button-primary shadow-md"
             [disabled]="warehouseForm.invalid || saving()">
           </button>
         </div>
@@ -174,7 +183,12 @@ import { WarehouseService, Warehouse } from '../../../core/services/warehouse.se
   `,
   styles: [`
     :host ::ng-deep .p-datatable .p-datatable-thead > tr > th {
-      border-bottom: 2px solid #f1f5f9;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    
+    :host ::ng-deep .p-paginator {
+      border-top: 2px solid #e2e8f0;
+      background: #f8fafc;
     }
   `]
 })

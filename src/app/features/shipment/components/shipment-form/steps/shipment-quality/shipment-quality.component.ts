@@ -84,6 +84,11 @@ export class ShipmentQualityComponent {
     return (group as FormGroup).get('qualityReports') as FormArray;
   }
 
+  getPrimaryQualityRow(group: AbstractControl): FormGroup | null {
+    const rows = this.getQualityRows(group);
+    return (rows?.at(0) as FormGroup) || null;
+  }
+
   addQualityRow(group: AbstractControl): void {
     const rows = this.getQualityRows(group);
     rows.push(
@@ -204,6 +209,21 @@ export class ShipmentQualityComponent {
     this.previewTitle.set(title);
     this.previewIsImage.set(/\.(png|jpe?g|gif|webp)(\?|$)/i.test(url));
     this.showPreviewModal.set(true);
+  }
+
+  hasS1Report(): boolean {
+    return !!this.shipmentData()?.shipment?.s1QualityReportUrl;
+  }
+
+  getQ1ReportData(): any {
+    return this.shipmentData()?.shipment?.q1Report || null;
+  }
+
+  openS1Report(): void {
+    const url = this.shipmentData()?.shipment?.s1QualityReportUrl;
+    const name = this.shipmentData()?.shipment?.s1QualityReportName || 'S1 Quality Report';
+    if (!url) return;
+    this.openRemoteDocumentPreview(url, name);
   }
 
   openDocumentPreview(file: File, title: string): void {

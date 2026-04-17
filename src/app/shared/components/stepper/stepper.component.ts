@@ -18,9 +18,14 @@ export interface Step {
 export class StepperComponent {
   @Input() steps: Step[] = [];
   @Input() currentStep = 0;
+  /** When set, steps with index > maxEnabledStep are rendered disabled and cannot be clicked. */
+  @Input() maxEnabledStep: number | null = null;
   @Output() stepChange = new EventEmitter<number>();
 
   onStepClick(index: number) {
+    if (this.maxEnabledStep != null && index > this.maxEnabledStep) {
+      return;
+    }
     this.stepChange.emit(index);
   }
 }

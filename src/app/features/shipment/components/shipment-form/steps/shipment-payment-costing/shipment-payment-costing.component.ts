@@ -289,6 +289,22 @@ export class ShipmentPaymentCostingComponent {
     this.activeTabs.update((cur) => ({ ...cur, [index]: tab }));
   }
 
+  hasAllocationRequestAmount(group: AbstractControl): boolean {
+    return this.getPaymentAllocations(group).controls.some((row) => Number(row.get('requestAmount')?.value || 0) > 0);
+  }
+
+  isAllocationSaved(index: number): boolean {
+    const shipment = this.shipmentData()?.actual?.[index];
+    const rows = shipment?.paymentAllocations || [];
+    return rows.some((entry: any) => Number(entry?.requestAmount || 0) > 0 || Number(entry?.paidAmount || 0) > 0);
+  }
+
+  isCostingSaved(index: number): boolean {
+    const shipment = this.shipmentData()?.actual?.[index];
+    const rows = shipment?.paymentCostings || [];
+    return rows.some((entry: any) => Number(entry?.actualPaid || 0) > 0 || String(entry?.refBillNo || '').trim().length > 0);
+  }
+
   getPaymentAllocations(group: AbstractControl): FormArray {
     return (group as FormGroup).get('paymentAllocations') as FormArray;
   }
@@ -586,6 +602,7 @@ export class ShipmentPaymentCostingComponent {
       next: () => {
         this.savingRowIndex.set(null);
         this.notificationService.success('Saved', 'Payment allocation saved successfully.');
+        this.setActiveTab(index, 'costing');
         this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
       },
       error: (error) => {

@@ -6,6 +6,7 @@ import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NotificationService } from '../../../../../../core/services/notification.service';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
+import { WarehouseService } from '../../../../../../core/services/warehouse.service';
 import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
 import { AccordionModule } from 'primeng/accordion';
 import { DatePickerModule } from 'primeng/datepicker';
@@ -85,6 +86,7 @@ export class ShipmentBlDetailsComponent {
   private sanitizer = inject(DomSanitizer);
   private store = inject(Store);
   private shipmentService = inject(ShipmentService);
+  private warehouseService = inject(WarehouseService);
   private notificationService = inject(NotificationService);
 
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
@@ -96,10 +98,9 @@ export class ShipmentBlDetailsComponent {
   readonly submittedStep6Indices = toSignal(this.store.select(selectSubmittedStep6Indices), { initialValue: [] });
   readonly submittedStep7Indices = toSignal(this.store.select(selectSubmittedStep7Indices), { initialValue: [] });
 
-  readonly warehouseOptions = [
-    { label: 'Warehouse DIC - RH006', value: 'Warehouse DIC - RH006' },
-    { label: 'Warehouse Musaffah- RH001P1', value: 'Warehouse Musaffah- RH001P1' },
-  ];
+  readonly warehouseOptions = signal<Array<{ label: string; value: string }>>([]);
+  readonly costSheetSearchTerm = signal<Record<number, string>>({});
+  readonly editingCostSheet = signal<Record<number, boolean>>({});
   readonly costSheetDescriptions = COST_SHEET_DESCRIPTIONS;
 
   readonly activeTabs = signal<Record<number, 'cost' | 'storage' | 'packaging'>>({});
@@ -135,6 +136,19 @@ export class ShipmentBlDetailsComponent {
   });
 
   constructor() {
+    this.warehouseService.getWarehouses().subscribe({
+      next: (warehouses) => {
+        const activeWarehouses = warehouses
+          .filter((warehouse) => warehouse.status === 'Active')
+          .map((warehouse) => {
+            const codeSuffix = warehouse.code ? ` - ${warehouse.code}` : '';
+            const label = `${warehouse.name}${codeSuffix}`;
+            return { label, value: label };
+          });
+        this.warehouseOptions.set(activeWarehouses);
+      },
+    });
+
     effect(() => {
       this.formArray?.controls.forEach((_, index) => {
         if (!this.activeTabs()[index]) {
@@ -145,6 +159,34 @@ export class ShipmentBlDetailsComponent {
         }
       });
     });
+  }
+
+  isCostSheetSaved(index: number): boolean {
+    const shipment = this.shipmentData()?.actual?.[index];
+    if (!shipment) return false;
+    const rows = shipment.costSheetBookings || [];
+    return rows.some((entry: any) => Number(entry?.requestAmount || 0) > 0 || Number(entry?.paidAmount || 0) > 0);
+  }
+
+  isCostSheetEditing(index: number): boolean {
+    if (this.editingCostSheet()[index]) return true;
+    return !this.isCostSheetSaved(index);
+  }
+
+  enableCostSheetEdit(index: number): void {
+    this.editingCostSheet.update((current) => ({ ...current, [index]: true }));
+  }
+
+  cancelCostSheetEdit(index: number): void {
+    this.editingCostSheet.update((current) => ({ ...current, [index]: false }));
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    if (shipmentId) {
+      this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+    }
+  }
+
+  setCostSheetSearchTerm(index: number, term: string): void {
+    this.costSheetSearchTerm.update((current) => ({ ...current, [index]: term }));
   }
 
   getShipmentNoLabel(index: number): string {
@@ -331,11 +373,21 @@ export class ShipmentBlDetailsComponent {
 
   getVisibleCostSheetRows(group: AbstractControl, shipmentIndex: number): AbstractControl[] {
     const rows = this.getCostSheetRows(group).controls;
-    return this.expandedCostSheet()[shipmentIndex] ? rows : rows.slice(0, 5);
+    const term = String(this.costSheetSearchTerm()[shipmentIndex] || '').trim().toLowerCase();
+    const filteredRows = term
+      ? rows.filter((row) => String(row.get('description')?.value || '').toLowerCase().includes(term))
+      : rows;
+    return this.expandedCostSheet()[shipmentIndex] ? filteredRows : filteredRows.slice(0, 5);
   }
 
   hasHiddenCostSheetRows(group: AbstractControl, shipmentIndex: number): boolean {
-    return !this.expandedCostSheet()[shipmentIndex] && this.getCostSheetRows(group).length > 5;
+    const term = String(this.costSheetSearchTerm()[shipmentIndex] || '').trim().toLowerCase();
+    const total = term
+      ? this.getCostSheetRows(group).controls.filter((row) =>
+          String(row.get('description')?.value || '').toLowerCase().includes(term)
+        ).length
+      : this.getCostSheetRows(group).length;
+    return !this.expandedCostSheet()[shipmentIndex] && total > 5;
   }
 
   toggleCostSheetRows(shipmentIndex: number): void {
@@ -622,6 +674,7 @@ export class ShipmentBlDetailsComponent {
       next: () => {
         this.savingKey.set(null);
         if (bookingFile) this.clearBookingFile(index);
+        this.editingCostSheet.update((current) => ({ ...current, [index]: false }));
         this.notificationService.success('Saved', 'Cost sheet booking saved successfully.');
         this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
       },

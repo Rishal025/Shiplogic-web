@@ -11,6 +11,98 @@
     </div>
   </div>
 } @else {
+  @if (hasS1Report()) {
+    <div class="m-4 flex items-center justify-end">
+      <button
+        type="button"
+        (click)="openS1Report()"
+        class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50"
+      >
+        <i class="pi pi-eye"></i>
+        View S1 Report
+      </button>
+    </div>
+  }
+
+  <!-- Quality summary (visible without expanding accordions) -->
+  <div class="m-6 grid grid-cols-1 gap-4">
+    @for (group of formArray.controls; track $index; let i = $index) {
+      @if (getPrimaryQualityRow(group); as primaryRow) {
+        <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="flex items-start justify-between gap-3 mb-4">
+            <div class="min-w-0">
+              <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">Shipment</div>
+              <div class="mt-1 text-sm font-bold text-slate-800 truncate">Shipment No: {{ getShipmentNoLabel(i) }}</div>
+            </div>
+          </div>
+
+          @if (getQ1ReportData(); as q1Report) {
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-[11px]">
+              <div class="flex flex-col">
+                <span class="text-slate-400 font-medium">Shipment No / Batch No</span>
+                <span class="text-slate-700 font-bold">{{ q1Report.sample_details?.shipment_no_batch_no || '—' }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-slate-400 font-medium">Report Date</span>
+                <span class="text-slate-700 font-bold">{{ q1Report.report_details?.report_date || '—' }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-slate-400 font-medium">Report No</span>
+                <span class="text-slate-700 font-bold">{{ q1Report.report_details?.report_no || '—' }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-slate-400 font-medium">Commodity</span>
+                <span class="text-slate-700 font-bold">{{ q1Report.sample_details?.commodity || '—' }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-slate-400 font-medium">Variety of Grains</span>
+                <span class="text-slate-700 font-bold">{{ q1Report.sample_details?.variety_of_grains || '—' }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-slate-400 font-medium">Vendor</span>
+                <span class="text-slate-700 font-bold">{{ q1Report.sample_details?.vendor || '—' }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-slate-400 font-medium">Country of Origin</span>
+                <span class="text-slate-700 font-bold">{{ q1Report.sample_details?.country_of_origin || '—' }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-slate-400 font-medium">Analyzed By</span>
+                <span class="text-slate-700 font-bold">{{ q1Report.analysis_details?.analyzed_by || '—' }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-slate-400 font-medium">Analysis Date</span>
+                <span class="text-slate-700 font-bold">{{ q1Report.analysis_details?.date || '—' }}</span>
+              </div>
+            </div>
+          } @else {
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-[11px]">
+              <div class="flex flex-col">
+                <span class="text-slate-400 font-medium">Shipment No</span>
+                <span class="text-slate-700 font-bold">{{ primaryRow.get('sampleNo')?.value || '—' }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-slate-400 font-medium">Report Date</span>
+                <span class="text-slate-700 font-bold">{{ (primaryRow.get('date')?.value | date:'dd/MM/yyyy') || '—' }}</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="text-slate-400 font-medium">In-house Report</span>
+                <span class="text-slate-700 font-bold">
+                  {{ primaryRow.get('inhouseReportNo')?.value || '—' }}
+                  @if (primaryRow.get('inhouseReportNo')?.value) {
+                    <span class="text-slate-500 font-medium">
+                      ({{ (primaryRow.get('inhouseReportDate')?.value | date:'dd/MM/yyyy') || '—' }})
+                    </span>
+                  }
+                </span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+  </div>
+
   <p-accordion [multiple]="true" styleClass="flex flex-col gap-3">
     @for (group of formArray.controls; track $index; let i = $index) {
       <p-accordion-panel [value]="'quality-' + i" styleClass="border border-slate-200 rounded-xl shadow-sm">
@@ -60,7 +152,7 @@
                   <ng-template pTemplate="header">
                     <tr>
                       <th class="min-w-[80px]">SN</th>
-                      <th class="min-w-[180px]">SAMPLE #</th>
+                      <th class="min-w-[180px]">SHIPMENT NO</th>
                       <th class="min-w-[140px]">PHASE</th>
                       <th class="min-w-[150px]">DATE</th>
                       <th class="min-w-[180px]">IN-HOUSE REPORT NO</th>
@@ -82,7 +174,7 @@
                     <tr [formGroup]="row">
                       <td class="text-slate-700 font-semibold text-xs">{{ row.get('sn')?.value }}</td>
                       <td>
-                        <input pInputText formControlName="sampleNo" class="table-input-text w-full" placeholder="Sample #" />
+                        <input pInputText formControlName="sampleNo" class="table-input-text w-full" placeholder="Shipment No" />
                       </td>
                       <td>
                         <p-select [options]="phaseOptions" formControlName="phase" optionLabel="label" optionValue="value" styleClass="w-full" appendTo="body"></p-select>
@@ -94,7 +186,11 @@
                         <input pInputText formControlName="inhouseReportNo" class="table-input-text w-full" placeholder="Report no" />
                       </td>
                       <td>
-                        <p-datepicker formControlName="inhouseReportDate" appendTo="body" inputStyleClass="table-input w-full" styleClass="w-full" placeholder="Date" dateFormat="dd/mm/yy"></p-datepicker>
+                        @if (row.get('inhouseReportNo')?.value) {
+                          <p-datepicker formControlName="inhouseReportDate" appendTo="body" inputStyleClass="table-input w-full" styleClass="w-full" placeholder="Date" dateFormat="dd/mm/yy"></p-datepicker>
+                        } @else {
+                          <div class="table-input-text w-full bg-slate-50 text-slate-400">Awaiting report no</div>
+                        }
                       </td>
                       <td class="text-center">
                         <div class="flex justify-center gap-2">
@@ -110,7 +206,11 @@
                         <input pInputText formControlName="strategicReportNo" class="table-input-text w-full" placeholder="Report no" />
                       </td>
                       <td>
-                        <p-datepicker formControlName="strategicReportDate" appendTo="body" inputStyleClass="table-input w-full" styleClass="w-full" placeholder="Date" dateFormat="dd/mm/yy"></p-datepicker>
+                        @if (row.get('strategicReportNo')?.value) {
+                          <p-datepicker formControlName="strategicReportDate" appendTo="body" inputStyleClass="table-input w-full" styleClass="w-full" placeholder="Date" dateFormat="dd/mm/yy"></p-datepicker>
+                        } @else {
+                          <div class="table-input-text w-full bg-slate-50 text-slate-400">Awaiting report no</div>
+                        }
                       </td>
                       <td class="text-center">
                         <div class="flex justify-center gap-2">
@@ -126,7 +226,11 @@
                         <input pInputText formControlName="thirdPartyReportNo" class="table-input-text w-full" placeholder="Report no" />
                       </td>
                       <td>
-                        <p-datepicker formControlName="thirdPartyReportDate" appendTo="body" inputStyleClass="table-input w-full" styleClass="w-full" placeholder="Date" dateFormat="dd/mm/yy"></p-datepicker>
+                        @if (row.get('thirdPartyReportNo')?.value) {
+                          <p-datepicker formControlName="thirdPartyReportDate" appendTo="body" inputStyleClass="table-input w-full" styleClass="w-full" placeholder="Date" dateFormat="dd/mm/yy"></p-datepicker>
+                        } @else {
+                          <div class="table-input-text w-full bg-slate-50 text-slate-400">Awaiting report no</div>
+                        }
                       </td>
                       <td class="text-center">
                         <div class="flex justify-center gap-2">

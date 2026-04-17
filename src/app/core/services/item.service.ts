@@ -26,4 +26,16 @@ export class ItemService {
   getItemByCode(itemCode: string): Observable<ItemLookupResponse> {
     return this.http.get<ItemLookupResponse>(`${this.apiUrl}/by-code/${encodeURIComponent(itemCode)}`);
   }
+
+  createItem(payload: Partial<Item>): Observable<{ message: string; item: Item }> {
+    return this.http.post<{ message: string; item: Item }>(`${this.apiUrl}/create`, payload);
+  }
+
+  updateItem(id: string, payload: Partial<Item>): Observable<{ message: string; item: Item }> {
+    return this.http.put<{ message: string; item: Item }>(`${this.apiUrl}/${id}`, payload);
+  }
+
+  deleteItem(id: string): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`);
+  }
 }

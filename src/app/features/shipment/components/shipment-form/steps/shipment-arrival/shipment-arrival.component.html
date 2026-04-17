@@ -48,7 +48,7 @@
 } @else {
   <p-accordion [multiple]="true" styleClass="flex flex-col gap-3">
     @for (group of formArray.controls; track $index; let i = $index) {
-      <p-accordion-panel [value]="'arr-' + i" styleClass="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      <p-accordion-panel [value]="'arr-' + i" styleClass="border border-slate-200 rounded-xl shadow-sm">
         <p-accordion-header styleClass="bg-white hover:bg-slate-50 px-4 py-3">
           <div class="flex items-center justify-between w-full pr-2 gap-3">
             <div class="flex items-center gap-2.5 min-w-0">
@@ -59,25 +59,22 @@
                 Shipment No: {{ getShipmentNoLabel(i) }}
               </span>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
-              @if (!isPrecedingSubmitted(i)) {
-                <span class="text-[9px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full shrink-0">
-                  Awaiting Step 4
-                </span>
-              }
-            </div>
           </div>
         </p-accordion-header>
 
         <p-accordion-content styleClass="bg-white">
-          <div [formGroup]="$any(group)" class="px-4 sm:px-5 pb-5 pt-3 flex flex-col gap-6">
-            <div class="rounded-2xl border border-slate-100 bg-slate-50/40 p-4 sm:p-5">
-              <div class="mb-4 flex items-center justify-between gap-3">
-                <div class="flex items-center gap-2 min-w-0">
-                  <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">Port & Customs Clearance</span>
-                  <div class="flex-1 h-px bg-slate-200"></div>
-                </div>
-                <div class="flex items-center gap-2 shrink-0">
+          <div [formGroup]="$any(group)" class="arrival-table-shell px-4 sm:px-6 pb-8 pt-4 flex flex-col gap-0 overflow-x-hidden w-full min-w-0">
+            <div class="relative flex flex-col gap-8 ml-6 before:content-[''] before:absolute before:left-[-25px] before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-100 before:rounded-full">
+              <div class="relative group">
+                <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
+
+                <div class="rounded-2xl border border-slate-100 bg-slate-50/40 p-5 hover:border-slate-200 transition-all shadow-sm">
+	              <div class="mb-4 flex items-center justify-between gap-3">
+	                <div class="flex flex-col min-w-0">
+	                  <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Milestone 1</span>
+	                  <h3 class="text-xs font-bold text-slate-700">Port & Customs Clearance</h3>
+	                </div>
+	                <div class="flex items-center gap-2 shrink-0">
                   @if (isLogisticsSectionLocked(i, 'arrivalNotice')) {
                     <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
                       <i class="pi pi-lock text-[10px]"></i> Saved
@@ -168,7 +165,7 @@
                     <p-datepicker formControlName="arrivalOn" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onArrivalDateChange(i)" [readonlyInput]="true" [showIcon]="true" />
                   </div>
                 </div>
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <div class="flex flex-col gap-1.5">
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shipment Free Retention Date</label>
                     <p-datepicker formControlName="shipmentFreeRetentionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
@@ -177,231 +174,256 @@
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Maximum Retention Date</label>
                     <p-datepicker formControlName="maximumRetentionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
                   </div>
-                  <div class="flex flex-col gap-1.5">
+                  <div class="flex flex-col gap-1.5 lg:col-span-2">
                     <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Port Retention Date</label>
                     <p-datepicker formControlName="portRetentionWithPenaltyDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
                   </div>
                 </div>
               </div>
-            </div>
+	            </div>
+	          </div>
+	            @for (doc of secondaryStep5DocConfig; track doc.kind; let d = $index) {
+	              <div class="relative group">
+	                <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
 
-            <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              @for (doc of secondaryStep5DocConfig; track doc.kind) {
-                <div class="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-3 shadow-sm">
-                  <div class="flex items-center justify-between gap-3">
-                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                      {{ doc.label }}
-                    </label>
-                    <div class="flex items-center gap-2">
-                      @if (isLogisticsSectionLocked(i, doc.kind)) {
-                        <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
-                          <i class="pi pi-lock text-[10px]"></i> Saved
-                        </span>
-                        <button
-                          type="button"
-                          (click)="unlockLogisticsSection(i, doc.kind)"
-                          [disabled]="isRowSubmitted(i)"
-                          class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50"
-                          title="Edit section"
-                        >
-                          <i class="pi pi-pencil text-[11px]"></i>
-                        </button>
-                      } @else {
-                        <button
-                          type="button"
-                          (click)="saveLogisticsSection(i, doc.kind)"
-                          [disabled]="isSectionSaving(i, doc.kind) || isRowSubmitted(i)"
-                          class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
-                        >
-                          @if (isSectionSaving(i, doc.kind)) {
-                            <i class="pi pi-spin pi-spinner text-[10px]"></i>
-                            Saving...
-                          } @else {
-                            <i class="pi pi-check text-[10px]"></i>
-                            Save
-                          }
-                        </button>
-                      }
-                    </div>
-                  </div>
-                  <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <p-datepicker [formControlName]="doc.dateControl" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
-                    <div class="flex items-center gap-2 sm:shrink-0">
-                      <button
-                        type="button"
-                        (click)="clickFileInput(i, doc.kind)"
-                        [disabled]="isRowSubmitted(i) || isLogisticsSectionLocked(i, doc.kind)"
-                        class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0 disabled:opacity-50"
-                      >
-                        <i class="pi pi-upload"></i>
-                      </button>
-                      @if (getFile(i, doc.kind)) {
-                        <button
-                          type="button"
-                          (click)="openDocumentPreview(getFile(i, doc.kind)!, doc.label + ' Document')"
-                          class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0"
-                        >
-                          <i class="pi pi-eye"></i>
-                        </button>
-                        <button
-                          type="button"
-                          (click)="clearFile(i, doc.kind)"
-                          [disabled]="isRowSubmitted(i)"
-                          class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 shrink-0 disabled:opacity-50"
-                        >
-                          <i class="pi pi-trash"></i>
-                        </button>
-                      } @else if (getSavedFileUrl(group, doc.kind)) {
-                        <button
-                          type="button"
-                          (click)="openRemoteDocumentPreview(getSavedFileUrl(group, doc.kind), getSavedFileName(group, doc.kind) || (doc.label + ' Document'))"
-                          class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0"
-                        >
-                          <i class="pi pi-eye"></i>
-                        </button>
-                      }
-                    </div>
-                  </div>
-                  @if (getFile(i, doc.kind)) {
-                    <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getFile(i, doc.kind)?.name }}</p>
-                  } @else if (getSavedFileName(group, doc.kind)) {
-                    <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getSavedFileName(group, doc.kind) }}</p>
-                  }
-                  @if (doc.remarksControl) {
-                    <div class="flex flex-col gap-1.5">
-                      <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Remarks</label>
-                      <input pInputText [formControlName]="doc.remarksControl" class="table-input-text w-full" placeholder="Add remarks" />
-                    </div>
-                  }
-                  @if (doc.kind === 'customsClearance') {
-                    <div class="flex flex-col gap-1.5">
-                      <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Token Received Date</label>
-                      <p-datepicker formControlName="tokenReceivedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
-                    </div>
-                  }
-                </div>
-              }
-            </div>
+	                <div class="rounded-2xl border border-slate-100 bg-white p-5 hover:border-slate-200 transition-all shadow-sm flex flex-col gap-3">
+	                  <div class="flex items-center justify-between gap-3">
+	                    <div class="flex flex-col min-w-0">
+	                      <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Milestone {{ d + 2 }}</span>
+	                      <h3 class="text-xs font-bold text-slate-700 truncate">{{ doc.label }}</h3>
+	                    </div>
+	                    <div class="flex items-center gap-2 shrink-0">
+	                      @if (isLogisticsSectionLocked(i, doc.kind)) {
+	                        <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
+	                          <i class="pi pi-lock text-[10px]"></i> Saved
+	                        </span>
+	                        <button
+	                          type="button"
+	                          (click)="unlockLogisticsSection(i, doc.kind)"
+	                          [disabled]="isRowSubmitted(i)"
+	                          class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50"
+	                          title="Edit section"
+	                        >
+	                          <i class="pi pi-pencil text-[11px]"></i>
+	                        </button>
+	                      } @else {
+	                        <button
+	                          type="button"
+	                          (click)="saveLogisticsSection(i, doc.kind)"
+	                          [disabled]="isSectionSaving(i, doc.kind) || isRowSubmitted(i)"
+	                          class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
+	                        >
+	                          @if (isSectionSaving(i, doc.kind)) {
+	                            <i class="pi pi-spin pi-spinner text-[10px]"></i>
+	                            Saving...
+	                          } @else {
+	                            <i class="pi pi-check text-[10px]"></i>
+	                            Save
+	                          }
+	                        </button>
+	                      }
+	                    </div>
+	                  </div>
 
-            <div class="rounded-2xl border border-slate-200 overflow-hidden">
-              <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
-                <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Transportation Arranged</span>
-                <div class="flex items-center gap-2">
-                  <span class="text-[9px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
-                    {{ getTransportationContainerCount(group) }} Container(s)
-                  </span>
-                  @if (isLogisticsSectionLocked(i, 'transportation')) {
-                    <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
-                      <i class="pi pi-lock text-[10px]"></i> Saved
-                    </span>
-                    <button
-                      type="button"
-                      (click)="unlockLogisticsSection(i, 'transportation')"
-                      [disabled]="isRowSubmitted(i)"
-                      class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50"
-                      title="Edit section"
-                    >
-                      <i class="pi pi-pencil text-[11px]"></i>
-                    </button>
-                  } @else {
-                    <button
-                      type="button"
-                      (click)="saveLogisticsSection(i, 'transportation')"
-                      [disabled]="isSectionSaving(i, 'transportation') || isRowSubmitted(i)"
-                      class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
-                    >
-                      @if (isSectionSaving(i, 'transportation')) {
-                        <i class="pi pi-spin pi-spinner text-[10px]"></i>
-                        Saving...
-                      } @else {
-                        <i class="pi pi-check text-[10px]"></i>
-                        Save Section
-                      }
-                    </button>
-                  }
-                </div>
-              </div>
+	                  <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+	                    <p-datepicker [formControlName]="doc.dateControl" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
+	                    <div class="flex items-center gap-2 sm:shrink-0">
+	                      <button
+	                        type="button"
+	                        (click)="clickFileInput(i, doc.kind)"
+	                        [disabled]="isRowSubmitted(i) || isLogisticsSectionLocked(i, doc.kind)"
+	                        class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0 disabled:opacity-50"
+	                      >
+	                        <i class="pi pi-upload"></i>
+	                      </button>
+	                      @if (getFile(i, doc.kind)) {
+	                        <button
+	                          type="button"
+	                          (click)="openDocumentPreview(getFile(i, doc.kind)!, doc.label + ' Document')"
+	                          class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0"
+	                        >
+	                          <i class="pi pi-eye"></i>
+	                        </button>
+	                        <button
+	                          type="button"
+	                          (click)="clearFile(i, doc.kind)"
+	                          [disabled]="isRowSubmitted(i)"
+	                          class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 shrink-0 disabled:opacity-50"
+	                        >
+	                          <i class="pi pi-trash"></i>
+	                        </button>
+	                      } @else if (getSavedFileUrl(group, doc.kind)) {
+	                        <button
+	                          type="button"
+	                          (click)="openRemoteDocumentPreview(getSavedFileUrl(group, doc.kind), getSavedFileName(group, doc.kind) || (doc.label + ' Document'))"
+	                          class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0"
+	                        >
+	                          <i class="pi pi-eye"></i>
+	                        </button>
+	                      }
+	                    </div>
+	                  </div>
 
-              <div class="hidden md:grid md:grid-cols-[70px_minmax(0,1.8fr)_minmax(0,2.2fr)_140px_120px_140px_120px_110px] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Container No</span>
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transport Company Name</span>
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Arranged Date</span>
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Booking Time</span>
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transportation Date</span>
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transportation Time</span>
-                <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Delay Hours</span>
-              </div>
+	                  @if (getFile(i, doc.kind)) {
+	                    <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getFile(i, doc.kind)?.name }}</p>
+	                  } @else if (getSavedFileName(group, doc.kind)) {
+	                    <p class="text-[11px] text-slate-400 break-all sm:truncate">{{ getSavedFileName(group, doc.kind) }}</p>
+	                  }
 
-              <div class="flex flex-col">
-                @for (row of getVisibleTransportationRows(group, i); track $index) {
-                  <div [formGroup]="$any(row)" class="border-b last:border-b-0 border-slate-100 p-4">
-                    <div class="hidden md:grid md:grid-cols-[70px_minmax(0,1.8fr)_minmax(0,2.2fr)_140px_120px_140px_120px_110px] gap-3 items-start">
-                      <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
-                      <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container No" />
-                      <input pInputText formControlName="transportCompanyName" class="table-input-text w-full" placeholder="Company name" />
-                      <p-datepicker formControlName="bookedDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Arranged date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onTransportationTimeChange(i)" />
-                      <p-datepicker formControlName="bookingTime" appendTo="body" inputStyleClass="table-input w-full" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" />
-                      <p-datepicker formControlName="transportDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Transportation date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onTransportationTimeChange(i)" />
-                      <p-datepicker formControlName="transportTime" appendTo="body" inputStyleClass="table-input w-full" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" (onSelect)="onTransportationTimeChange(i)" />
-                      <p-inputNumber formControlName="delayHours" styleClass="w-full" inputStyleClass="table-input w-full bg-slate-50" [useGrouping]="false" placeholder="0" [readonly]="true" />
-                    </div>
+	                  @if (doc.remarksControl) {
+	                    <div class="flex flex-col gap-1.5">
+	                      <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Remarks</label>
+	                      <input pInputText [formControlName]="doc.remarksControl" class="table-input-text w-full" placeholder="Add remarks" />
+	                    </div>
+	                  }
+	                  @if (doc.kind === 'customsClearance') {
+	                    <div class="flex flex-col gap-1.5">
+	                      <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Token Received Date</label>
+	                      <p-datepicker formControlName="tokenReceivedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
+	                    </div>
+	                  }
+	                </div>
+	              </div>
+	            }
 
-                    <div class="md:hidden flex flex-col gap-3">
-                      <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider">SN {{ row.get('sn')?.value }}</span>
-                      <div class="grid grid-cols-1 gap-3">
-                        <div class="flex flex-col gap-1.5">
-                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Container No</label>
-                          <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container No" />
-                        </div>
-                        <div class="flex flex-col gap-1.5">
-                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Transport Company Name</label>
-                          <input pInputText formControlName="transportCompanyName" class="table-input-text w-full" placeholder="Company name" />
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                          <div class="flex flex-col gap-1.5">
-                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Arranged Date</label>
-                            <p-datepicker formControlName="bookedDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onTransportationTimeChange(i)" />
-                          </div>
-                          <div class="flex flex-col gap-1.5">
-                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Booking Time</label>
-                            <p-datepicker formControlName="bookingTime" appendTo="body" inputStyleClass="table-input w-full" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" />
-                          </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
-                          <div class="flex flex-col gap-1.5">
-                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Transportation Date</label>
-                            <p-datepicker formControlName="transportDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onTransportationTimeChange(i)" />
-                          </div>
-                          <div class="flex flex-col gap-1.5">
-                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Transportation Time</label>
-                            <p-datepicker formControlName="transportTime" appendTo="body" inputStyleClass="table-input w-full" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" (onSelect)="onTransportationTimeChange(i)" />
-                          </div>
-                        </div>
-                        <div class="flex flex-col gap-1.5">
-                          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Delay Hours</label>
-                          <p-inputNumber formControlName="delayHours" styleClass="w-full" inputStyleClass="table-input w-full bg-slate-50" [useGrouping]="false" placeholder="0" [readonly]="true" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                }
-              </div>
+	            <div class="relative group">
+	              <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
 
-              @if (hasHiddenTransportationRows(group)) {
-                <div class="border-t border-slate-100 px-4 py-3 flex justify-center sm:justify-start">
-                  <button
-                    type="button"
-                    (click)="toggleTransportation(i)"
-                    class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50"
-                  >
-                    <i class="pi" [class.pi-angle-down]="!expandedTransportation()[i]" [class.pi-angle-up]="expandedTransportation()[i]"></i>
-                    {{ expandedTransportation()[i] ? 'Show Less' : 'Show More' }}
-                  </button>
-                </div>
-              }
-            </div>
-          </div>
+	              <div class="rounded-2xl border border-slate-200 overflow-hidden shadow-sm bg-white">
+	                <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
+		                  <div class="flex flex-col">
+		                    <span class="text-xs font-bold text-slate-700">Transportation Arranged</span>
+		                  </div>
+	                  <div class="flex items-center gap-2">
+	                    <span class="text-[9px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+	                      {{ getTransportationContainerCount(group) }} Container(s)
+	                    </span>
+	                    @if (isLogisticsSectionLocked(i, 'transportation')) {
+	                      <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
+	                        <i class="pi pi-lock text-[10px]"></i> Saved
+	                      </span>
+	                      <button
+	                        type="button"
+	                        (click)="unlockLogisticsSection(i, 'transportation')"
+	                        [disabled]="isRowSubmitted(i)"
+	                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50"
+	                        title="Edit section"
+	                      >
+	                        <i class="pi pi-pencil text-[11px]"></i>
+	                      </button>
+	                    } @else {
+	                      <button
+	                        type="button"
+	                        (click)="saveLogisticsSection(i, 'transportation')"
+	                        [disabled]="isSectionSaving(i, 'transportation') || isRowSubmitted(i)"
+	                        class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
+	                      >
+	                        @if (isSectionSaving(i, 'transportation')) {
+	                          <i class="pi pi-spin pi-spinner text-[10px]"></i>
+	                          Saving...
+	                        } @else {
+	                          <i class="pi pi-check text-[10px]"></i>
+	                          Save Section
+	                        }
+	                      </button>
+	                    }
+	                  </div>
+	                </div>
+
+		                <!-- Desktop: only the table area scrolls horizontally -->
+		                <div class="hidden md:block arrival-scroll-viewport custom-scrollbar">
+		                  <div class="arrival-scroll-table">
+	                    <div class="grid grid-cols-[70px_300px_320px_140px_120px_140px_120px_110px] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
+	                      <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>
+	                      <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Container No</span>
+	                      <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transport Company Name</span>
+	                      <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Arranged Date</span>
+	                      <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Booking Time</span>
+	                      <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transportation Date</span>
+	                      <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Transportation Time</span>
+	                      <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Delay Hours</span>
+	                    </div>
+
+	                    <div class="flex flex-col">
+	                      @for (row of getVisibleTransportationRows(group, i); track $index) {
+	                        <div [formGroup]="$any(row)" class="border-b last:border-b-0 border-slate-100 p-4">
+	                          <div class="grid grid-cols-[70px_300px_320px_140px_120px_140px_120px_110px] gap-3 items-start">
+	                            <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
+	                            <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container No" />
+	                            <input pInputText formControlName="transportCompanyName" class="table-input-text w-full" placeholder="Company name" />
+	                            <p-datepicker formControlName="bookedDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Arranged date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onTransportationTimeChange(i)" />
+	                            <p-datepicker formControlName="bookingTime" appendTo="body" inputStyleClass="table-input w-full" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" />
+	                            <p-datepicker formControlName="transportDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Transportation date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onTransportationTimeChange(i)" />
+	                            <p-datepicker formControlName="transportTime" appendTo="body" inputStyleClass="table-input w-full" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" (onSelect)="onTransportationTimeChange(i)" />
+	                            <p-inputNumber formControlName="delayHours" styleClass="w-full" inputStyleClass="table-input w-full bg-slate-50" [useGrouping]="false" placeholder="0" [readonly]="true" />
+	                          </div>
+	                        </div>
+	                      }
+	                    </div>
+	                  </div>
+	                </div>
+
+	                <!-- Mobile: stacked rows (no horizontal scrolling needed) -->
+	                <div class="md:hidden flex flex-col">
+	                  @for (row of getVisibleTransportationRows(group, i); track $index) {
+	                    <div [formGroup]="$any(row)" class="border-b last:border-b-0 border-slate-100 p-4">
+	                      <div class="flex flex-col gap-3">
+	                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-wider">SN {{ row.get('sn')?.value }}</span>
+	                        <div class="grid grid-cols-1 gap-3">
+	                          <div class="flex flex-col gap-1.5">
+	                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Container No</label>
+	                            <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container No" />
+	                          </div>
+	                          <div class="flex flex-col gap-1.5">
+	                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Transport Company Name</label>
+	                            <input pInputText formControlName="transportCompanyName" class="table-input-text w-full" placeholder="Company name" />
+	                          </div>
+	                          <div class="grid grid-cols-2 gap-3">
+	                            <div class="flex flex-col gap-1.5">
+	                              <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Arranged Date</label>
+	                              <p-datepicker formControlName="bookedDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onTransportationTimeChange(i)" />
+	                            </div>
+	                            <div class="flex flex-col gap-1.5">
+	                              <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Booking Time</label>
+	                              <p-datepicker formControlName="bookingTime" appendTo="body" inputStyleClass="table-input w-full" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" />
+	                            </div>
+	                          </div>
+	                          <div class="grid grid-cols-2 gap-3">
+	                            <div class="flex flex-col gap-1.5">
+	                              <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Transportation Date</label>
+	                              <p-datepicker formControlName="transportDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onTransportationTimeChange(i)" />
+	                            </div>
+	                            <div class="flex flex-col gap-1.5">
+	                              <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Transportation Time</label>
+	                              <p-datepicker formControlName="transportTime" appendTo="body" inputStyleClass="table-input w-full" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" (onSelect)="onTransportationTimeChange(i)" />
+	                            </div>
+	                          </div>
+	                          <div class="flex flex-col gap-1.5">
+	                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Delay Hours</label>
+	                            <p-inputNumber formControlName="delayHours" styleClass="w-full" inputStyleClass="table-input w-full bg-slate-50" [useGrouping]="false" placeholder="0" [readonly]="true" />
+	                          </div>
+	                        </div>
+	                      </div>
+	                    </div>
+	                  }
+	                </div>
+
+	                @if (hasHiddenTransportationRows(group)) {
+	                  <div class="border-t border-slate-100 px-4 py-3 flex justify-center sm:justify-start">
+	                    <button
+	                      type="button"
+	                      (click)="toggleTransportation(i)"
+	                      class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50"
+	                    >
+	                      <i class="pi" [class.pi-angle-down]="!expandedTransportation()[i]" [class.pi-angle-up]="expandedTransportation()[i]"></i>
+	                      {{ expandedTransportation()[i] ? 'Show Less' : 'Show More' }}
+	                    </button>
+	                  </div>
+	                }
+	              </div>
+	            </div>
+	          </div>
+	        </div>
         </p-accordion-content>
       </p-accordion-panel>
     }

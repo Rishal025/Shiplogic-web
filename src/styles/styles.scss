@@ -260,6 +260,33 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/*
+ * Port & Customs (Step 5) Transportation Scroll Fix (Global)
+ * Constrains PrimeNG accordion wrappers so the transportation table can scroll horizontally
+ * without forcing the whole page to overflow.
+ */
+.p-accordioncontent-wrapper:has(.arrival-table-shell),
+.arrival-table-shell {
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.arrival-table-shell .arrival-scroll-viewport {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.arrival-table-shell .arrival-scroll-table {
+  min-width: 1320px;
+  width: max-content;
+}
+
 /* 4. Extraction Overlay (Royal AI) */
 .extraction-overlay {
     @apply fixed inset-0 z-[1200] flex items-center justify-center p-4;

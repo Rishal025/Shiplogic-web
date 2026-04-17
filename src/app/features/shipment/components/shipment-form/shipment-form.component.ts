@@ -240,6 +240,25 @@ export class ShipmentFormComponent implements OnDestroy {
     this.trackerStepConfigs().map(({ label, subLabel, completed }) => ({ label, subLabel, completed }))
   );
 
+  /**
+   * Max step index that can be opened based on prerequisite completions (UI gating),
+   * independent of RBAC view permissions (RBAC is enforced separately).
+   */
+  readonly maxEnabledStep = computed<number>(() => {
+    // Always allow navigating up to Port & Customs (index 4).
+    let max = 4;
+    if (this.isStep4Completed()) {
+      max = 5;
+    }
+    if (this.isStep4Completed() && this.isStep5Completed()) {
+      max = 6;
+    }
+    if (this.isStep4Completed() && this.isStep5Completed() && this.isStep6Completed()) {
+      max = 7;
+    }
+    return max;
+  });
+
   readonly currentStepMeta = computed<TrackerStepConfig | null>(
     () => this.trackerStepConfigs().find((step) => step.index === this.currentStep()) ?? null
   );
@@ -308,6 +327,74 @@ export class ShipmentFormComponent implements OnDestroy {
   getNextVisibleStepLabel(): string {
     const nextStep = this.getAdjacentAccessibleStep(1);
     return nextStep?.label || '';
+  }
+
+  isStep4Completed(): boolean {
+    const total = this.submittedActualIndices().length;
+    if (!(total > 0)) return false;
+
+    // Check if all actual rows have completed Step 4 (all 7 logistics sections locked)
+    return this.allSubmitted(total, this.submittedStep4Indices());
+  }
+
+  /**
+   * Returns true only when every actual shipment row has all 6 Document Tracker
+   * milestones saved (courier, receiving, inward, murabaha_process, murabaha_submit, release).
+   * Step 4 (Port & Customs) is gated behind this check.
+   */
+  isStep3AllMilestonesCompleted(): boolean {
+    const actualRows = this.shipmentData()?.actual;
+    if (!actualRows || actualRows.length === 0) return false;
+
+    return actualRows.every((shipment: any) => {
+      const hasCourier =
+        !!(shipment.courierTrackNo || shipment.courierServiceProvider || shipment.docArrivalNotes);
+      const hasReceiving =
+        !!(shipment.expectedDocDate || (shipment.receiver && shipment.bankName));
+      const hasInward =
+        !!(shipment.inwardCollectionAdviceDate || shipment.inwardCollectionAdviceDocumentUrl);
+      const hasMurabahaProcess =
+        !!(shipment.murabahaContractReleasedDate || shipment.murabahaContractApprovedDate);
+      const hasMurabahaSubmit =
+        !!(shipment.murabahaContractSubmittedDate || shipment.murabahaContractSubmittedDocumentUrl);
+      const hasRelease =
+        !!(shipment.documentsReleasedDate || shipment.documentsReleasedDocumentUrl);
+
+      return hasCourier && hasReceiving && hasInward && hasMurabahaProcess && hasMurabahaSubmit && hasRelease;
+    });
+  }
+
+  isStep5Completed(): boolean {
+    const total = this.submittedActualIndices().length;
+    return total > 0 && this.allSubmitted(total, this.submittedStep5Indices());
+  }
+
+  isStep6Completed(): boolean {
+    const total = this.submittedActualIndices().length;
+    return total > 0 && this.allSubmitted(total, this.submittedStep6Indices());
+  }
+
+  getAwaitingStepMessage(requiredStepIndex: number): string {
+    const meta = this.trackerStepConfigs().find((step) => step.index === requiredStepIndex);
+    const uiNo = requiredStepIndex + 1;
+    const label = meta?.label ? ` (${meta.label})` : '';
+    return `Awaiting Step ${uiNo}${label} completion.`;
+  }
+
+  private getBlockedByStep(targetStepIndex: number): number | null {
+    // Step 6+ (Storage and beyond) requires Port & Customs (index 4) completion
+    if (targetStepIndex >= 5 && !this.isStep4Completed()) {
+      return 4;
+    }
+    // Step 7+ (Quality and beyond) requires Storage (index 5) completion
+    if (targetStepIndex >= 6 && !this.isStep5Completed()) {
+      return 5;
+    }
+    // Step 8 (Payment) requires Quality (index 6) completion
+    if (targetStepIndex >= 7 && !this.isStep6Completed()) {
+      return 6;
+    }
+    return null;
   }
 
   hasPreviousAccessibleStep(): boolean {
@@ -583,7 +670,14 @@ export class ShipmentFormComponent implements OnDestroy {
             actualBags: [actualData?.actualBags ?? null],
             expiryDate: [actualData?.expiryDate ? new Date(actualData.expiryDate) : null],
             hsCode: [actualData?.hsCode || ''],
-            packagingDate: [actualData?.packagingDate ? new Date(actualData.packagingDate) : null],
+            packagingDate: [
+              actualData?.packagingDate
+                ? new Date(actualData.packagingDate)
+                : this.parseExpiryDate(
+                    (actualData?.packagingList as any)?.packagingDate ||
+                    (actualData?.packagingList as any)?.productionDate
+                  ),
+            ],
             grossWeight: [actualData?.grossWeight || ''],
             netWeight: [actualData?.netWeight || ''],
             billExtractionData: [actualData?.billExtractionData || null],
@@ -653,7 +747,7 @@ export class ShipmentFormComponent implements OnDestroy {
           }, { validators: this.documentationBankValidator() })
         );
 
-        this.blDetailsSplits.push(this.createBlDetailsGroup(plannedContainer, actualData, data, this.actualSplits.length - 1));
+        this.blDetailsSplits.push(this.createBlDetailsGroup(plannedContainer, actualData, data, shipmentIndex));
 
         const containerCount = Math.max(1, Number(plannedContainer?.FCL ?? 1) || 1);
         const extractedContainerSource =
@@ -778,33 +872,75 @@ export class ShipmentFormComponent implements OnDestroy {
 
         const containersArray = this.fb.array(
           Array.from({ length: storageContainerCount }, (_, c) => {
-            const existingStorage = existingStorageSplits[c];
-            const existingAllocation = existingStorageAllocations[c];
+            const normalizeSerial = (value: unknown) =>
+              String(value || '')
+                .trim()
+                .toUpperCase()
+                .replace(/\s+/g, ' ');
             const extractedContainer = storageExtractedContainerSource[c];
-            const containerLabel =
-              existingStorage?.containerSerialNo ||
-              existingAllocation?.containerSerialNo ||
+            const extractedSerial =
               extractedContainer?.containerNo ||
               (extractedContainer as any)?.container_no ||
+              (extractedContainer as any)?.container_number ||
+              (extractedContainer as any)?.containerNumber ||
+              '';
+
+            // Determine the container serial label first (this is our matching key).
+            const containerLabelCandidate =
+              existingStorageSplits?.[c]?.containerSerialNo ||
+              existingStorageAllocations?.[c]?.containerSerialNo ||
+              extractedSerial ||
+              `${shipmentNo}-C${c + 1}`;
+
+            const normalizedKey = normalizeSerial(containerLabelCandidate);
+            const storageMatch =
+              existingStorageSplits.find((row: any) => normalizeSerial(row?.containerSerialNo) === normalizedKey) ||
+              existingStorageSplits[c];
+            const allocationMatch =
+              existingStorageAllocations.find((row: any) => normalizeSerial(row?.containerSerialNo) === normalizedKey) ||
+              existingStorageAllocations[c];
+            const containerLabel =
+              storageMatch?.containerSerialNo ||
+              allocationMatch?.containerSerialNo ||
+              extractedSerial ||
               `${shipmentNo}-C${c + 1}`;
             return this.fb.group({
               containerSerialNo: [containerLabel],
-              bags: [existingStorage?.bags ?? existingAllocation?.bags ?? extractedContainer?.pkgCt ?? (extractedContainer as any)?.pkg_ct ?? null],
-              warehouse: [existingStorage?.warehouse || existingAllocation?.warehouse || ''],
-              storageAvailability: [existingStorage?.storageAvailability ?? existingAllocation?.storageAvailability ?? null],
-              receivedOnDate: [existingStorage?.receivedOnDate ? new Date(existingStorage.receivedOnDate) : null],
-              receivedOnTime: [this.parseTimeValue(existingStorage?.receivedOnTime)],
-              customsInspection: [existingStorage?.customsInspection || 'Yes'],
-              grn: [existingStorage?.grn || ''],
-              batch: [existingStorage?.batch || ''],
-              productionDate: [existingStorage?.productionDate ? new Date(existingStorage.productionDate) : null],
-              expiryDate: [existingStorage?.expiryDate ? new Date(existingStorage.expiryDate) : null],
-              hsCode: [existingStorage?.hsCode || ''],
-              grossWeight: [existingStorage?.grossWeight || ''],
-              netWeight: [existingStorage?.netWeight || ''],
-              remarks: [existingStorage?.remarks || ''],
-              documentUrl: [existingStorage?.documentUrl || ''],
-              documentName: [existingStorage?.documentName || ''],
+              bags: [storageMatch?.bags ?? allocationMatch?.bags ?? extractedContainer?.pkgCt ?? (extractedContainer as any)?.pkg_ct ?? null],
+              warehouse: [storageMatch?.warehouse || allocationMatch?.warehouse || ''],
+              storageAvailability: [storageMatch?.storageAvailability ?? allocationMatch?.storageAvailability ?? null],
+              receivedOnDate: [storageMatch?.receivedOnDate ? new Date(storageMatch.receivedOnDate) : null],
+              receivedOnTime: [this.parseTimeValue(storageMatch?.receivedOnTime)],
+              customsInspection: [storageMatch?.customsInspection || 'Yes'],
+              grn: [storageMatch?.grn || ''],
+              batch: [storageMatch?.batch || ''],
+              productionDate: [
+                storageMatch?.productionDate
+                  ? new Date(storageMatch.productionDate)
+                  : actualData?.packagingDate
+                    ? new Date(actualData.packagingDate)
+                    : this.parseExpiryDate(
+                        (actualData?.packagingList as any)?.packagingDate ||
+                        (actualData?.packagingList as any)?.productionDate
+                      ),
+              ],
+              expiryDate: [
+                storageMatch?.expiryDate
+                  ? new Date(storageMatch.expiryDate)
+                  : this.parseExpiryDate(actualData?.expiryDate || actualData?.packagingList?.expiryDate),
+              ],
+              hsCode: [
+                storageMatch?.hsCode ||
+                actualData?.hsCode ||
+                (actualData?.packagingList as any)?.hsCode ||
+                (actualData?.packagingList as any)?.hs_code ||
+                '',
+              ],
+              grossWeight: [storageMatch?.grossWeight || actualData?.grossWeight || actualData?.packagingList?.totalGrossWeight || ''],
+              netWeight: [storageMatch?.netWeight || actualData?.netWeight || actualData?.packagingList?.totalNetWeight || ''],
+              remarks: [storageMatch?.remarks || ''],
+              documentUrl: [storageMatch?.documentUrl || ''],
+              documentName: [storageMatch?.documentName || ''],
             });
           })
         );
@@ -890,6 +1026,7 @@ export class ShipmentFormComponent implements OnDestroy {
           freightPrepared: ['No'],
           billExtractionData: [null],
           extractedContainers: [[]],
+          packagingList: [null],
           FCL: [null],
           size: [null],
           qtyMT: [null, Validators.required],
@@ -1015,6 +1152,7 @@ export class ShipmentFormComponent implements OnDestroy {
     data?: ShipmentDetailsResponse,
     shipmentIndex = 0
   ): FormGroup {
+    const lineItem = this.getLineItemByShipmentIndex(data, shipmentIndex);
     const extractedContainerSource =
       actualData?.extractedContainers?.length
         ? actualData.extractedContainers
@@ -1042,8 +1180,22 @@ export class ShipmentFormComponent implements OnDestroy {
       freightPrepared: [actualData?.freightPrepared || 'No'],
       actualBags: [actualData?.actualBags ?? actualData?.packagingList?.totalBags ?? null],
       expiryDate: [this.parseExpiryDate(actualData?.expiryDate || actualData?.packagingList?.expiryDate)],
-      hsCode: [actualData?.hsCode || ''],
-      packagingDate: [actualData?.packagingDate ? new Date(actualData.packagingDate) : null],
+      hsCode: [
+        actualData?.hsCode ||
+        (lineItem as any)?.hsCode ||
+        actualData?.packagingList?.hsCode ||
+        actualData?.packagingList?.hs_code ||
+        '',
+      ],
+      packagingDate: [
+        actualData?.packagingDate
+          ? new Date(actualData.packagingDate)
+          : this.parseExpiryDate(
+              (lineItem as any)?.packagingDate ||
+              (actualData?.packagingList as any)?.packagingDate ||
+              (actualData?.packagingList as any)?.productionDate
+            ),
+      ],
       grossWeight: [actualData?.grossWeight || actualData?.packagingList?.totalGrossWeight || ''],
       netWeight: [actualData?.netWeight || actualData?.packagingList?.totalNetWeight || ''],
       blDocumentUrl: [actualData?.blDocumentUrl || ''],
@@ -1062,6 +1214,14 @@ export class ShipmentFormComponent implements OnDestroy {
         extractedContainerSource
       ),
     });
+  }
+
+  private getLineItemByShipmentIndex(data: ShipmentDetailsResponse | undefined, shipmentIndex: number): any | null {
+    const lineItems = (data?.shipment as any)?.lineItems;
+    if (!Array.isArray(lineItems) || !lineItems.length) {
+      return null;
+    }
+    return lineItems[shipmentIndex] || lineItems[0] || null;
   }
 
   private createCostSheetBookingRows(existingRows?: any[]): FormArray {
@@ -1090,15 +1250,15 @@ export class ShipmentFormComponent implements OnDestroy {
       rows.push(
         this.fb.group({
           sn: [existing?.sn ?? i + 1],
-          containerSerialNo: [
-            existing?.containerSerialNo ||
-            extracted?.containerNo ||
-            extracted?.container_no ||
-            `${shipmentNo}-${shipmentIndex + 1}-C${i + 1}`
-          ],
-          bags: [existing?.bags ?? extracted?.pkgCt ?? extracted?.pkg_ct ?? ''],
-          warehouse: [existing?.warehouse || ''],
-          storageAvailability: [existing?.storageAvailability ?? ''],
+	          containerSerialNo: [
+	            existing?.containerSerialNo ||
+	            extracted?.containerNo ||
+	            (extracted as any)?.container_no ||
+	            `${shipmentNo}-${shipmentIndex + 1}-C${i + 1}`
+	          ],
+	          bags: [existing?.bags ?? extracted?.pkgCt ?? extracted?.pkg_ct ?? ''],
+	          warehouse: [existing?.warehouse || ''],
+	          storageAvailability: [existing?.storageAvailability ?? ''],
         })
       );
     }
@@ -1122,15 +1282,15 @@ export class ShipmentFormComponent implements OnDestroy {
       rows.push(
         this.fb.group({
           sn: [i + 1],
-          containerSerialNo: [
-            existing?.containerSerialNo ||
-            extracted?.containerNo ||
-            extracted?.container_no ||
-            `${shipmentNo}-${shipmentIndex + 1}-C${i + 1}`
-          ],
-          transportCompanyName: [existing?.transportCompanyName || ''],
-          bookedDate: [existing?.bookedDate ? new Date(existing.bookedDate) : defaultDate],
-          bookingTime: [this.parseTimeValue(existing?.bookingTime) || defaultTime],
+	          containerSerialNo: [
+	            existing?.containerSerialNo ||
+	            extracted?.containerNo ||
+	            (extracted as any)?.container_no ||
+	            `${shipmentNo}-${shipmentIndex + 1}-C${i + 1}`
+	          ],
+	          transportCompanyName: [existing?.transportCompanyName || ''],
+	          bookedDate: [existing?.bookedDate ? new Date(existing.bookedDate) : defaultDate],
+	          bookingTime: [this.parseTimeValue(existing?.bookingTime) || defaultTime],
           transportDate: [existing?.transportDate ? new Date(existing.transportDate) : defaultDate],
           transportTime: [this.parseTimeValue(existing?.transportTime) || defaultTime],
           delayHours: [existing?.delayHours ?? null],
@@ -1149,9 +1309,9 @@ export class ShipmentFormComponent implements OnDestroy {
         return (
         this.fb.group({
           sn: [row?.sn ?? index + 1],
-          sampleNo: [row?.sampleNo || ''],
+          sampleNo: [row?.sampleNo || row?.shipment_no_batch_no || fallbackReport?.shipment_no_batch_no || ''],
           phase: [row?.phase || 'S1'],
-          date: [row?.date ? new Date(row.date) : defaultDate],
+          date: [row?.date ? new Date(row.date) : (row?.report_date ? new Date(row.report_date) : defaultDate)],
           inhouseReportNo: [row?.inhouseReportNo || ''],
           inhouseReportDate: [row?.inhouseReportDate ? new Date(row.inhouseReportDate) : defaultDate],
           inhouseReportDocumentUrl: [row?.inhouseReportDocumentUrl || ''],
@@ -1200,7 +1360,7 @@ export class ShipmentFormComponent implements OnDestroy {
       source.map((row: any) =>
         this.fb.group({
           phase: [row?.phase || 'S1'],
-          reportDate: [row?.reportDate ? new Date(row.reportDate) : this.createTodayDate()],
+          reportDate: [row?.reportDate ? new Date(row.reportDate) : (row?.report_date ? new Date(row.report_date) : this.createTodayDate())],
           remarks: [row?.remarks || ''],
           documentUrl: [row?.documentUrl || ''],
           documentName: [row?.documentName || ''],
@@ -1357,6 +1517,14 @@ export class ShipmentFormComponent implements OnDestroy {
     if (!this.canViewStep(targetStep)) {
       return;
     }
+
+    const blockedBy = this.getBlockedByStep(targetStep.index);
+    if (blockedBy != null) {
+      this.store.dispatch(ShipmentActions.setCurrentStep({ step: blockedBy }));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     this.store.dispatch(ShipmentActions.setCurrentStep({ step: targetStep.index }));
     if (this.shipmentId) {
       this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: this.shipmentId }));
@@ -1366,6 +1534,13 @@ export class ShipmentFormComponent implements OnDestroy {
   goToStep(stepIndex: number): void {
     const targetStep = this.trackerStepConfigs().find((step) => step.index === stepIndex);
     if (!targetStep || !this.canViewStep(targetStep)) {
+      return;
+    }
+
+    const blockedBy = this.getBlockedByStep(stepIndex);
+    if (blockedBy != null) {
+      this.store.dispatch(ShipmentActions.setCurrentStep({ step: blockedBy }));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
 
@@ -1503,13 +1678,14 @@ export class ShipmentFormComponent implements OnDestroy {
       const etaDate = eta ? new Date(eta) : null;
       const errors: ValidationErrors = {};
 
-      if (shipDate && etdDate && etdDate <= shipDate) {
-        errors['etdBeforeShipOnBoard'] = true;
-      }
-
-      if (shipDate && etaDate && etaDate <= shipDate) {
-        errors['etaBeforeShipOnBoard'] = true;
-      }
+      // TODO: Temporarily disabled per business request.
+      // Re-enable ship-on-board vs ETD/ETA ordering once validation policy is finalized.
+      // if (shipDate && etdDate && etdDate <= shipDate) {
+      //   errors['etdBeforeShipOnBoard'] = true;
+      // }
+      // if (shipDate && etaDate && etaDate <= shipDate) {
+      //   errors['etaBeforeShipOnBoard'] = true;
+      // }
 
       if (etdDate && etaDate && etaDate <= etdDate) {
         errors['etaBeforeEtd'] = true;

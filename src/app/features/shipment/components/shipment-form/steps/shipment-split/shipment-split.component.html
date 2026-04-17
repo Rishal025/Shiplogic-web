@@ -192,6 +192,8 @@
                 inputStyleClass="table-input" ariaLabel="Scheduled ETD" placeholder="ETD"
                 [dateFormat]="appDateFormat"
                 [readonlyInput]="true"
+                [showIcon]="true"
+                [showOnFocus]="true"
               ></p-datepicker>
             </td>
             <td class="planned-col-date">
@@ -199,6 +201,8 @@
                 inputStyleClass="table-input" ariaLabel="Scheduled ETA" placeholder="ETA"
                 [dateFormat]="appDateFormat"
                 [readonlyInput]="true"
+                [showIcon]="true"
+                [showOnFocus]="true"
                 [minDate]="group.get('etd')?.value ? getStrictMinDate($any(group), 'etd') : undefined"
                 (onSelect)="onEtaSelect($any(group), $event)"
               ></p-datepicker>

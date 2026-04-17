@@ -1,4 +1,4 @@
-<div class="page-transition-wrapper flex flex-col gap-6 px-3 sm:px-5 md:px-6 lg:px-8 xl:px-10 2xl:px-12">
+<div class="page-transition-wrapper flex flex-col gap-6 px-3 sm:px-5 md:px-6 lg:px-8 xl:px-10 2xl:px-12 overflow-x-hidden">
 
   <!-- Loading Skeleton -->
   @if (loading()) {
@@ -112,6 +112,7 @@
           <app-stepper
             [steps]="stepperSteps()"
             [currentStep]="currentStep()"
+            [maxEnabledStep]="maxEnabledStep()"
             (stepChange)="onStepChange($event)"
           ></app-stepper>
         </div>
@@ -205,11 +206,23 @@
             </span>
           </div>
 
-          <div class="sl-card overflow-hidden" [class.rbac-readonly-shell]="isStepReadOnly(4)">
-            <app-shipment-arrival
-              [formArray]="arrivalTimeSplits"
-            ></app-shipment-arrival>
-          </div>
+          @if (isStep3AllMilestonesCompleted()) {
+            <div class="sl-card overflow-hidden" [class.rbac-readonly-shell]="isStepReadOnly(4)">
+              <app-shipment-arrival
+                [formArray]="arrivalTimeSplits"
+              ></app-shipment-arrival>
+            </div>
+          } @else {
+            <div class="sl-card border border-amber-200 bg-amber-50/70 p-6 text-center">
+              <div class="flex flex-col items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <i class="pi pi-clock text-amber-600 text-lg"></i>
+                </div>
+                <p class="text-sm font-semibold text-amber-700">Awaiting Document Tracker completion.</p>
+                <p class="text-xs text-amber-600 max-w-sm">All 6 milestones in the Document Tracker must be completed before Port and Customs Clearance can begin.</p>
+              </div>
+            </div>
+          }
         </div>
       }
 
@@ -228,11 +241,22 @@
             </span>
           </div>
 
-          <div class="sl-card overflow-hidden" [class.rbac-readonly-shell]="isStepReadOnly(5)">
-            <app-shipment-storage
-              [formArray]="storageSplits"
-            ></app-shipment-storage>
-          </div>
+          @if (isStep4Completed()) {
+            <div class="sl-card overflow-hidden" [class.rbac-readonly-shell]="isStepReadOnly(5)">
+              <app-shipment-storage
+                [formArray]="storageSplits"
+              ></app-shipment-storage>
+            </div>
+          } @else {
+            <div class="sl-card border border-amber-200 bg-amber-50/70 p-6 text-center">
+              <div class="flex flex-col items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <i class="pi pi-clock text-amber-600 text-lg"></i>
+                </div>
+                <p class="text-sm font-semibold text-amber-700">{{ getAwaitingStepMessage(4) }}</p>
+              </div>
+            </div>
+          }
         </div>
       }
 
@@ -251,11 +275,22 @@
             </span>
           </div>
 
-          <div class="sl-card overflow-visible" [class.rbac-readonly-shell]="isStepReadOnly(6)">
-            <app-shipment-quality
-              [formArray]="grnSplits"
-            ></app-shipment-quality>
-          </div>
+          @if (isStep5Completed()) {
+            <div class="sl-card overflow-visible" [class.rbac-readonly-shell]="isStepReadOnly(6)">
+              <app-shipment-quality
+                [formArray]="grnSplits"
+              ></app-shipment-quality>
+            </div>
+          } @else {
+            <div class="sl-card border border-amber-200 bg-amber-50/70 p-6 text-center">
+              <div class="flex flex-col items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <i class="pi pi-clock text-amber-600 text-lg"></i>
+                </div>
+                <p class="text-sm font-semibold text-amber-700">{{ getAwaitingStepMessage(5) }}</p>
+              </div>
+            </div>
+          }
         </div>
       }
 

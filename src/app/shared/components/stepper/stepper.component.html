@@ -5,6 +5,8 @@
          [class.active]="currentStep === i"
          [class.completed]="currentStep > i || step.completed"
          [class.pending]="currentStep < i && !step.completed"
+         [class.opacity-50]="maxEnabledStep != null && i > maxEnabledStep"
+         [class.cursor-not-allowed]="maxEnabledStep != null && i > maxEnabledStep"
          [attr.title]="step.label"
          (click)="onStepClick(i)">
       

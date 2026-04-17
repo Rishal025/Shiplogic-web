@@ -189,6 +189,41 @@ export class ShipmentDocumentationComponent {
     return !this.isMilestoneSaved(index, milestone);
   }
 
+  isMilestoneVisible(index: number, milestone: string, group: FormGroup): boolean {
+    const hasMilestone1 =
+      String(group.get('BLNo')?.value || '').trim().length > 0 &&
+      String(group.get('courierTrackNo')?.value || '').trim().length > 0 &&
+      String(group.get('courierServiceProvider')?.value || '').trim().length > 0;
+    const hasMilestone2 = this.isMilestoneFilled(group, 'receiving');
+    const hasMilestone3 = this.isMilestoneFilled(group, 'inward');
+    const hasMilestone4 = this.isMilestoneFilled(group, 'murabaha_process');
+    const hasMilestone5 = this.isMilestoneFilled(group, 'murabaha_submit');
+
+    if (milestone === 'receiving') return hasMilestone1;
+    if (milestone === 'inward') return hasMilestone2 && this.isBankReceiver(group);
+    if (milestone === 'murabaha_process') return hasMilestone3;
+    if (milestone === 'murabaha_submit') return hasMilestone4;
+    if (milestone === 'release') return hasMilestone5;
+    return true;
+  }
+
+  private isMilestoneFilled(group: FormGroup, milestone: string): boolean {
+    switch (milestone) {
+      case 'receiving':
+        return String(group.get('receiver')?.value || '').trim().length > 0;
+      case 'inward':
+        return !!group.get('inwardCollectionAdviceDate')?.value || !!this.getSavedFileUrl(group, 'inwardAdvice');
+      case 'murabaha_process':
+        return !!group.get('murabahaContractReleasedDate')?.value || !!group.get('murabahaContractApprovedDate')?.value;
+      case 'murabaha_submit':
+        return !!group.get('murabahaContractSubmittedDate')?.value || !!this.getSavedFileUrl(group, 'murabahaSubmitted');
+      case 'release':
+        return !!group.get('documentsReleasedDate')?.value || !!this.getSavedFileUrl(group, 'documentsReleased');
+      default:
+        return false;
+    }
+  }
+
   toggleEditMilestone(index: number, milestone: string, editing: boolean = true): void {
     this.editingMilestones.update(current => {
       const row = current[index] || {};
@@ -352,7 +387,16 @@ export class ShipmentDocumentationComponent {
   }
 
   isBankReceiver(group: FormGroup): boolean {
-    return group.get('receiver')?.value === 'Bank';
+    const raw = group.get('receiver')?.value as any;
+    const receiver =
+      typeof raw === 'string'
+        ? raw
+        : typeof raw?.value === 'string'
+          ? raw.value
+          : typeof raw?.label === 'string'
+            ? raw.label
+            : '';
+    return receiver.trim().toLowerCase() === 'bank';
   }
 
   getBlDocumentUrl(index: number): string {

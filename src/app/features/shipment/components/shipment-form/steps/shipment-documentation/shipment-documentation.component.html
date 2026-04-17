@@ -97,7 +97,7 @@
                       <div class="flex flex-col gap-1.5">
                         <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">B/L No</label>
                         <div class="flex items-center gap-2">
-                          <input pInputText formControlName="BLNo" class="table-input-text w-full" placeholder="B/L No" />
+                          <input pInputText formControlName="BLNo" class="table-input-text w-full bg-slate-50" placeholder="B/L No" [readonly]="true" />
                           @if (getBlDocumentUrl(i)) {
                             <button type="button" (click)="openRemoteDocumentPreview(getBlDocumentUrl(i), getBlDocumentName(i))" class="icon-btn-secondary shrink-0"><i class="pi pi-eye"></i></button>
                           }
@@ -149,6 +149,7 @@
               </div>
 
               <!-- Milestone 2: Receiver & Bank Setup -->
+              @if (isMilestoneVisible(i, 'receiving', $any(group))) {
               <div class="relative group">
                 <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
                 <div class="rounded-2xl border border-slate-100 bg-slate-50/40 p-5 hover:border-slate-200 transition-all shadow-sm">
@@ -203,8 +204,9 @@
                   }
                 </div>
               </div>
+              }
 
-              @if (isBankReceiver($any(group))) {
+              @if (isMilestoneVisible(i, 'inward', $any(group))) {
                 <!-- Milestone 3: Inward Collection Advice -->
                 <div class="relative group">
                   <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
@@ -271,8 +273,10 @@
                     }
                   </div>
                 </div>
+              }
 
                 <!-- Milestone 4: Murabaha Contract Phase -->
+                @if (isMilestoneVisible(i, 'murabaha_process', $any(group))) {
                 <div class="relative group">
                   <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
                   <div class="rounded-2xl border border-slate-100 bg-slate-50/40 p-5 hover:border-slate-200 transition-all shadow-sm">
@@ -318,8 +322,10 @@
                     }
                   </div>
                 </div>
+                }
 
                 <!-- Milestone 5: Contract Submission -->
+                @if (isMilestoneVisible(i, 'murabaha_submit', $any(group))) {
                 <div class="relative group">
                   <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
                   <div class="rounded-2xl border border-slate-100 bg-blue-50/20 p-5 hover:border-slate-200 transition-all shadow-sm">
@@ -379,8 +385,10 @@
                     }
                   </div>
                 </div>
+                }
 
                 <!-- Milestone 6: Documents Release -->
+                @if (isMilestoneVisible(i, 'release', $any(group))) {
                 <div class="relative group">
                   <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-emerald-300 bg-white group-hover:border-emerald-500 transition-colors z-10"></div>
                   <div class="rounded-2xl border border-emerald-100 bg-emerald-50/20 p-5 hover:border-emerald-200 transition-all shadow-sm">
@@ -432,7 +440,7 @@
                     }
                   </div>
                 </div>
-              }
+                }
             </div>
           </div>
         </p-accordion-content>
