@@ -605,7 +605,17 @@
                   ><i class="pi pi-trash" aria-hidden="true"></i></button>
                 </div>
               } @else {
-                <i class="pi pi-lock text-emerald-600" aria-hidden="true" [title]="'Row ' + (i + 1) + ' is locked'"></i>
+                <div class="flex justify-center items-center gap-1.5">
+                  <i class="pi pi-lock text-emerald-600" aria-hidden="true" [title]="'Row ' + (i + 1) + ' is locked'"></i>
+                  <button
+                    type="button"
+                    (click)="openTrackOrderModal(i, $any(group))"
+                    class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                    title="Track Order"
+                  >
+                    <i class="pi pi-map-marker text-[10px]" aria-hidden="true"></i>
+                  </button>
+                </div>
               }
             </td>
           </tr>
@@ -648,6 +658,122 @@
     </div>
   }
 </div>
+
+<!-- ═══ Track Order Modal ═══ -->
+<p-dialog
+  header="Track Order"
+  [visible]="trackOrderModalVisible()"
+  (visibleChange)="onTrackOrderModalVisibleChange($event)"
+  [modal]="true"
+  [dismissableMask]="true"
+  [style]="{ width: '92vw', maxWidth: '560px' }"
+  [draggable]="false"
+  [resizable]="false"
+  appendTo="body">
+
+  @if (trackOrderData(); as data) {
+    <div class="flex flex-col gap-5 pb-2">
+
+      <!-- Shipment info -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Shipment No</p>
+          <p class="text-sm font-bold text-slate-800 mt-0.5 truncate">{{ data.shipmentNo }}</p>
+        </div>
+        <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+          <p class="text-[10px] font-black text-blue-400 uppercase tracking-wider">Current Stage</p>
+          <p class="text-sm font-bold text-blue-700 mt-0.5">{{ data.currentStage }}</p>
+        </div>
+      </div>
+
+      <!-- ETD / ETA -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">ETD</p>
+          <p class="text-sm font-bold text-slate-700 mt-0.5">{{ data.etd || '—' }}</p>
+        </div>
+        <div class="rounded-xl border border-slate-200 bg-white px-4 py-3">
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">ETA</p>
+          <p class="text-sm font-bold text-slate-700 mt-0.5">{{ data.eta || '—' }}</p>
+        </div>
+      </div>
+
+      <!-- Ship route animation -->
+      <div class="rounded-2xl border border-slate-200 bg-white p-5">
+        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-5">Shipment Route</p>
+
+        <!-- Route container -->
+        <div class="relative flex items-center justify-between gap-3">
+
+          <!-- Origin port -->
+          <div class="flex flex-col items-center gap-2 shrink-0 w-24">
+            <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center shadow-sm">
+              <i class="pi pi-map-marker text-blue-600 text-lg"></i>
+            </div>
+            <div class="text-center">
+              <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Origin</p>
+              <p class="text-[11px] font-bold text-slate-700 leading-tight">{{ data.portOfLoading || 'Port of Loading' }}</p>
+            </div>
+          </div>
+
+          <!-- Sea route track -->
+          <div class="relative flex-1 h-12 mx-2 overflow-visible rounded-full">
+            <!-- Sea gradient background — fills bottom half -->
+            <div class="absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-r from-blue-100 via-blue-200 to-blue-100 rounded-full"></div>
+            <!-- Scrolling wave stripes -->
+            <div class="absolute bottom-0 left-0 right-0 h-5 ship-wave rounded-full"></div>
+            <!-- Filled progress track -->
+            <div
+              class="absolute bottom-0 left-0 h-5 bg-blue-400/30 rounded-full transition-all duration-1000"
+              [style.width]="getShipProgress(data.currentStage) + '%'">
+            </div>
+            <!-- Ship icon — animates from 0 to target position on open -->
+            <div
+              class="ship-moving absolute bottom-3"
+              [style.--ship-target]="getShipProgress(data.currentStage) + '%'">
+              <div class="w-14 h-10 flex items-center justify-center -translate-x-1/2 drop-shadow-lg">
+                <img src="ship.svg" alt="Ship" class="w-full h-full object-contain" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Destination port -->
+          <div class="flex flex-col items-center gap-2 shrink-0 w-24">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center shadow-sm transition-colors duration-700"
+              [class.bg-emerald-100]="isShipArrived(data.currentStage)"
+              [class.bg-slate-100]="!isShipArrived(data.currentStage)">
+              <i class="pi text-lg transition-colors duration-700"
+                [class.pi-check-circle]="isShipArrived(data.currentStage)"
+                [class.text-emerald-600]="isShipArrived(data.currentStage)"
+                [class.pi-building]="!isShipArrived(data.currentStage)"
+                [class.text-slate-400]="!isShipArrived(data.currentStage)"></i>
+            </div>
+            <div class="text-center">
+              <p class="text-[9px] font-black uppercase tracking-wider transition-colors duration-700"
+                [class.text-emerald-500]="isShipArrived(data.currentStage)"
+                [class.text-slate-400]="!isShipArrived(data.currentStage)">Destination</p>
+              <p class="text-[11px] font-bold text-slate-700 leading-tight">{{ data.portOfDischarge || 'Port of Discharge' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress label -->
+        <div class="mt-4 flex items-center justify-center gap-2">
+          <div class="h-1.5 flex-1 rounded-full bg-slate-100 overflow-hidden">
+            <div
+              class="h-full rounded-full bg-blue-500 transition-all duration-1000"
+              [style.width]="getShipProgress(data.currentStage) + '%'">
+            </div>
+          </div>
+          <span class="text-[10px] font-black text-blue-600 shrink-0">{{ getShipProgress(data.currentStage) }}%</span>
+        </div>
+      </div>
+
+      <!-- Stage timeline removed per user request -->
+
+    </div>
+  }
+</p-dialog>
 
 <p-confirmDialog breakpoints="{'960px': '75vw', '640px': '90vw'}" [closable]="false"></p-confirmDialog>
 

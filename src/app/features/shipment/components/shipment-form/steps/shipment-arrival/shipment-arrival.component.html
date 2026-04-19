@@ -350,7 +350,16 @@
 	                          <div class="grid grid-cols-[70px_300px_320px_140px_120px_140px_120px_110px] gap-3 items-start">
 	                            <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
 	                            <input pInputText formControlName="containerSerialNo" class="table-input-text w-full" placeholder="Container No" />
-	                            <input pInputText formControlName="transportCompanyName" class="table-input-text w-full" placeholder="Company name" />
+	                            <p-select
+	                              formControlName="transportCompanyName"
+	                              [options]="transportCompanyOptions()"
+	                              optionLabel="label"
+	                              optionValue="value"
+	                              placeholder="Select company"
+	                              styleClass="w-full"
+	                              appendTo="body"
+	                              [editable]="true">
+	                            </p-select>
 	                            <p-datepicker formControlName="bookedDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Arranged date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onTransportationTimeChange(i)" />
 	                            <p-datepicker formControlName="bookingTime" appendTo="body" inputStyleClass="table-input w-full" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" />
 	                            <p-datepicker formControlName="transportDate" appendTo="body" inputStyleClass="table-input w-full" placeholder="Transportation date" styleClass="w-full" dateFormat="dd/mm/yy" (onSelect)="onTransportationTimeChange(i)" />
@@ -376,7 +385,16 @@
 	                          </div>
 	                          <div class="flex flex-col gap-1.5">
 	                            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Transport Company Name</label>
-	                            <input pInputText formControlName="transportCompanyName" class="table-input-text w-full" placeholder="Company name" />
+	                            <p-select
+	                              formControlName="transportCompanyName"
+	                              [options]="transportCompanyOptions()"
+	                              optionLabel="label"
+	                              optionValue="value"
+	                              placeholder="Select company"
+	                              styleClass="w-full"
+	                              appendTo="body"
+	                              [editable]="true">
+	                            </p-select>
 	                          </div>
 	                          <div class="grid grid-cols-2 gap-3">
 	                            <div class="flex flex-col gap-1.5">

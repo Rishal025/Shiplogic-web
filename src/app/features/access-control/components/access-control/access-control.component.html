@@ -119,10 +119,14 @@
 
     @if (activeTab() === 'permissions') {
       <section class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
+
+        <!-- Header + role selector -->
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h2 class="text-xl font-black tracking-tight text-slate-900">Shipment Permissions</h2>
-            <p class="mt-1 text-sm text-slate-500">Manage tab-level and field-level shipment access for the selected role.</p>
+            <p class="mt-1 text-sm text-slate-500">
+              Manage screen, tab, sub-tab, field, and action-level access for the selected role.
+            </p>
           </div>
           <div class="flex flex-col gap-2 min-w-[260px]">
             <label class="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Selected Role</label>
@@ -137,114 +141,226 @@
           </div>
         </div>
 
+        <!-- Legend -->
+        <div class="mt-4 flex flex-wrap items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
+          <span class="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Legend</span>
+          <span class="flex items-center gap-1.5 text-xs text-slate-600"><span class="inline-block h-3 w-3 rounded-sm border border-slate-300 bg-white"></span> Not granted</span>
+          <span class="flex items-center gap-1.5 text-xs text-slate-600"><span class="inline-block h-3 w-3 rounded-sm bg-blue-600"></span> Granted</span>
+          <span class="flex items-center gap-1.5 text-xs text-slate-600"><i class="pi pi-chevron-down text-[10px] text-slate-400"></i> Expand row for fields &amp; actions</span>
+          <span class="flex items-center gap-1.5 text-xs text-slate-600"><span class="permission-type-chip">n</span> Number of field permissions</span>
+        </div>
+
         <div class="mt-6">
           @if (permissionsLoading()) {
-            <p class="text-sm text-slate-500">Loading role permissions...</p>
+            <div class="flex items-center gap-3 py-6 text-sm text-slate-500">
+              <i class="pi pi-spin pi-spinner"></i> Loading role permissions...
+            </div>
           } @else if (!selectedRole()) {
             <p class="text-sm text-slate-500">No role selected yet.</p>
           } @else {
-            <div class="space-y-8">
-              <div>
-                <div class="mb-4">
-                  <h3 class="text-lg font-black tracking-tight text-slate-900">Tab-Level Access</h3>
-                  <p class="mt-1 text-sm text-slate-500">One row per shipment screen or tab. Click a row to manage its field permissions.</p>
-                </div>
-                <div class="permission-table-shell">
-                  <table class="permission-table">
-                    <thead>
-                      <tr>
-                        <th class="matrix-expand-col"></th>
-                        <th>Screen / Tab</th>
-                        <th class="is-center">View</th>
-                        <th class="is-center">Edit</th>
-                        <th class="is-center">Fields</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (row of permissionMatrixRows(); track row.key) {
-                        <tr class="permission-matrix-row" (click)="toggleExpandedPermissionRow(row.key)">
-                          <td class="matrix-expand-col is-center">
-                            <button
-                              type="button"
-                              class="matrix-expand-btn"
-                              (click)="$event.stopPropagation(); toggleExpandedPermissionRow(row.key)">
-                              <i class="pi" [ngClass]="isPermissionRowExpanded(row.key) ? 'pi-chevron-up' : 'pi-chevron-down'"></i>
-                            </button>
-                          </td>
-                          <td>
-                            <div class="text-sm font-bold text-slate-900">{{ row.label }}</div>
-                          </td>
-                          <td class="is-center">
-                            @if (row.viewPermission) {
-                              <input
-                                type="checkbox"
-                                class="permission-checkbox"
-                                [checked]="!!row.viewPermission.assigned"
-                                (click)="$event.stopPropagation()"
-                                (change)="togglePermission(row.viewPermission.tab || row.viewPermission.screen, row.viewPermission.key, $any($event.target).checked)" />
-                            } @else {
-                              <span class="text-xs text-slate-300">-</span>
-                            }
-                          </td>
-                          <td class="is-center">
-                            @if (row.editPermission) {
-                              <input
-                                type="checkbox"
-                                class="permission-checkbox"
-                                [checked]="!!row.editPermission.assigned"
-                                (click)="$event.stopPropagation()"
-                                (change)="togglePermission(row.editPermission.tab || row.editPermission.screen, row.editPermission.key, $any($event.target).checked)" />
-                            } @else {
-                              <span class="text-xs text-slate-300">-</span>
-                            }
-                          </td>
-                          <td class="is-center">
-                            <span class="permission-type-chip">{{ row.fieldPermissions.length }}</span>
-                          </td>
-                        </tr>
-                        @if (isPermissionRowExpanded(row.key)) {
-                          <tr class="permission-detail-row">
-                            <td colspan="5">
-                              @if (row.fieldPermissions.length) {
-                                <div class="field-permission-shell">
-                                  <div class="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                                    Field Permissions
-                                  </div>
-                                  <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                                    @for (permission of row.fieldPermissions; track permission.key) {
-                                      <label class="field-permission-card">
-                                        <input
-                                          type="checkbox"
-                                          class="permission-checkbox"
-                                          [checked]="!!permission.assigned"
-                                          (change)="togglePermission(permission.tab || permission.screen, permission.key, $any($event.target).checked)" />
-                                        <div class="min-w-0">
-                                          <div class="text-sm font-bold text-slate-900">{{ permission.label }}</div>
-                                          <div class="mt-1 text-xs text-slate-500 break-all">{{ permission.field || permission.key }}</div>
-                                        </div>
-                                      </label>
-                                    }
-                                  </div>
-                                </div>
-                              } @else {
-                                <div class="py-3 text-sm text-slate-500">No field-level permissions configured for this row.</div>
-                              }
-                            </td>
-                          </tr>
+
+            <!-- Permission matrix table -->
+            <div class="permission-table-shell">
+              <table class="permission-table">
+                <thead>
+                  <tr>
+                    <th class="matrix-expand-col"></th>
+                    <th>Screen / Tab</th>
+                    <th class="is-center">View</th>
+                    <th class="is-center">Edit</th>
+                    <th class="is-center">Fields</th>
+                    <th class="is-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of permissionMatrixRows(); track trackByRow($index, row)) {
+                    <!-- ── Main row ── -->
+                    <tr class="permission-matrix-row" (click)="toggleExpandedRow(row.key)">
+                      <td class="matrix-expand-col is-center">
+                        <button
+                          type="button"
+                          class="matrix-expand-btn"
+                          (click)="$event.stopPropagation(); toggleExpandedRow(row.key)"
+                          [attr.aria-label]="isRowExpanded(row.key) ? 'Collapse' : 'Expand'">
+                          <i class="pi text-[10px]" [ngClass]="isRowExpanded(row.key) ? 'pi-chevron-up' : 'pi-chevron-down'"></i>
+                        </button>
+                      </td>
+                      <td>
+                        <div class="flex items-center gap-2">
+                          <span class="text-sm font-bold text-slate-900">{{ row.label }}</span>
+                          @if (row.children?.length) {
+                            <span class="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-blue-500">
+                              {{ row.children!.length }} sub-tabs
+                            </span>
+                          }
+                        </div>
+                      </td>
+                      <td class="is-center">
+                        @if (row.viewPermission) {
+                          <input
+                            type="checkbox"
+                            class="permission-checkbox"
+                            [checked]="!!row.viewPermission.assigned"
+                            (click)="$event.stopPropagation()"
+                            (change)="togglePermission(row.viewPermission.key, $any($event.target).checked)" />
+                        } @else {
+                          <span class="text-xs text-slate-300">—</span>
                         }
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                      </td>
+                      <td class="is-center">
+                        @if (row.editPermission) {
+                          <input
+                            type="checkbox"
+                            class="permission-checkbox"
+                            [checked]="!!row.editPermission.assigned"
+                            (click)="$event.stopPropagation()"
+                            (change)="togglePermission(row.editPermission.key, $any($event.target).checked)" />
+                        } @else {
+                          <span class="text-xs text-slate-300">—</span>
+                        }
+                      </td>
+                      <td class="is-center">
+                        @if (row.fieldPermissions.length) {
+                          <span class="permission-type-chip">{{ row.fieldPermissions.length }}</span>
+                        } @else {
+                          <span class="text-xs text-slate-300">—</span>
+                        }
+                      </td>
+                      <td class="is-center">
+                        @if (row.actionPermissions.length) {
+                          <span class="permission-type-chip">{{ row.actionPermissions.length }}</span>
+                        } @else {
+                          <span class="text-xs text-slate-300">—</span>
+                        }
+                      </td>
+                    </tr>
+
+                    <!-- ── Expanded detail row ── -->
+                    @if (isRowExpanded(row.key)) {
+                      <tr class="permission-detail-row">
+                        <td colspan="6">
+                          <div class="flex flex-col gap-4 p-4">
+
+                            <!-- Sub-tabs (children) -->
+                            @if (row.children?.length) {
+                              <div>
+                                <div class="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Sub-Tab Permissions</div>
+                                <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+                                  <table class="min-w-full border-collapse">
+                                    <thead>
+                                      <tr class="border-b border-slate-100 bg-slate-50">
+                                        <th class="px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Sub-Tab</th>
+                                        <th class="px-4 py-2.5 text-center text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 w-24">View</th>
+                                        <th class="px-4 py-2.5 text-center text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 w-24">Edit</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      @for (child of row.children; track child.key) {
+                                        <tr class="border-b border-slate-100 last:border-b-0">
+                                          <td class="px-4 py-3 text-sm font-semibold text-slate-700">{{ child.label }}</td>
+                                          <td class="px-4 py-3 text-center">
+                                            @if (child.viewPermission) {
+                                              <input
+                                                type="checkbox"
+                                                class="permission-checkbox"
+                                                [checked]="!!child.viewPermission.assigned"
+                                                (change)="togglePermission(child.viewPermission.key, $any($event.target).checked)" />
+                                            } @else {
+                                              <span class="text-xs text-slate-300">—</span>
+                                            }
+                                          </td>
+                                          <td class="px-4 py-3 text-center">
+                                            @if (child.editPermission) {
+                                              <input
+                                                type="checkbox"
+                                                class="permission-checkbox"
+                                                [checked]="!!child.editPermission.assigned"
+                                                (change)="togglePermission(child.editPermission.key, $any($event.target).checked)" />
+                                            } @else {
+                                              <span class="text-xs text-slate-300">—</span>
+                                            }
+                                          </td>
+                                        </tr>
+                                      }
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            }
+
+                            <!-- Field permissions -->
+                            @if (row.fieldPermissions.length) {
+                              <div>
+                                <div class="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Field Permissions</div>
+                                <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                                  @for (permission of row.fieldPermissions; track permission.key) {
+                                    <label class="field-permission-card cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        class="permission-checkbox mt-0.5 shrink-0"
+                                        [checked]="!!permission.assigned"
+                                        (change)="togglePermission(permission.key, $any($event.target).checked)" />
+                                      <div class="min-w-0">
+                                        <div class="text-sm font-bold text-slate-900">{{ permission.label }}</div>
+                                        <div class="mt-0.5 text-[10px] text-slate-400 break-all font-mono">{{ permission.field || permission.key }}</div>
+                                      </div>
+                                    </label>
+                                  }
+                                </div>
+                              </div>
+                            }
+
+                            <!-- Action permissions -->
+                            @if (row.actionPermissions.length) {
+                              <div>
+                                <div class="mb-3 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Action Permissions</div>
+                                <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                                  @for (permission of row.actionPermissions; track permission.key) {
+                                    <label class="field-permission-card cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        class="permission-checkbox mt-0.5 shrink-0"
+                                        [checked]="!!permission.assigned"
+                                        (change)="togglePermission(permission.key, $any($event.target).checked)" />
+                                      <div class="min-w-0">
+                                        <div class="text-sm font-bold text-slate-900">{{ permission.label }}</div>
+                                        <div class="mt-0.5 text-[10px] text-slate-400 break-all font-mono">{{ permission.action || permission.key }}</div>
+                                      </div>
+                                    </label>
+                                  }
+                                </div>
+                              </div>
+                            }
+
+                            <!-- Nothing to show -->
+                            @if (!row.children?.length && !row.fieldPermissions.length && !row.actionPermissions.length) {
+                              <p class="text-sm text-slate-400">No additional permissions for this row.</p>
+                            }
+
+                          </div>
+                        </td>
+                      </tr>
+                    }
+                  }
+                </tbody>
+              </table>
             </div>
 
+            <!-- Save / reload -->
             <div class="mt-6 flex flex-wrap gap-3">
-              <button type="button" class="rounded-full bg-slate-950 px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-white transition hover:bg-slate-800 disabled:opacity-60" [disabled]="saveLoading()" (click)="savePermissions()">
+              <button
+                type="button"
+                class="rounded-full bg-slate-950 px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-white transition hover:bg-slate-800 disabled:opacity-60"
+                [disabled]="saveLoading()"
+                (click)="savePermissions()">
                 {{ saveLoading() ? 'Saving...' : 'Save Permissions' }}
               </button>
-              <button type="button" class="rounded-full border border-slate-200 px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-slate-700 transition hover:border-slate-300 hover:bg-slate-50" [disabled]="permissionsLoading()" (click)="selectedRoleId() && loadRolePermissions(selectedRoleId()!)">
-                Reload Role Permissions
+              <button
+                type="button"
+                class="rounded-full border border-slate-200 px-5 py-3 text-xs font-black uppercase tracking-[0.18em] text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                [disabled]="permissionsLoading()"
+                (click)="selectedRoleId() && loadRolePermissions(selectedRoleId()!)">
+                Reload
               </button>
             </div>
           }
@@ -306,7 +422,7 @@
                             type="checkbox"
                             class="permission-checkbox"
                             [checked]="!!permission.assigned"
-                            (change)="togglePermission(group.key, permission.key, $any($event.target).checked)" />
+                            (change)="togglePermission(permission.key, $any($event.target).checked)" />
                         </td>
                       </tr>
                     }

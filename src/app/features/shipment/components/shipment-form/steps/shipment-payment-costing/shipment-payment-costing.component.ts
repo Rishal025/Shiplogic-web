@@ -25,6 +25,8 @@ import {
 } from '../../../../../../store/shipment/shipment.selectors';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
 import { NotificationService } from '../../../../../../core/services/notification.service';
+import { ConfirmDialogService } from '../../../../../../core/services/confirm-dialog.service';
+import { AuthService } from '../../../../../../core/services/auth.service';
 import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
 
 @Component({
@@ -53,6 +55,8 @@ export class ShipmentPaymentCostingComponent {
   private store = inject(Store);
   private shipmentService = inject(ShipmentService);
   private notificationService = inject(NotificationService);
+  private confirmDialog = inject(ConfirmDialogService);
+  private authService = inject(AuthService);
 
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
   readonly activeTabs = signal<Record<number, 'allocation' | 'costing'>>({});
@@ -130,117 +134,394 @@ export class ShipmentPaymentCostingComponent {
 
   private downloadCostingSheetPdf(config: {
     shipmentNo: string;
-    metadataRows: [string, string][];
-    clearingRows: Array<{
-      sn: number | string;
-      description: string;
-      requestAmount: string;
-      paidAmount: string;
-      actualAmount?: string;
-      remarks?: string;
-    }>;
-    packagingRows?: Array<{
-      sn: number | string;
-      item: string;
-      packing: string;
-      qty: string;
-      uom: string;
-      unitCostFC: string;
-      unitCostDH: string;
-      totalCostFC: string;
-      totalCostDH: string;
-      expenseAllocationFactor: string;
-      expensesAllocated: string;
-      totalValueWithExpenses: string;
-      landedCostPerUnit: string;
-      reference?: string;
+    date: string;
+    csNo: string;
+    vendor: string;
+    country: string;
+    invoiceAmountFC: string;
+    exchangeRate: string;
+    invoiceAmountAED: string;
+    incoTerms: string;
+    paymentTerms: string;
+    comInv: string;
+    profNo: string;
+    murabahaNo: string;
+    shipmentNo2: string;
+    shippingLine: string;
+    blNo: string;
+    noOfContainers: string;
+    loadingPort: string;
+    despatchPort: string;
+    arrivedAtPort: string;
+    arrivedAtWH: string;
+    noOfDaysAtPort: string;
+    grvNo: string;
+    decNo: string;
+    decValue: string;
+    downloadedBy: string;
+    costRows: Array<{ sn: number | string; description: string; requestAmount: string; actualCostDH: string; billRef: string; remarks: string }>;
+    itemRows: Array<{
+      slNo: number | string; item: string; packing: string; qty: string; uom: string;
+      unitCostFC: string; unitCostDH: string; totalCostFC: string; totalCostDH: string;
+      allocationFactor: string; expensesAllocated: string; totalValueWithExpenses: string; landedCostPerUnit: string;
     }>;
   }): void {
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 36;
+    const contentW = pageW - margin * 2;
 
-    doc.setFontSize(18);
-    doc.text('Royal Horizon Costing Sheet', 40, 36);
-    doc.setFontSize(11);
-    doc.text(`Shipment: ${config.shipmentNo}`, 40, 54);
+    // ── HEADER ──────────────────────────────────────────────────────────────
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ROYAL HORIZON GENERAL TRADING', margin, 44);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('COSTING SHEET', margin, 58);
 
-    autoTable(doc, {
-      startY: 70,
-      body: config.metadataRows.map(([label, value]) => [label, value || '—']),
-      theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 4 },
-      columnStyles: {
-        0: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 150 },
-        1: { cellWidth: 250 },
-      },
-      margin: { left: 40, right: 40 },
-    });
+    const boxW = 130;
+    const boxX = pageW - margin - boxW;
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.5);
+    doc.rect(boxX, 30, boxW, 34);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Date:', boxX + 6, 43);
+    doc.text('CS No:', boxX + 6, 57);
+    doc.setFont('helvetica', 'normal');
+    doc.text(config.date, boxX + 36, 43);
+    doc.text(config.csNo, boxX + 36, 57);
 
-    const clearingRows = config.clearingRows.map((row) => [
-      row.sn,
-      row.description,
-      row.requestAmount,
-      row.paidAmount,
-      row.actualAmount || '0.00',
-      row.remarks || '',
-    ]);
-    clearingRows.push([
-      '',
-      'Total',
-      config.clearingRows.reduce((sum, row) => sum + Number(row.requestAmount || 0), 0).toFixed(2),
-      config.clearingRows.reduce((sum, row) => sum + Number(row.paidAmount || 0), 0).toFixed(2),
-      config.clearingRows.reduce((sum, row) => sum + Number(row.actualAmount || 0), 0).toFixed(2),
-      '',
-    ]);
+    doc.setLineWidth(1);
+    doc.line(margin, 68, pageW - margin, 68);
 
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 18,
-      head: [['SN', 'Description', 'Request Amount', 'Paid Amount', 'Actual Amount', 'Payment Ref / Remarks']],
-      body: clearingRows,
-      theme: 'grid',
-      styles: { fontSize: 8.5, cellPadding: 4 },
-      headStyles: { fillColor: [241, 245, 249], textColor: 17, fontStyle: 'bold' },
-      columnStyles: {
-        0: { cellWidth: 34 },
-        1: { cellWidth: 250 },
-        2: { halign: 'right', cellWidth: 85 },
-        3: { halign: 'right', cellWidth: 85 },
-        4: { halign: 'right', cellWidth: 85 },
-        5: { cellWidth: 170 },
-      },
-      margin: { left: 40, right: 40 },
-    });
+    // ── SECTION 1 ────────────────────────────────────────────────────────────
+    let y = 80;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SECTION 1: IMPORT / INVOICE DETAILS', margin, y);
+    y += 8;
 
-    if (config.packagingRows?.length) {
-      autoTable(doc, {
-        startY: (doc as any).lastAutoTable.finalY + 18,
-        head: [[
-          'SN', 'Item', 'Packing', 'Qty', 'UOM', 'Unit Cost FC', 'Unit Cost DH', 'Total Cost FC', 'Total Cost DH',
-          'Allocation Factor', 'Expenses Allocated', 'Total Value With Expenses', 'Landed Cost / Unit', 'Reference'
-        ]],
-        body: config.packagingRows.map((row) => [
-          row.sn,
-          row.item,
-          row.packing,
-          row.qty,
-          row.uom,
-          row.unitCostFC,
-          row.unitCostDH,
-          row.totalCostFC,
-          row.totalCostDH,
-          row.expenseAllocationFactor,
-          row.expensesAllocated,
-          row.totalValueWithExpenses,
-          row.landedCostPerUnit,
-          row.reference || '',
-        ]),
-        theme: 'grid',
-        styles: { fontSize: 7.5, cellPadding: 3 },
-        headStyles: { fillColor: [241, 245, 249], textColor: 17, fontStyle: 'bold' },
-        margin: { left: 40, right: 40 },
-      });
+    const colW = contentW / 2 - 4;
+    const leftX = margin;
+    const rightX = margin + colW + 8;
+    const rowH = 14;
+
+    const leftFields: [string, string][] = [
+      ['Vendor', config.vendor], ['Country', config.country],
+      ['Invoice Amount FC', config.invoiceAmountFC], ['Exchange Rate', config.exchangeRate],
+      ['Invoice Amount AED', config.invoiceAmountAED], ['Inco Terms', config.incoTerms],
+      ['Payment Terms', config.paymentTerms], ['Com Inv', config.comInv],
+      ['Prof No', config.profNo], ['Murabaha / TT No', config.murabahaNo],
+    ];
+    const rightFields: [string, string][] = [
+      ['Shipment No', config.shipmentNo2], ['Shipping Line', config.shippingLine],
+      ['BL No', config.blNo], ['No of Containers', config.noOfContainers],
+      ['Loading Port', config.loadingPort], ['Despatch Port', config.despatchPort],
+      ['Arrived at Port', config.arrivedAtPort], ['Arrived at WH', config.arrivedAtWH],
+      ['No of Days at Port', config.noOfDaysAtPort], ['GRV No', config.grvNo],
+      ['Dec No', config.decNo], ['Dec Value', config.decValue],
+    ];
+
+    const maxRows = Math.max(leftFields.length, rightFields.length);
+    const tableTop = y + 2;
+    const tableH = (maxRows + 1) * rowH + 4;
+
+    doc.setLineWidth(0.4);
+    doc.rect(leftX, tableTop, colW, tableH);
+    doc.rect(rightX, tableTop, colW, tableH);
+
+    doc.setFillColor(30, 41, 59);
+    doc.rect(leftX, tableTop, colW, rowH, 'F');
+    doc.rect(rightX, tableTop, colW, rowH, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(255);
+    doc.text('FIELD', leftX + 4, tableTop + rowH - 3);
+    doc.text('VALUE', leftX + colW * 0.52, tableTop + rowH - 3);
+    doc.text('FIELD', rightX + 4, tableTop + rowH - 3);
+    doc.text('VALUE', rightX + colW * 0.52, tableTop + rowH - 3);
+    doc.setTextColor(0);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+
+    for (let i = 0; i < maxRows; i++) {
+      const rowY = tableTop + (i + 1) * rowH;
+      if (i % 2 === 0) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(leftX, rowY, colW, rowH, 'F');
+        doc.rect(rightX, rowY, colW, rowH, 'F');
+      }
+      doc.setLineWidth(0.2);
+      doc.line(leftX, rowY, leftX + colW, rowY);
+      doc.line(rightX, rowY, rightX + colW, rowY);
+      if (leftFields[i]) {
+        doc.setFont('helvetica', 'bold');
+        doc.text(leftFields[i][0], leftX + 4, rowY + rowH - 3);
+        doc.setFont('helvetica', 'normal');
+        doc.text(leftFields[i][1] || '—', leftX + colW * 0.52, rowY + rowH - 3);
+      }
+      if (rightFields[i]) {
+        doc.setFont('helvetica', 'bold');
+        doc.text(rightFields[i][0], rightX + 4, rowY + rowH - 3);
+        doc.setFont('helvetica', 'normal');
+        doc.text(rightFields[i][1] || '—', rightX + colW * 0.52, rowY + rowH - 3);
+      }
     }
 
+    y = tableTop + tableH + 14;
+
+    // ── SECTION 2 ────────────────────────────────────────────────────────────
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SECTION 2: COST BREAKDOWN', margin, y);
+    y += 4;
+
+    const costTotal = config.costRows.reduce((s, r) => s + (Number(r.actualCostDH) || 0), 0);
+    const requestTotal = config.costRows.reduce((s, r) => s + (Number(r.requestAmount) || 0), 0);
+    const costBody: any[][] = config.costRows.map((r) => [r.sn, r.description, r.requestAmount, r.actualCostDH, r.billRef || '', r.remarks || '']);
+    costBody.push(['', 'TOTAL', this.formatCurrency(requestTotal), this.formatCurrency(costTotal), '', '']);
+
+    autoTable(doc, {
+      startY: y,
+      head: [['SN', 'Description', 'Request Amount', 'Actual Paid', 'Bill Ref.', 'Payment Ref / Remarks']],
+      body: costBody,
+      theme: 'grid',
+      styles: { fontSize: 7.5, cellPadding: 3 },
+      headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+      columnStyles: {
+        0: { cellWidth: 24 }, 1: { cellWidth: 160 },
+        2: { halign: 'right', cellWidth: 72 },
+        3: { halign: 'right', cellWidth: 72 }, 4: { cellWidth: 72 }, 5: { cellWidth: 'auto' },
+      },
+      didParseCell: (data: any) => {
+        if (data.row.index === costBody.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [241, 245, 249];
+        }
+      },
+      margin: { left: margin, right: margin },
+    });
+
+    y = (doc as any).lastAutoTable.finalY + 14;
+
+    // ── SECTION 3 ────────────────────────────────────────────────────────────
+    if (y > doc.internal.pageSize.getHeight() - 120) { doc.addPage(); y = 40; }
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SECTION 3: ITEM COSTING', margin, y);
+    y += 4;
+
+    const itemBody = config.itemRows.map((r) => [
+      r.slNo, r.item, r.packing, r.qty, r.uom,
+      r.unitCostFC, r.unitCostDH, r.totalCostFC, r.totalCostDH,
+      r.allocationFactor, r.expensesAllocated, r.totalValueWithExpenses, r.landedCostPerUnit,
+    ]);
+
+    autoTable(doc, {
+      startY: y,
+      head: [['Sl No', 'Item', 'Packing', 'Qty', 'UOM', 'Unit Cost FC', 'Unit Cost DH', 'Total Cost FC', 'Total Cost DH', 'Alloc. Factor', 'Exp. Allocated', 'Total w/ Exp.', 'Landed Cost/Unit']],
+      body: itemBody.length ? itemBody : [['—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—']],
+      theme: 'grid',
+      styles: { fontSize: 6.5, cellPadding: 2.5 },
+      headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', fontSize: 6.5 },
+      columnStyles: {
+        0: { cellWidth: 22 }, 1: { cellWidth: 60 }, 2: { cellWidth: 40 },
+        3: { halign: 'right', cellWidth: 28 }, 4: { cellWidth: 22 },
+        5: { halign: 'right', cellWidth: 38 }, 6: { halign: 'right', cellWidth: 38 },
+        7: { halign: 'right', cellWidth: 38 }, 8: { halign: 'right', cellWidth: 38 },
+        9: { halign: 'right', cellWidth: 34 }, 10: { halign: 'right', cellWidth: 38 },
+        11: { halign: 'right', cellWidth: 38 }, 12: { halign: 'right', cellWidth: 'auto' },
+      },
+      margin: { left: margin, right: margin },
+    });
+
+    y = (doc as any).lastAutoTable.finalY + 20;
+
+    // ── SECTION 4: SIGNATURES ────────────────────────────────────────────────
+    if (y > doc.internal.pageSize.getHeight() - 70) { doc.addPage(); y = 40; }
+
+    const sigLabels = ['AP', 'FC', 'CFO', 'MD'];
+    const sigW = contentW / sigLabels.length;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    sigLabels.forEach((label, i) => {
+      const sx = margin + i * sigW;
+      doc.setLineWidth(0.5);
+      doc.line(sx + 10, y + 28, sx + sigW - 10, y + 28);
+      doc.text(label, sx + sigW / 2, y + 40, { align: 'center' });
+    });
+
+    // Footer
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(150);
+    const now = new Date();
+    const genLine = `Generated by Royal Shipment Tracker — ${now.toLocaleDateString('en-GB')} ${now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+    const dlLine = `Downloaded by: ${config.downloadedBy}`;
+    const footerY = doc.internal.pageSize.getHeight() - 22;
+    doc.text(genLine, pageW / 2, footerY, { align: 'center' });
+    doc.text(dlLine, pageW / 2, footerY + 10, { align: 'center' });
+    doc.setTextColor(0);
+
     doc.save(`${config.shipmentNo.replace(/[^a-z0-9_-]/gi, '_')}-costing-sheet.pdf`);
+  }
+
+  generateAllocationReport(index: number): void {
+    const group = this.formArray.at(index) as FormGroup | null;
+    if (!group) return;
+
+    const shipment = this.shipmentData()?.shipment as any;
+    const actual = this.shipmentData()?.actual?.[index] as any;
+    const fmt = (v: unknown) => this.formatCurrency(v);
+    const fmtDate = (v: unknown) => this.formatDateForReport(v);
+
+    const totalFC = Number(shipment?.totalFC) || 0;
+    const amountAED = Number(shipment?.amountAED) || 0;
+    const exchangeRate = totalFC > 0 && amountAED > 0 ? fmt(amountAED / totalFC) : '3.67';
+
+    const firstStorage = actual?.storageSplits?.[0];
+    const grvNo = firstStorage?.grn || actual?.grn?.grnNo || '';
+    const arrivedAtWH = firstStorage?.receivedOnDate ? fmtDate(firstStorage.receivedOnDate) : '';
+    const arrivedAtPort = actual?.arrivalOn ? fmtDate(actual.arrivalOn) : '';
+    const clearedOn = actual?.clearedOn || actual?.clearance?.clearedOn;
+    let noOfDaysAtPort = '';
+    if (actual?.arrivalOn && clearedOn) {
+      const diff = Math.round((new Date(clearedOn).getTime() - new Date(actual.arrivalOn).getTime()) / (1000 * 60 * 60 * 24));
+      noOfDaysAtPort = String(diff);
+    }
+
+    const currentUser = this.authService.getCurrentUser();
+    const downloadedBy = currentUser
+      ? `${currentUser.name} (${currentUser.role}) — ${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+      : 'Unknown';
+
+    // Use payment allocation rows as cost breakdown
+    const allocationRows = this.getPaymentAllocations(group).controls;
+
+    this.downloadCostingSheetPdf({
+      shipmentNo: this.getShipmentNoLabel(index),
+      date: fmtDate(new Date()),
+      csNo: actual?.BLNo || '',
+      vendor: shipment?.supplierName || shipment?.supplier || '',
+      country: shipment?.countryOfOrigin || '',
+      invoiceAmountFC: fmt(shipment?.totalFC ?? 0),
+      exchangeRate,
+      invoiceAmountAED: fmt(shipment?.amountAED ?? (Number(shipment?.totalFC ?? 0) * 3.67)),
+      incoTerms: shipment?.incoterms || '',
+      paymentTerms: shipment?.paymentTerms || '',
+      comInv: actual?.commercialInvoiceNo || '',
+      profNo: shipment?.piNo || '',
+      murabahaNo: actual?.murabahaContractSubmittedDate ? fmtDate(actual.murabahaContractSubmittedDate) : '',
+      shipmentNo2: this.getShipmentNoLabel(index),
+      shippingLine: actual?.shippingLine || '',
+      blNo: actual?.BLNo || '',
+      noOfContainers: String(actual?.noOfContainers || ''),
+      loadingPort: actual?.portOfLoading || shipment?.portOfLoading || '',
+      despatchPort: actual?.portOfDischarge || shipment?.portOfDischarge || '',
+      arrivedAtPort,
+      arrivedAtWH,
+      noOfDaysAtPort,
+      grvNo,
+      decNo: '',
+      decValue: fmt(shipment?.totalFC ?? 0),
+      downloadedBy,
+      costRows: allocationRows.map((row, i) => ({
+        sn: row.get('sn')?.value ?? i + 1,
+        description: row.get('description')?.value ?? '',
+        requestAmount: fmt(row.get('requestAmount')?.value ?? 0),
+        actualCostDH: fmt(row.get('paidAmount')?.value ?? 0),
+        billRef: '',
+        remarks: row.get('reference')?.value ?? '',
+      })),
+      itemRows: [],
+    });
+  }
+
+  generateReport(index: number): void {
+    const group = this.formArray.at(index) as FormGroup | null;
+    if (!group) return;
+
+    const shipment = this.shipmentData()?.shipment as any;
+    const actual = this.shipmentData()?.actual?.[index] as any;
+    const fmt = (v: unknown) => this.formatCurrency(v);
+    const fmtDate = (v: unknown) => this.formatDateForReport(v);
+
+    const totalFC = Number(shipment?.totalFC) || 0;
+    const amountAED = Number(shipment?.amountAED) || 0;
+    const exchangeRate = totalFC > 0 && amountAED > 0 ? fmt(amountAED / totalFC) : '3.67';
+
+    const firstStorage = actual?.storageSplits?.[0];
+    const grvNo = firstStorage?.grn || actual?.grn?.grnNo || '';
+    const arrivedAtWH = firstStorage?.receivedOnDate ? fmtDate(firstStorage.receivedOnDate) : '';
+    const arrivedAtPort = actual?.arrivalOn ? fmtDate(actual.arrivalOn) : '';
+    const clearedOn = actual?.clearedOn || actual?.clearance?.clearedOn;
+    let noOfDaysAtPort = '';
+    if (actual?.arrivalOn && clearedOn) {
+      const diff = Math.round((new Date(clearedOn).getTime() - new Date(actual.arrivalOn).getTime()) / (1000 * 60 * 60 * 24));
+      noOfDaysAtPort = String(diff);
+    }
+
+    const currentUser = this.authService.getCurrentUser();
+    const downloadedBy = currentUser
+      ? `${currentUser.name} (${currentUser.role}) — ${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+      : 'Unknown';
+
+    const costingRows = this.getPaymentCostings(group).controls;
+    const packagingRows = this.getPackagingExpenses(group).controls;
+
+    this.downloadCostingSheetPdf({
+      shipmentNo: this.getShipmentNoLabel(index),
+      date: fmtDate(new Date()),
+      csNo: actual?.BLNo || '',
+      vendor: shipment?.supplierName || shipment?.supplier || '',
+      country: shipment?.countryOfOrigin || '',
+      invoiceAmountFC: fmt(shipment?.totalFC ?? 0),
+      exchangeRate,
+      invoiceAmountAED: fmt(shipment?.amountAED ?? (Number(shipment?.totalFC ?? 0) * 3.67)),
+      incoTerms: shipment?.incoterms || '',
+      paymentTerms: shipment?.paymentTerms || '',
+      comInv: actual?.commercialInvoiceNo || '',
+      profNo: shipment?.piNo || '',
+      murabahaNo: actual?.murabahaContractSubmittedDate ? fmtDate(actual.murabahaContractSubmittedDate) : '',
+      shipmentNo2: this.getShipmentNoLabel(index),
+      shippingLine: actual?.shippingLine || '',
+      blNo: actual?.BLNo || '',
+      noOfContainers: String(actual?.noOfContainers || ''),
+      loadingPort: actual?.portOfLoading || shipment?.portOfLoading || '',
+      despatchPort: actual?.portOfDischarge || shipment?.portOfDischarge || '',
+      arrivedAtPort,
+      arrivedAtWH,
+      noOfDaysAtPort,
+      grvNo,
+      decNo: '',
+      decValue: fmt(shipment?.totalFC ?? 0),
+      downloadedBy,
+      costRows: costingRows.map((row, i) => ({
+        sn: row.get('sn')?.value ?? i + 1,
+        description: row.get('description')?.value ?? '',
+        requestAmount: fmt(row.get('requestAmount')?.value ?? 0),
+        actualCostDH: fmt(row.get('actualPaid')?.value ?? 0),
+        billRef: row.get('refBillNo')?.value ?? '',
+        remarks: [row.get('refBillVendor')?.value, fmtDate(row.get('refBillDate')?.value)].filter(Boolean).join(' / '),
+      })),
+      itemRows: packagingRows.map((row, i) => ({
+        slNo: row.get('sn')?.value ?? i + 1,
+        item: row.get('item')?.value ?? '',
+        packing: row.get('packing')?.value ?? '',
+        qty: fmt(row.get('qty')?.value ?? 0),
+        uom: row.get('uom')?.value ?? '',
+        unitCostFC: fmt(row.get('unitCostFC')?.value ?? 0),
+        unitCostDH: fmt(row.get('unitCostDH')?.value ?? 0),
+        totalCostFC: fmt(row.get('totalCostFC')?.value ?? 0),
+        totalCostDH: fmt(row.get('totalCostDH')?.value ?? 0),
+        allocationFactor: fmt(row.get('expenseAllocationFactor')?.value ?? 0),
+        expensesAllocated: fmt(row.get('expensesAllocated')?.value ?? 0),
+        totalValueWithExpenses: fmt(row.get('totalValueWithExpenses')?.value ?? 0),
+        landedCostPerUnit: fmt(row.get('landedCostPerUnit')?.value ?? 0),
+      })),
+    });
   }
 
   openStatusModal(index: number): void {
@@ -575,7 +856,7 @@ export class ShipmentPaymentCostingComponent {
     this.previewZoom.update((zoom) => (zoom > 1 ? 1 : 2));
   }
 
-  saveAllocation(index: number): void {
+  async saveAllocation(index: number): Promise<void> {
     const group = this.formArray.at(index) as FormGroup | null;
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!group || !shipmentId) return;
@@ -585,6 +866,13 @@ export class ShipmentPaymentCostingComponent {
       this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
       return;
     }
+
+    const confirmed = await this.confirmDialog.ask({
+      message: `Save payment allocation for Shipment ${index + 1}?`,
+      header: 'Save Payment Allocation',
+      acceptLabel: 'Yes, Save',
+    });
+    if (!confirmed) return;
 
     const paymentAllocations = this.getPaymentAllocations(group).controls.map((row, rowIndex) => ({
       sn: Number(row.get('sn')?.value) || rowIndex + 1,
@@ -612,7 +900,7 @@ export class ShipmentPaymentCostingComponent {
     });
   }
 
-  saveCosting(index: number): void {
+  async saveCosting(index: number): Promise<void> {
     const group = this.formArray.at(index) as FormGroup | null;
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!group || !shipmentId) return;
@@ -621,6 +909,53 @@ export class ShipmentPaymentCostingComponent {
     if (!containerId) {
       this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
       return;
+    }
+
+    const confirmed = await this.confirmDialog.ask({
+      message: `Save payment costing details for Shipment ${index + 1}?`,
+      header: 'Save Payment Costing',
+      acceptLabel: 'Yes, Save',
+    });
+    if (!confirmed) return;
+
+    // Validate Actual Paid in payment costings
+    const costingControls = this.getPaymentCostings(group).controls;
+    const missingActualPaid = costingControls.some(row => {
+      const actualPaid = row.get('actualPaid')?.value;
+      return actualPaid == null || actualPaid === '';
+    });
+    if (missingActualPaid) {
+      this.notificationService.error('Required Fields Missing', 'Actual Paid is required for all payment costing rows.');
+      return;
+    }
+
+    // Validate packaging expenses required fields — only for rows that have any data entered
+    const packagingControls = this.getPackagingExpenses(group).controls;
+    const filledPackagingRows = packagingControls.filter((row) => {
+      // A row is considered "touched" if any meaningful field has a value
+      const item = String(row.get('item')?.value || '').trim();
+      const packing = String(row.get('packing')?.value || '').trim();
+      const qty = row.get('qty')?.value;
+      const uom = String(row.get('uom')?.value || '').trim();
+      const unitCostFC = row.get('unitCostFC')?.value;
+      const unitCostDH = row.get('unitCostDH')?.value;
+      return item || packing || (qty != null && qty !== '' && Number(qty) !== 0) || uom || unitCostFC || unitCostDH;
+    });
+    if (filledPackagingRows.length > 0) {
+      const invalidPackagingRows: number[] = [];
+      filledPackagingRows.forEach((row, idx) => {
+        const item = String(row.get('item')?.value || '').trim();
+        const packing = String(row.get('packing')?.value || '').trim();
+        const qty = row.get('qty')?.value;
+        const uom = String(row.get('uom')?.value || '').trim();
+        if (!item || !packing || qty == null || qty === '' || !uom) {
+          invalidPackagingRows.push(idx + 1);
+        }
+      });
+      if (invalidPackagingRows.length > 0) {
+        this.notificationService.error('Required Fields Missing', `Packaging expense rows ${invalidPackagingRows.join(', ')}: Item, Packing, Qty, and UOM are required.`);
+        return;
+      }
     }
 
     const toDate = (value: unknown) =>
@@ -686,83 +1021,6 @@ export class ShipmentPaymentCostingComponent {
     });
   }
 
-  generateAllocationReport(index: number): void {
-    const group = this.formArray.at(index) as FormGroup | null;
-    if (!group) return;
-    const shipmentNo = this.getShipmentNoLabel(index);
-    const shipment = this.shipmentData()?.shipment;
-    const metadataRows: [string, string][] = [
-      ['Shipment No', shipmentNo],
-      ['Supplier', shipment?.supplier || ''],
-      ['PO No', shipment?.poNumber || ''],
-      ['PI No', shipment?.piNo || ''],
-      ['Incoterms', shipment?.incoterms || ''],
-      ['Payment Terms', shipment?.paymentTerms || ''],
-    ];
-    this.downloadCostingSheetPdf({
-      shipmentNo,
-      metadataRows,
-      clearingRows: this.getPaymentAllocations(group).controls.map((row) => ({
-        sn: row.get('sn')?.value ?? '',
-        description: row.get('description')?.value ?? '',
-        requestAmount: this.formatCurrency(row.get('requestAmount')?.value ?? 0),
-        paidAmount: this.formatCurrency(row.get('paidAmount')?.value ?? 0),
-        actualAmount: '0.00',
-        remarks: row.get('reference')?.value ?? '',
-      })),
-    });
-  }
-
-  generateReport(index: number): void {
-    const group = this.formArray.at(index) as FormGroup | null;
-    if (!group) return;
-
-    const shipmentNo = this.getShipmentNoLabel(index);
-    const shipment = this.shipmentData()?.shipment;
-    const firstCostingRow = this.getPaymentCostings(group).at(0) as FormGroup | null;
-    const metadataRows: [string, string][] = [
-      ['Shipment No', shipmentNo],
-      ['Supplier', shipment?.supplier || ''],
-      ['PO No', shipment?.poNumber || ''],
-      ['PI No', shipment?.piNo || ''],
-      ['Incoterms', shipment?.incoterms || ''],
-      ['Payment Terms', shipment?.paymentTerms || ''],
-      ['Ref Bill No', firstCostingRow?.get('refBillNo')?.value || ''],
-      ['Ref Bill Date', this.formatDateForReport(firstCostingRow?.get('refBillDate')?.value)],
-      ['Ref Bill Vendor', firstCostingRow?.get('refBillVendor')?.value || ''],
-    ];
-    this.downloadCostingSheetPdf({
-      shipmentNo,
-      metadataRows,
-      clearingRows: this.getPaymentCostings(group).controls.map((row) => ({
-        sn: row.get('sn')?.value ?? '',
-        description: row.get('description')?.value ?? '',
-        requestAmount: this.formatCurrency(row.get('requestAmount')?.value ?? 0),
-        paidAmount: this.formatCurrency(row.get('paidAmount')?.value ?? 0),
-        actualAmount: this.formatCurrency(row.get('actualPaid')?.value ?? 0),
-        remarks: [row.get('refBillNo')?.value, this.formatDateForReport(row.get('refBillDate')?.value), row.get('refBillVendor')?.value]
-          .filter(Boolean)
-          .join(' / '),
-      })),
-      packagingRows: this.getPackagingExpenses(group).controls.map((row) => ({
-        sn: row.get('sn')?.value ?? '',
-        item: row.get('item')?.value ?? '',
-        packing: row.get('packing')?.value ?? '',
-        qty: this.formatCurrency(row.get('qty')?.value ?? 0),
-        uom: row.get('uom')?.value ?? '',
-        unitCostFC: this.formatCurrency(row.get('unitCostFC')?.value ?? 0),
-        unitCostDH: this.formatCurrency(row.get('unitCostDH')?.value ?? 0),
-        totalCostFC: this.formatCurrency(row.get('totalCostFC')?.value ?? 0),
-        totalCostDH: this.formatCurrency(row.get('totalCostDH')?.value ?? 0),
-        expenseAllocationFactor: this.formatCurrency(row.get('expenseAllocationFactor')?.value ?? 0),
-        expensesAllocated: this.formatCurrency(row.get('expensesAllocated')?.value ?? 0),
-        totalValueWithExpenses: this.formatCurrency(row.get('totalValueWithExpenses')?.value ?? 0),
-        landedCostPerUnit: this.formatCurrency(row.get('landedCostPerUnit')?.value ?? 0),
-        reference: row.get('reference')?.value ?? '',
-      })),
-    });
-  }
-
   getAllocationTotal(group: AbstractControl, field: 'requestAmount' | 'paidAmount'): string {
     return this.sumFormArrayField(this.getPaymentAllocations(group), field);
   }
@@ -789,6 +1047,25 @@ export class ShipmentPaymentCostingComponent {
 
   private sumFormArrayField(formArray: FormArray, field: string): string {
     const total = formArray.controls.reduce((sum, row) => sum + (Number(row.get(field)?.value) || 0), 0);
+    return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(total);
+  }
+
+  /** Actual Paid − Paid Amount for a single costing row */
+  getDifference(row: AbstractControl): string {
+    const actualPaid = Number(row.get('actualPaid')?.value) || 0;
+    const paidAmount = Number(row.get('paidAmount')?.value) || 0;
+    const diff = actualPaid - paidAmount;
+    return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(diff);
+  }
+
+  /** Sum of (Actual Paid − Paid Amount) across all costing rows */
+  getDifferenceTotal(group: AbstractControl): string {
+    const costings = this.getPaymentCostings(group);
+    const total = costings.controls.reduce((sum, row) => {
+      const actualPaid = Number(row.get('actualPaid')?.value) || 0;
+      const paidAmount = Number(row.get('paidAmount')?.value) || 0;
+      return sum + (actualPaid - paidAmount);
+    }, 0);
     return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(total);
   }
 

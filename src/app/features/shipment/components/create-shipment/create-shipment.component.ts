@@ -20,6 +20,7 @@ import { PrimaryButtonDirective } from '../../../../shared/directives/button.dir
 import { ShipmentService } from '../../../../core/services/shipment.service';
 import { CreateShipmentPayload, ExtractedShipmentData, ExtractedShipmentItem } from '../../../../core/models/shipment.model';
 import { ItemService } from '../../../../core/services/item.service';
+import { ExchangeRateService, ExchangeRate } from '../../../../core/services/exchange-rate.service';
 
 @Component({
   selector: 'app-create-shipment',
@@ -54,6 +55,13 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
   ];
   shipmentForm!: FormGroup;
   submitting = signal(false);
+
+  /** Active exchange rates loaded from the API */
+  exchangeRates = signal<ExchangeRate[]>([]);
+  /** Options for the bank selector in the form */
+  exchangeRateOptions = signal<Array<{ label: string; value: string; rate: number }>>([]);
+  /** The currently selected exchange rate (AED per USD). Falls back to 3.67 if not loaded. */
+  selectedExchangeRate = signal<number>(3.67);
 
   // Document handling: document1 = Purchase order, document2 = optional Pro-forma Invoice
   document1File = signal<File | null>(null);
@@ -157,12 +165,14 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     private itemService: ItemService,
     private messageService: MessageService,
     private router: Router,
-    private sanitizer: DomSanitizer
+    private sanitizer: DomSanitizer,
+    private exchangeRateService: ExchangeRateService
   ) {}
 
   ngOnInit(): void {
     this.initForm();
     this.setupAutoFill();
+    this.loadExchangeRates();
   }
 
   ngOnDestroy(): void {
@@ -218,13 +228,13 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     });
 
     // Reactive Financial Calculation (Total USD = Planned Containers * FC per Unit)
-    // Total AED = Total USD * 3.67 (fixed AED rate)
-    const AED_RATE = 3.67;
+    // Total AED = Total USD * selected bank exchange rate (falls back to 3.67 Direct rate)
     this.shipmentForm.valueChanges.subscribe(val => {
         const count = Number(val.plannedContainers) || 0;
         const rate = Number(val.fcPerUnit) || 0;
         const totalUSD = count * rate;
-        const totalAED = totalUSD * AED_RATE;
+        const aedRate = this.selectedExchangeRate();
+        const totalAED = totalUSD * aedRate;
 
         this.shipmentForm.get('totalUSD')?.setValue(totalUSD > 0 ? totalUSD : 0, { emitEvent: false });
         this.shipmentForm.get('totalAED')?.setValue(totalAED > 0 ? totalAED : 0, { emitEvent: false });
@@ -258,10 +268,70 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
 
       bankNameControl.updateValueAndValidity({ emitEvent: false });
     }));
+
+    // When bank changes, update the exchange rate used for AED calculation
+    this.subscriptions.add(
+      this.shipmentForm.get('bankName')!.valueChanges.subscribe((bankName) => {
+        this.onBankSelected(bankName);
+      })
+    );
   }
 
   requiresBankName(term: string | null | undefined): boolean {
     return typeof term === 'string' && term.includes('CAD');
+  }
+
+  /** Load active exchange rates from the API and build the bank selector options */
+  private loadExchangeRates(): void {
+    this.exchangeRateService.getActive().subscribe({
+      next: (rates) => {
+        this.exchangeRates.set(rates);
+        const options = rates.map((r) => ({
+          label: r.isDefault ? `Direct (${r.rate})` : `${r.bankName} (${r.rate})`,
+          value: r.bankName,
+          rate: r.rate,
+        }));
+        this.exchangeRateOptions.set(options);
+
+        // Set the default rate from the "Direct" entry
+        const directRate = rates.find((r) => r.isDefault || r.bankName === 'Direct');
+        if (directRate) {
+          this.selectedExchangeRate.set(directRate.rate);
+        }
+      },
+      error: () => {
+        // Silently fall back to 3.67 if the API is unavailable
+        this.selectedExchangeRate.set(3.67);
+      },
+    });
+  }
+
+  /**
+   * Called when the user selects a bank in the form.
+   * Updates the AED exchange rate and recalculates totals.
+   */
+  onBankSelected(bankName: string | null): void {
+    const rates = this.exchangeRates();
+    let rate: number;
+
+    if (!bankName) {
+      // No bank selected → use Direct rate
+      const direct = rates.find((r) => r.isDefault || r.bankName === 'Direct');
+      rate = direct?.rate ?? 3.67;
+    } else {
+      const match = rates.find((r) => r.bankName === bankName);
+      rate = match?.rate ?? 3.67;
+    }
+
+    this.selectedExchangeRate.set(rate);
+
+    // Recalculate AED with the new rate
+    const formVal = this.shipmentForm.getRawValue();
+    const totalUSD = Number(formVal.totalUSD) || 0;
+    this.shipmentForm.get('totalAED')?.setValue(
+      totalUSD > 0 ? Number((totalUSD * rate).toFixed(2)) : 0,
+      { emitEvent: false }
+    );
   }
 
   private normalizeSearchText(value: string | null | undefined): string {

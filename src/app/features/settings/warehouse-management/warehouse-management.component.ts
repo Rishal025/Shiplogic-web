@@ -38,7 +38,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
       <div class="mb-6 flex items-center gap-3">
         <a
           routerLink="/settings/warehouses"
-          routerLinkActive="bg-slate-900 text-white"
+          routerLinkActive="!bg-slate-900 !text-white"
           [routerLinkActiveOptions]="{exact: true}"
           class="px-5 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
         >
@@ -47,12 +47,30 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
         </a>
         <a
           routerLink="/settings/item-codes"
-          routerLinkActive="bg-slate-900 text-white"
+          routerLinkActive="!bg-slate-900 !text-white"
           [routerLinkActiveOptions]="{exact: true}"
           class="px-5 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
         >
           <i class="pi pi-box mr-2"></i>
           Items
+        </a>
+        <a
+          routerLink="/settings/transportation"
+          routerLinkActive="!bg-slate-900 !text-white"
+          [routerLinkActiveOptions]="{exact: true}"
+          class="px-5 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+        >
+          <i class="pi pi-truck mr-2"></i>
+          Transportation
+        </a>
+        <a
+          routerLink="/settings/exchange-rates"
+          routerLinkActive="!bg-slate-900 !text-white"
+          [routerLinkActiveOptions]="{exact: true}"
+          class="px-5 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+        >
+          <i class="pi pi-dollar mr-2"></i>
+          Exchange Rates
         </a>
       </div>
 

@@ -1,25 +1,25 @@
 <div class="stepper-container custom-scrollbar">
   <div class="stepper-wrapper">
-    @for (step of steps; track i; let i = $index; let last = $last) {
+    @for (step of visibleSteps; track i; let i = $index; let last = $last) {
     <div class="step" 
-         [class.active]="currentStep === i"
-         [class.completed]="currentStep > i || step.completed"
-         [class.pending]="currentStep < i && !step.completed"
-         [class.opacity-50]="maxEnabledStep != null && i > maxEnabledStep"
-         [class.cursor-not-allowed]="maxEnabledStep != null && i > maxEnabledStep"
+         [class.active]="visibleCurrentStep === i"
+         [class.completed]="visibleCurrentStep > i || step.completed"
+         [class.pending]="visibleCurrentStep < i && !step.completed"
+         [class.opacity-50]="maxEnabledStep != null && getOriginalIndex(i) > maxEnabledStep"
+         [class.cursor-not-allowed]="maxEnabledStep != null && getOriginalIndex(i) > maxEnabledStep"
          [attr.title]="step.label"
          (click)="onStepClick(i)">
       
       <!-- Connector Line -->
       @if (!last) {
-        <div class="connector" [class.filled]="currentStep > i || step.completed"></div>
+        <div class="connector" [class.filled]="visibleCurrentStep > i || step.completed"></div>
       }
 
       <!-- Step Indicator -->
       <div class="step-indicator">
         <div class="indicator-ring">
           <div class="indicator-core">
-            @if (currentStep > i || step.completed) {
+            @if (visibleCurrentStep > i || step.completed) {
                 <i class="pi pi-check"></i>
             } @else {
                 <span>{{ i + 1 }}</span>

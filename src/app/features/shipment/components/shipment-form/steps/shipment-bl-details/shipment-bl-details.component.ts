@@ -7,6 +7,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { NotificationService } from '../../../../../../core/services/notification.service';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
 import { WarehouseService } from '../../../../../../core/services/warehouse.service';
+import { ConfirmDialogService } from '../../../../../../core/services/confirm-dialog.service';
+import { AuthService } from '../../../../../../core/services/auth.service';
 import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
 import { AccordionModule } from 'primeng/accordion';
 import { DatePickerModule } from 'primeng/datepicker';
@@ -79,6 +81,7 @@ const COST_SHEET_DESCRIPTIONS = [
     DialogModule,
   ],
   templateUrl: './shipment-bl-details.component.html',
+  styleUrl: './shipment-bl-details.component.scss',
 })
 export class ShipmentBlDetailsComponent {
   @Input({ required: true }) formArray!: FormArray;
@@ -88,6 +91,8 @@ export class ShipmentBlDetailsComponent {
   private shipmentService = inject(ShipmentService);
   private warehouseService = inject(WarehouseService);
   private notificationService = inject(NotificationService);
+  private confirmDialog = inject(ConfirmDialogService);
+  private authService = inject(AuthService);
 
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
   readonly isPlannedLocked = toSignal(this.store.select(selectIsPlannedLocked), { initialValue: false });
@@ -456,69 +461,255 @@ export class ShipmentBlDetailsComponent {
 
   private downloadCostingSheetPdf(config: {
     shipmentNo: string;
-    metadataRows: [string, string][];
-    clearingRows: Array<{
-      sn: number | string;
-      description: string;
-      requestAmount: string;
-      paidAmount: string;
-      actualAmount?: string;
-      remarks?: string;
+    date: string;
+    csNo: string;
+    vendor: string;
+    country: string;
+    invoiceAmountFC: string;
+    exchangeRate: string;
+    invoiceAmountAED: string;
+    incoTerms: string;
+    paymentTerms: string;
+    comInv: string;
+    profNo: string;
+    murabahaNo: string;
+    shipmentNo2: string;
+    shippingLine: string;
+    blNo: string;
+    noOfContainers: string;
+    loadingPort: string;
+    despatchPort: string;
+    arrivedAtPort: string;
+    arrivedAtWH: string;
+    noOfDaysAtPort: string;
+    grvNo: string;
+    decNo: string;
+    decValue: string;
+    downloadedBy: string;
+    costRows: Array<{ sn: number | string; description: string; requestAmount: string; actualCostDH: string; billRef: string; remarks: string }>;
+    itemRows: Array<{
+      slNo: number | string; item: string; packing: string; qty: string; uom: string;
+      unitCostFC: string; unitCostDH: string; totalCostFC: string; totalCostDH: string;
+      allocationFactor: string; expensesAllocated: string; totalValueWithExpenses: string; landedCostPerUnit: string;
     }>;
   }): void {
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 36;
+    const contentW = pageW - margin * 2;
 
-    doc.setFontSize(18);
-    doc.text('Royal Horizon Costing Sheet', 40, 36);
-    doc.setFontSize(11);
-    doc.text(`Shipment: ${config.shipmentNo}`, 40, 54);
+    // ── HEADER ──────────────────────────────────────────────────────────────
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ROYAL HORIZON GENERAL TRADING', margin, 44);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text('COSTING SHEET', margin, 58);
+
+    // Date / CS No box (top right)
+    const boxW = 130;
+    const boxX = pageW - margin - boxW;
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.5);
+    doc.rect(boxX, 30, boxW, 34);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Date:', boxX + 6, 43);
+    doc.text('CS No:', boxX + 6, 57);
+    doc.setFont('helvetica', 'normal');
+    doc.text(config.date, boxX + 36, 43);
+    doc.text(config.csNo, boxX + 36, 57);
+
+    doc.setLineWidth(1);
+    doc.line(margin, 68, pageW - margin, 68);
+
+    // ── SECTION 1: IMPORT / INVOICE DETAILS ─────────────────────────────────
+    let y = 80;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SECTION 1: IMPORT / INVOICE DETAILS', margin, y);
+    y += 8;
+
+    const colW = contentW / 2 - 4;
+    const leftX = margin;
+    const rightX = margin + colW + 8;
+    const rowH = 14;
+
+    const leftFields: [string, string][] = [
+      ['Vendor', config.vendor],
+      ['Country', config.country],
+      ['Invoice Amount FC', config.invoiceAmountFC],
+      ['Exchange Rate', config.exchangeRate],
+      ['Invoice Amount AED', config.invoiceAmountAED],
+      ['Inco Terms', config.incoTerms],
+      ['Payment Terms', config.paymentTerms],
+      ['Com Inv', config.comInv],
+      ['Prof No', config.profNo],
+      ['Murabaha / TT No', config.murabahaNo],
+    ];
+
+    const rightFields: [string, string][] = [
+      ['Shipment No', config.shipmentNo2],
+      ['Shipping Line', config.shippingLine],
+      ['BL No', config.blNo],
+      ['No of Containers', config.noOfContainers],
+      ['Loading Port', config.loadingPort],
+      ['Despatch Port', config.despatchPort],
+      ['Arrived at Port', config.arrivedAtPort],
+      ['Arrived at WH', config.arrivedAtWH],
+      ['No of Days at Port', config.noOfDaysAtPort],
+      ['GRV No', config.grvNo],
+      ['Dec No', config.decNo],
+      ['Dec Value', config.decValue],
+    ];
+
+    const maxRows = Math.max(leftFields.length, rightFields.length);
+    const tableTop = y + 2;
+    const tableH = (maxRows + 1) * rowH + 4;
+
+    doc.setLineWidth(0.4);
+    doc.rect(leftX, tableTop, colW, tableH);
+    doc.rect(rightX, tableTop, colW, tableH);
+
+    // Headers
+    doc.setFillColor(30, 41, 59);
+    doc.rect(leftX, tableTop, colW, rowH, 'F');
+    doc.rect(rightX, tableTop, colW, rowH, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(255);
+    doc.text('FIELD', leftX + 4, tableTop + rowH - 3);
+    doc.text('VALUE', leftX + colW * 0.52, tableTop + rowH - 3);
+    doc.text('FIELD', rightX + 4, tableTop + rowH - 3);
+    doc.text('VALUE', rightX + colW * 0.52, tableTop + rowH - 3);
+    doc.setTextColor(0);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+
+    for (let i = 0; i < maxRows; i++) {
+      const rowY = tableTop + (i + 1) * rowH;
+      if (i % 2 === 0) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(leftX, rowY, colW, rowH, 'F');
+        doc.rect(rightX, rowY, colW, rowH, 'F');
+      }
+      doc.setLineWidth(0.2);
+      doc.line(leftX, rowY, leftX + colW, rowY);
+      doc.line(rightX, rowY, rightX + colW, rowY);
+
+      if (leftFields[i]) {
+        doc.setFont('helvetica', 'bold');
+        doc.text(leftFields[i][0], leftX + 4, rowY + rowH - 3);
+        doc.setFont('helvetica', 'normal');
+        doc.text(leftFields[i][1] || '—', leftX + colW * 0.52, rowY + rowH - 3);
+      }
+      if (rightFields[i]) {
+        doc.setFont('helvetica', 'bold');
+        doc.text(rightFields[i][0], rightX + 4, rowY + rowH - 3);
+        doc.setFont('helvetica', 'normal');
+        doc.text(rightFields[i][1] || '—', rightX + colW * 0.52, rowY + rowH - 3);
+      }
+    }
+
+    y = tableTop + tableH + 14;
+
+    // ── SECTION 2: COST BREAKDOWN ────────────────────────────────────────────
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SECTION 2: COST BREAKDOWN', margin, y);
+    y += 4;
+
+    const costTotal = config.costRows.reduce((s, r) => s + (Number(r.actualCostDH) || 0), 0);
+    const requestTotal = config.costRows.reduce((s, r) => s + (Number(r.requestAmount) || 0), 0);
+    const costBody: any[][] = config.costRows.map((r) => [r.sn, r.description, r.requestAmount, r.actualCostDH, r.billRef || '', r.remarks || '']);
+    costBody.push(['', 'TOTAL', this.formatCurrency(requestTotal), this.formatCurrency(costTotal), '', '']);
 
     autoTable(doc, {
-      startY: 70,
-      body: config.metadataRows.map(([label, value]) => [label, value || '—']),
+      startY: y,
+      head: [['SN', 'Description', 'Request Amount', 'Actual Cost (DH)', 'Bill Ref.', 'Payment Ref / Remarks']],
+      body: costBody,
       theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 4 },
+      styles: { fontSize: 7.5, cellPadding: 3 },
+      headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
       columnStyles: {
-        0: { fontStyle: 'bold', fillColor: [248, 250, 252], cellWidth: 150 },
-        1: { cellWidth: 250 },
+        0: { cellWidth: 24 },
+        1: { cellWidth: 160 },
+        2: { halign: 'right', cellWidth: 72 },
+        3: { halign: 'right', cellWidth: 72 },
+        4: { cellWidth: 72 },
+        5: { cellWidth: 'auto' },
       },
-      margin: { left: 40, right: 40 },
+      didParseCell: (data: any) => {
+        if (data.row.index === costBody.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [241, 245, 249];
+        }
+      },
+      margin: { left: margin, right: margin },
     });
 
-    const clearingRows = config.clearingRows.map((row) => [
-      row.sn,
-      row.description,
-      row.requestAmount,
-      row.paidAmount,
-      row.actualAmount || '0.00',
-      row.remarks || '',
-    ]);
-    clearingRows.push([
-      '',
-      'Total',
-      config.clearingRows.reduce((sum, row) => sum + Number(row.requestAmount || 0), 0).toFixed(2),
-      config.clearingRows.reduce((sum, row) => sum + Number(row.paidAmount || 0), 0).toFixed(2),
-      config.clearingRows.reduce((sum, row) => sum + Number(row.actualAmount || 0), 0).toFixed(2),
-      '',
+    y = (doc as any).lastAutoTable.finalY + 14;
+
+    // ── SECTION 3: ITEM COSTING ──────────────────────────────────────────────
+    if (y > doc.internal.pageSize.getHeight() - 120) { doc.addPage(); y = 40; }
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('SECTION 3: ITEM COSTING', margin, y);
+    y += 4;
+
+    const itemBody = config.itemRows.map((r) => [
+      r.slNo, r.item, r.packing, r.qty, r.uom,
+      r.unitCostFC, r.unitCostDH, r.totalCostFC, r.totalCostDH,
+      r.allocationFactor, r.expensesAllocated, r.totalValueWithExpenses, r.landedCostPerUnit,
     ]);
 
     autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 18,
-      head: [['SN', 'Description', 'Request Amount', 'Paid Amount', 'Actual Amount', 'Payment Ref / Remarks']],
-      body: clearingRows,
+      startY: y,
+      head: [['Sl No', 'Item', 'Packing', 'Qty', 'UOM', 'Unit Cost FC', 'Unit Cost DH', 'Total Cost FC', 'Total Cost DH', 'Alloc. Factor', 'Exp. Allocated', 'Total w/ Exp.', 'Landed Cost/Unit']],
+      body: itemBody.length ? itemBody : [['—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—']],
       theme: 'grid',
-      styles: { fontSize: 8.5, cellPadding: 4 },
-      headStyles: { fillColor: [241, 245, 249], textColor: 17, fontStyle: 'bold' },
+      styles: { fontSize: 6.5, cellPadding: 2.5 },
+      headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', fontSize: 6.5 },
       columnStyles: {
-        0: { cellWidth: 34 },
-        1: { cellWidth: 250 },
-        2: { halign: 'right', cellWidth: 85 },
-        3: { halign: 'right', cellWidth: 85 },
-        4: { halign: 'right', cellWidth: 85 },
-        5: { cellWidth: 170 },
+        0: { cellWidth: 22 }, 1: { cellWidth: 60 }, 2: { cellWidth: 40 },
+        3: { halign: 'right', cellWidth: 28 }, 4: { cellWidth: 22 },
+        5: { halign: 'right', cellWidth: 38 }, 6: { halign: 'right', cellWidth: 38 },
+        7: { halign: 'right', cellWidth: 38 }, 8: { halign: 'right', cellWidth: 38 },
+        9: { halign: 'right', cellWidth: 34 }, 10: { halign: 'right', cellWidth: 38 },
+        11: { halign: 'right', cellWidth: 38 }, 12: { halign: 'right', cellWidth: 'auto' },
       },
-      margin: { left: 40, right: 40 },
+      margin: { left: margin, right: margin },
     });
+
+    y = (doc as any).lastAutoTable.finalY + 20;
+
+    // ── SECTION 4: SIGNATURES ────────────────────────────────────────────────
+    if (y > doc.internal.pageSize.getHeight() - 70) { doc.addPage(); y = 40; }
+
+    const sigLabels = ['AP', 'FC', 'CFO', 'CEO'];
+    const sigW = contentW / sigLabels.length;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    sigLabels.forEach((label, i) => {
+      const sx = margin + i * sigW;
+      doc.setLineWidth(0.5);
+      doc.line(sx + 10, y + 28, sx + sigW - 10, y + 28);
+      doc.text(label, sx + sigW / 2, y + 40, { align: 'center' });
+    });
+
+    // Footer
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(150);
+    const now = new Date();
+    const generatedLine = `Generated by Royal Shipment Tracker — ${now.toLocaleDateString('en-GB')} ${now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
+    const downloadedLine = `Downloaded by: ${config.downloadedBy}`;
+    const footerY = doc.internal.pageSize.getHeight() - 22;
+    doc.text(generatedLine, pageW / 2, footerY, { align: 'center' });
+    doc.text(downloadedLine, pageW / 2, footerY + 10, { align: 'center' });
+    doc.setTextColor(0);
 
     doc.save(`${config.shipmentNo.replace(/[^a-z0-9_-]/gi, '_')}-costing-sheet.pdf`);
   }
@@ -581,11 +772,36 @@ export class ShipmentBlDetailsComponent {
     this.statusModalVisible.set(true);
   }
 
+  private readonly STAGE_ORDER = [
+    'Shipment Entry',
+    'Shipment Tracker',
+    'BL Details',
+    'Document Tracker',
+    'Port and Customs Clearance Tracker',
+    'Storage Allocation & Arrival',
+    'Quality',
+    'Payment & Costing',
+  ] as const;
+
+  /** 0–100 progress for the ship animation based on current stage */
+  getShipProgress(currentStage: string): number {
+    const index = this.STAGE_ORDER.indexOf(currentStage as any);
+    if (index < 0) return 0;
+    return Math.round((index / (this.STAGE_ORDER.length - 1)) * 100);
+  }
+
+  /** True when the shipment has reached or passed Storage stage */
+  isShipArrived(currentStage: string): boolean {
+    const index = this.STAGE_ORDER.indexOf(currentStage as any);
+    const storageIndex = this.STAGE_ORDER.indexOf('Storage Allocation & Arrival');
+    return index >= storageIndex;
+  }
+
   isSaving(index: number, section: 'bl' | 'cost' | 'storage'): boolean {
     return this.savingKey() === `${section}-${index}`;
   }
 
-  saveBLDetails(index: number): void {
+  async saveBLDetails(index: number): Promise<void> {
     const row = this.formArray.at(index);
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!row || !shipmentId) return;
@@ -603,6 +819,42 @@ export class ShipmentBlDetailsComponent {
     const containerId = row.get('containerId')?.value;
     if (!containerId) {
       this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
+      return;
+    }
+
+    const confirmed = await this.confirmDialog.ask({
+      message: `Save B/L details for Shipment ${index + 1}?`,
+      header: 'Save B/L Details',
+      acceptLabel: 'Yes, Save',
+    });
+    if (!confirmed) return;
+
+    // Validate required BL fields
+    const blNo = String(row.get('blNo')?.value || '').trim();
+    const shippedOnBoard = row.get('shippedOnBoard')?.value;
+    const portOfLoading = String(row.get('portOfLoading')?.value || '').trim();
+    const portOfDischarge = String(row.get('portOfDischarge')?.value || '').trim();
+    const noOfContainers = row.get('noOfContainers')?.value;
+    const noOfBags = row.get('noOfBags')?.value;
+    const quantityByMt = row.get('quantityByMt')?.value;
+    const shippingLine = String(row.get('shippingLine')?.value || '').trim();
+    const freeDetentionDays = row.get('freeDetentionDays')?.value;
+    const maximumDetentionDays = row.get('maximumDetentionDays')?.value;
+
+    const missingBLFields: string[] = [];
+    if (!blNo) missingBLFields.push('B/L No');
+    if (!shippedOnBoard) missingBLFields.push('Shipped On Board');
+    if (!portOfLoading) missingBLFields.push('Port of Loading');
+    if (!portOfDischarge) missingBLFields.push('Port of Discharge');
+    if (noOfContainers == null || noOfContainers === '') missingBLFields.push('No of Containers');
+    if (noOfBags == null || noOfBags === '') missingBLFields.push('No of Bags');
+    if (quantityByMt == null || quantityByMt === '') missingBLFields.push('Quantity by MT');
+    if (!shippingLine) missingBLFields.push('Shipping Line');
+    if (freeDetentionDays == null || freeDetentionDays === '') missingBLFields.push('Free Detention Days');
+    if (maximumDetentionDays == null || maximumDetentionDays === '') missingBLFields.push('Maximum Detention Days');
+
+    if (missingBLFields.length > 0) {
+      this.notificationService.error('Required Fields Missing', `Please fill: ${missingBLFields.join(', ')}`);
       return;
     }
 
@@ -643,7 +895,7 @@ export class ShipmentBlDetailsComponent {
     });
   }
 
-  saveCostSheet(index: number): void {
+  async saveCostSheet(index: number): Promise<void> {
     const row = this.formArray.at(index);
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!row || !shipmentId) return;
@@ -653,6 +905,13 @@ export class ShipmentBlDetailsComponent {
       this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
       return;
     }
+
+    const confirmed = await this.confirmDialog.ask({
+      message: `Save cost sheet for Shipment ${index + 1}?`,
+      header: 'Save Cost Sheet',
+      acceptLabel: 'Yes, Save',
+    });
+    if (!confirmed) return;
 
     const costSheetBookings = this.getCostSheetRows(row).getRawValue().map((entry: any) => ({
       sn: Number(entry.sn) || 0,
@@ -685,7 +944,7 @@ export class ShipmentBlDetailsComponent {
     });
   }
 
-  saveStorageAllocations(index: number): void {
+  async saveStorageAllocations(index: number): Promise<void> {
     const row = this.formArray.at(index);
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!row || !shipmentId) return;
@@ -701,6 +960,25 @@ export class ShipmentBlDetailsComponent {
       this.storageValidationMessage.set(validation.message);
       this.storageValidationDetails.set(validation.mismatches);
       this.storageValidationModalVisible.set(true);
+      return;
+    }
+
+    const confirmed = await this.confirmDialog.ask({
+      message: `Save storage allocations for Shipment ${index + 1}?`,
+      header: 'Save Storage Allocations',
+      acceptLabel: 'Yes, Save',
+    });
+    if (!confirmed) return;
+
+    // Validate storage allocation required fields
+    const storageRows = this.getStorageRows(row).getRawValue();
+    const invalidStorageRows = storageRows.filter((entry: any) =>
+      !String(entry.containerSerialNo || '').trim() ||
+      (entry.bags == null || entry.bags === '') ||
+      !String(entry.warehouse || '').trim()
+    );
+    if (invalidStorageRows.length > 0) {
+      this.notificationService.error('Required Fields Missing', 'Container Serial No, Bags, and Warehouse are required for all storage allocation rows.');
       return;
     }
 
@@ -733,32 +1011,86 @@ export class ShipmentBlDetailsComponent {
     const row = this.formArray.at(index);
     if (!row) return;
 
-    const rows = this.getCostSheetRows(row).getRawValue();
-    const shipment = this.shipmentData()?.shipment;
-    const metadataRows: [string, string][] = [
-      ['Shipment No', this.getShipmentNoLabel(index)],
-      ['Supplier', shipment?.supplier || ''],
-      ['PO No', shipment?.poNumber || ''],
-      ['PI No', shipment?.piNo || ''],
-      ['Incoterms', shipment?.incoterms || ''],
-      ['Payment Terms', shipment?.paymentTerms || ''],
-      ['BL No', row.get('blNo')?.value || ''],
-      ['Port Of Loading', row.get('portOfLoading')?.value || ''],
-      ['Port Of Discharge', row.get('portOfDischarge')?.value || ''],
-      ['No Of Containers', this.formatCurrency(row.get('noOfContainers')?.value ?? 0)],
-      ['Quantity By MT', this.formatCurrency(row.get('quantityByMt')?.value ?? 0)],
-      ['Shipped On Board', this.formatDateForReport(row.get('shippedOnBoard')?.value)],
-    ];
+    const shipment = this.shipmentData()?.shipment as any;
+    const actual = this.shipmentData()?.actual?.[index] as any;
+    const costRows = this.getCostSheetRows(row).getRawValue();
+    const fmt = (v: unknown) => this.formatCurrency(v);
+    const fmtDate = (v: unknown) => this.formatDateForReport(v);
+
+    // Exchange rate
+    const totalFC = Number(shipment?.totalFC) || 0;
+    const amountAED = Number(shipment?.amountAED) || 0;
+    const exchangeRate = totalFC > 0 && amountAED > 0 ? fmt(amountAED / totalFC) : '3.67';
+
+    // Storage / arrival data
+    const firstStorage = actual?.storageSplits?.[0];
+    const grvNo = firstStorage?.grn || actual?.grn?.grnNo || '';
+    const arrivedAtWH = firstStorage?.receivedOnDate ? fmtDate(firstStorage.receivedOnDate) : '';
+    const arrivedAtPort = actual?.arrivalOn ? fmtDate(actual.arrivalOn) : '';
+    const clearedOn = actual?.clearedOn || actual?.clearance?.clearedOn;
+    let noOfDaysAtPort = '';
+    if (actual?.arrivalOn && clearedOn) {
+      const diff = Math.round((new Date(clearedOn).getTime() - new Date(actual.arrivalOn).getTime()) / (1000 * 60 * 60 * 24));
+      noOfDaysAtPort = String(diff);
+    }
+
+    const packagingExpenses: any[] = actual?.packagingExpenses || [];
+
+    // Current logged-in user
+    const currentUser = this.authService.getCurrentUser();
+    const downloadedBy = currentUser
+      ? `${currentUser.name} (${currentUser.role}) — ${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+      : 'Unknown';
+
     this.downloadCostingSheetPdf({
       shipmentNo: this.getShipmentNoLabel(index),
-      metadataRows,
-      clearingRows: rows.map((entry: any) => ({
+      date: fmtDate(new Date()),
+      csNo: row.get('blNo')?.value || '',
+      vendor: shipment?.supplierName || shipment?.supplier || '',
+      country: shipment?.countryOfOrigin || '',
+      invoiceAmountFC: fmt(shipment?.totalFC ?? 0),
+      exchangeRate,
+      invoiceAmountAED: fmt(shipment?.amountAED ?? (Number(shipment?.totalFC ?? 0) * 3.67)),
+      incoTerms: shipment?.incoterms || '',
+      paymentTerms: shipment?.paymentTerms || '',
+      comInv: actual?.commercialInvoiceNo || '',
+      profNo: shipment?.piNo || '',
+      murabahaNo: actual?.murabahaContractSubmittedDate ? fmtDate(actual.murabahaContractSubmittedDate) : '',
+      shipmentNo2: this.getShipmentNoLabel(index),
+      shippingLine: row.get('shippingLine')?.value || actual?.shippingLine || '',
+      blNo: row.get('blNo')?.value || actual?.BLNo || '',
+      noOfContainers: String(row.get('noOfContainers')?.value || actual?.noOfContainers || ''),
+      loadingPort: row.get('portOfLoading')?.value || actual?.portOfLoading || shipment?.portOfLoading || '',
+      despatchPort: row.get('portOfDischarge')?.value || actual?.portOfDischarge || shipment?.portOfDischarge || '',
+      arrivedAtPort,
+      arrivedAtWH,
+      noOfDaysAtPort,
+      grvNo,
+      decNo: '',
+      decValue: fmt(shipment?.totalFC ?? 0),
+      downloadedBy,
+      costRows: costRows.map((entry: any) => ({
         sn: Number(entry.sn) || 0,
         description: entry.description || '',
-        requestAmount: this.formatCurrency(entry.requestAmount ?? 0),
-        paidAmount: this.formatCurrency(entry.paidAmount ?? 0),
-        actualAmount: '0.00',
+        requestAmount: fmt(entry.requestAmount ?? 0),
+        actualCostDH: fmt(entry.paidAmount ?? 0),
+        billRef: '',
         remarks: '',
+      })),
+      itemRows: packagingExpenses.map((e: any, i: number) => ({
+        slNo: i + 1,
+        item: e.item || '',
+        packing: e.packing || '',
+        qty: fmt(e.qty ?? 0),
+        uom: e.uom || '',
+        unitCostFC: fmt(e.unitCostFC ?? 0),
+        unitCostDH: fmt(e.unitCostDH ?? 0),
+        totalCostFC: fmt(e.totalCostFC ?? 0),
+        totalCostDH: fmt(e.totalCostDH ?? 0),
+        allocationFactor: fmt(e.expenseAllocationFactor ?? 0),
+        expensesAllocated: fmt(e.expensesAllocated ?? 0),
+        totalValueWithExpenses: fmt(e.totalValueWithExpenses ?? 0),
+        landedCostPerUnit: fmt(e.landedCostPerUnit ?? 0),
       })),
     });
   }

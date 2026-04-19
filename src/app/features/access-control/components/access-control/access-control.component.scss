@@ -82,5 +82,9 @@
 }
 
 .field-permission-card {
-  @apply flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3;
+  @apply flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-3 transition hover:border-slate-300 hover:bg-slate-50;
+}
+
+.action-permission-card {
+  @apply flex items-start gap-3 rounded-2xl border border-amber-100 bg-amber-50/60 px-4 py-3 transition hover:border-amber-200 hover:bg-amber-50;
 }

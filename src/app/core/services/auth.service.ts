@@ -48,7 +48,11 @@ export class AuthService {
     const user = this.getStoredUser();
     if (token && user) {
       this.currentUserSubject.next(user);
-      this.rbacService.loadEffectivePermissions().subscribe();
+      // Load permissions after a microtask so Angular's DI is fully settled
+      // before making HTTP calls (avoids race with interceptors).
+      Promise.resolve().then(() => {
+        this.rbacService.loadEffectivePermissions().subscribe();
+      });
     }
   }
 

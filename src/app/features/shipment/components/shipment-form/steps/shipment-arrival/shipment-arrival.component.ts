@@ -11,12 +11,16 @@ import { DatePickerModule } from 'primeng/datepicker';
 import { AccordionModule } from 'primeng/accordion';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
+import { SelectModule } from 'primeng/select';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
 import { NotificationService } from '../../../../../../core/services/notification.service';
+import { ConfirmDialogService } from '../../../../../../core/services/confirm-dialog.service';
+import { TransportationCompanyService } from '../../../../../../core/services/transportation-company.service';
 import {
   selectShipmentData,
   selectSubmittedStep3Indices,
   selectSubmittedStep4Indices,
+  selectSubmittedStep5Indices,
   selectSubmittingRowIndex,
 } from '../../../../../../store/shipment/shipment.selectors';
 import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
@@ -55,6 +59,7 @@ const STEP5_DOC_CONFIG: {
     AccordionModule,
     ConfirmDialogModule,
     DialogModule,
+    SelectModule,
   ],
   providers: [ConfirmationService],
   templateUrl: './shipment-arrival.component.html',
@@ -120,8 +125,18 @@ export class ShipmentArrivalComponent {
   private confirmationService = inject(ConfirmationService);
   private messageService = inject(MessageService);
   private notificationService = inject(NotificationService);
+  private confirmDialog = inject(ConfirmDialogService);
+  private transportationCompanyService = inject(TransportationCompanyService);
 
-  readonly submittedIndices = toSignal(this.store.select(selectSubmittedStep4Indices), { initialValue: [] });
+  /** Options for the Transport Company Name dropdown */
+  readonly transportCompanyOptions = signal<Array<{ label: string; value: string }>>([]);
+
+  /**
+   * A row is considered "fully submitted" (locked for editing) only when
+   * Storage Allocation & Arrival (step 5) has been completed for that row.
+   * Until then, Port & Customs sections remain editable.
+   */
+  readonly submittedIndices = toSignal(this.store.select(selectSubmittedStep5Indices), { initialValue: [] });
   readonly precedingIndices = toSignal(this.store.select(selectSubmittedStep3Indices), { initialValue: [] });
   readonly submittingRowIndex = toSignal(this.store.select(selectSubmittingRowIndex), { initialValue: null });
 
@@ -132,6 +147,16 @@ export class ShipmentArrivalComponent {
       indices.forEach((idx) => {
         if (this.formArray.at(idx)) this.formArray.at(idx).disable({ emitEvent: false });
       });
+    });
+
+    // Load active transportation companies for the dropdown
+    this.transportationCompanyService.getAll().subscribe({
+      next: (companies) => {
+        const options = companies
+          .filter((c) => c.status === 'Active')
+          .map((c) => ({ label: c.name, value: c.name }));
+        this.transportCompanyOptions.set(options);
+      },
     });
 
     effect(() => {
@@ -517,11 +542,22 @@ export class ShipmentArrivalComponent {
     this.applySectionLocks(index);
   }
 
-  saveLogisticsSection(index: number, section: 'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'): void {
+  async saveLogisticsSection(index: number, section: 'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'): Promise<void> {
     const group = this.formArray.at(index);
     const containerId = group?.get('containerId')?.value;
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!group || !containerId || !shipmentId || this.isLogisticsSectionLocked(index, section)) return;
+
+    const sectionLabel = section === 'transportation'
+      ? 'Transportation Arranged'
+      : this.step5DocConfig.find((doc) => doc.kind === section)?.label || section;
+
+    const confirmed = await this.confirmDialog.ask({
+      message: `Save ${sectionLabel} for Shipment ${index + 1}?`,
+      header: 'Save Section',
+      acceptLabel: 'Yes, Save',
+    });
+    if (!confirmed) return;
 
     const toDate = (val: unknown) => (val ? new Date(val as Date).toISOString().split('T')[0] : '');
     const payload = new FormData();

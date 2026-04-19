@@ -43,21 +43,21 @@ export class ShipmentEffects {
                 actualData?.documentsReleasedDocumentUrl
               ) submittedStep3Indices.push(index);
               
-              // Step 4 (Port & Customs) - Check if all 7 logistics sections are locked
-              const requiredLogisticsSections = [
-                'arrivalNotice',
-                'advanceRequest',
-                'doReleased',
-                'dpApproval',
-                'customsClearance',
-                'municipality',
-                'transportation',
-              ];
+              // Step 4 (Port & Customs) — mark as started when at least one logistics
+              // section has been saved (locked). Previously required ALL 7 sections.
               const lockedSections = actualData?.lockedLogisticsSections || [];
-              const allLogisticsSectionsLocked = requiredLogisticsSections.every((section) => 
-                lockedSections.includes(section)
-              );
-              if (allLogisticsSectionsLocked) submittedStep4Indices.push(index);
+              const hasAnyLogisticsData =
+                lockedSections.length > 0 ||
+                actualData?.arrivalOn ||
+                actualData?.arrivalNoticeDate ||
+                actualData?.arrivalNoticeDocumentUrl ||
+                actualData?.advanceRequestDate ||
+                actualData?.doReleasedDate ||
+                actualData?.dpApprovalDate ||
+                actualData?.customsClearanceDate ||
+                actualData?.municipalityDate ||
+                (actualData?.transportationBooked?.length ?? 0) > 0;
+              if (hasAnyLogisticsData) submittedStep4Indices.push(index);
               
               if ((actualData?.storageSplits?.length ?? 0) > 0) submittedStep5Indices.push(index);
               if ((actualData?.qualityRows?.length ?? 0) > 0 || (actualData?.qualityReports?.length ?? 0) > 0) {

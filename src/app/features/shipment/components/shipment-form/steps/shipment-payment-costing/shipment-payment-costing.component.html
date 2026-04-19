@@ -211,7 +211,8 @@
                         <th class="min-w-[320px]">DESCRIPTION</th>
                         <th class="min-w-[160px]">REQUEST AMOUNT</th>
                         <th class="min-w-[160px]">PAID AMOUNT</th>
-                        <th class="min-w-[190px]">ACTUAL PAID</th>
+                        <th class="min-w-[190px]">ACTUAL PAID<span class="text-red-500 ml-0.5">*</span></th>
+                        <th class="min-w-[160px] bg-amber-50">DIFFERENCE</th>
                         <th class="min-w-[250px]">REF BILL NO</th>
                         <th class="min-w-[160px]">REF BILL DATE</th>
                         <th class="min-w-[200px]">REF BILL VENDOR</th>
@@ -232,6 +233,11 @@
                         </td>
                         <td>
                           <p-inputNumber formControlName="actualPaid" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" />
+                        </td>
+                        <td class="bg-amber-50">
+                          <div class="table-input-text w-full bg-amber-50 text-amber-700 font-bold text-center">
+                            {{ getDifference(row) }}
+                          </div>
                         </td>
                         <td>
                           <input pInputText formControlName="refBillNo" class="table-input-text w-full" placeholder="Ref bill no" (input)="onRefBillNoInput(group, r)" />
@@ -260,11 +266,12 @@
                   </p-table>
                 </div>
                 <div class="border-t border-slate-100 bg-slate-50/70 px-4 py-3">
-                  <div class="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_160px_160px_160px] md:items-center">
+                  <div class="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_160px_160px_160px_160px] md:items-center">
                     <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Totals</span>
                     <span class="text-sm font-black text-slate-800">Request: {{ getPaymentCostingTotal(group, 'requestAmount') }}</span>
                     <span class="text-sm font-black text-slate-800">Paid: {{ getPaymentCostingTotal(group, 'paidAmount') }}</span>
                     <span class="text-sm font-black text-slate-800">Actual: {{ getPaymentCostingTotal(group, 'actualPaid') }}</span>
+                    <span class="text-sm font-black text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg">Diff: {{ getDifferenceTotal(group) }}</span>
                   </div>
                 </div>
 
@@ -377,23 +384,30 @@
         </div>
 
         <div class="overflow-x-auto" formArrayName="packagingExpenses">
-          <table class="min-w-[2200px] text-sm">
+          <table class="min-w-[2400px] text-sm">
             <thead class="bg-white sticky top-0 z-10">
+              <!-- Group header row -->
+              <tr class="border-b border-slate-100 bg-slate-50">
+                <th class="px-4 py-2 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 w-16" rowspan="2">SN</th>
+                <th class="px-4 py-2 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 min-w-[380px]" rowspan="2">Item<span class="text-red-500 ml-0.5">*</span></th>
+                <th class="px-4 py-2 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 min-w-[250px]" rowspan="2">Packing<span class="text-red-500 ml-0.5">*</span></th>
+                <th class="px-4 py-2 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 w-44" rowspan="2">Qty<span class="text-red-500 ml-0.5">*</span></th>
+                <th class="px-4 py-2 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 w-44" rowspan="2">UOM<span class="text-red-500 ml-0.5">*</span></th>
+                <!-- Unit Cost group -->
+                <th class="px-4 py-2 text-center text-[9px] font-black uppercase tracking-wider text-blue-500 bg-blue-50 border-l border-blue-100" colspan="2">Unit Cost</th>
+                <!-- Total Cost group -->
+                <th class="px-4 py-2 text-center text-[9px] font-black uppercase tracking-wider text-indigo-500 bg-indigo-50 border-l border-indigo-100" colspan="2">Total Cost</th>
+                <th class="px-4 py-2 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 w-52" rowspan="2">Allocation Factor</th>
+                <th class="px-4 py-2 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 w-52" rowspan="2">Expenses Allocated</th>
+                <th class="px-4 py-2 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 w-52" rowspan="2">Value With Expenses</th>
+                <th class="px-4 py-2 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 w-52" rowspan="2">Landed Cost / Unit</th>
+                <th class="px-4 py-2 text-left text-[9px] font-black uppercase tracking-wider text-slate-400 min-w-[200px]" rowspan="2">Reference</th>
+              </tr>
               <tr class="border-b border-slate-100">
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-16">SN</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 min-w-[300px]">Item</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 min-w-[250px]">Packing</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-52">Qty</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-52">UOM</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Unit Cost FC</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Unit Cost DH</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Total Cost FC</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Total Cost DH</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Allocation Factor</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Expenses Allocated</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Value With Expenses</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 w-56">Landed Cost / Unit</th>
-                <th class="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 min-w-[200px]">Reference</th>
+                <th class="px-4 py-2 text-left text-[9px] font-black uppercase tracking-wider text-blue-500 bg-blue-50 w-52 border-l border-blue-100">FC</th>
+                <th class="px-4 py-2 text-left text-[9px] font-black uppercase tracking-wider text-blue-500 bg-blue-50 w-52">DH</th>
+                <th class="px-4 py-2 text-left text-[9px] font-black uppercase tracking-wider text-indigo-500 bg-indigo-50 w-52 border-l border-indigo-100">FC</th>
+                <th class="px-4 py-2 text-left text-[9px] font-black uppercase tracking-wider text-indigo-500 bg-indigo-50 w-52">DH</th>
               </tr>
             </thead>
             <tbody>
@@ -404,10 +418,10 @@
                   <td class="px-4 py-3"><input pInputText formControlName="packing" class="table-input-text w-full" placeholder="Packing" /></td>
                   <td class="px-4 py-3"><p-inputNumber formControlName="qty" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
                   <td class="px-4 py-3"><input pInputText formControlName="uom" class="table-input-text w-full" placeholder="UOM" /></td>
-                  <td class="px-4 py-3"><p-inputNumber formControlName="unitCostFC" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
-                  <td class="px-4 py-3"><p-inputNumber formControlName="unitCostDH" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
-                  <td class="px-4 py-3"><p-inputNumber formControlName="totalCostFC" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
-                  <td class="px-4 py-3"><p-inputNumber formControlName="totalCostDH" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
+                  <td class="px-4 py-3 bg-blue-50/40 border-l border-blue-100"><p-inputNumber formControlName="unitCostFC" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
+                  <td class="px-4 py-3 bg-blue-50/40"><p-inputNumber formControlName="unitCostDH" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
+                  <td class="px-4 py-3 bg-indigo-50/40 border-l border-indigo-100"><p-inputNumber formControlName="totalCostFC" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
+                  <td class="px-4 py-3 bg-indigo-50/40"><p-inputNumber formControlName="totalCostDH" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
                   <td class="px-4 py-3"><p-inputNumber formControlName="expenseAllocationFactor" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="4"></p-inputNumber></td>
                   <td class="px-4 py-3"><p-inputNumber formControlName="expensesAllocated" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
                   <td class="px-4 py-3"><p-inputNumber formControlName="totalValueWithExpenses" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2"></p-inputNumber></td>
@@ -423,10 +437,10 @@
                 <td class="px-4 py-3"></td>
                 <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'qty') }}</td>
                 <td class="px-4 py-3"></td>
-                <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'unitCostFC') }}</td>
-                <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'unitCostDH') }}</td>
-                <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'totalCostFC') }}</td>
-                <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'totalCostDH') }}</td>
+                <td class="px-4 py-3 bg-blue-50/40 border-l border-blue-100 text-sm font-black text-blue-700">{{ getPackagingExpenseTotal(shipmentGroup, 'unitCostFC') }}</td>
+                <td class="px-4 py-3 bg-blue-50/40 text-sm font-black text-blue-700">{{ getPackagingExpenseTotal(shipmentGroup, 'unitCostDH') }}</td>
+                <td class="px-4 py-3 bg-indigo-50/40 border-l border-indigo-100 text-sm font-black text-indigo-700">{{ getPackagingExpenseTotal(shipmentGroup, 'totalCostFC') }}</td>
+                <td class="px-4 py-3 bg-indigo-50/40 text-sm font-black text-indigo-700">{{ getPackagingExpenseTotal(shipmentGroup, 'totalCostDH') }}</td>
                 <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'expenseAllocationFactor') }}</td>
                 <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'expensesAllocated') }}</td>
                 <td class="px-4 py-3 text-sm font-black text-slate-800">{{ getPackagingExpenseTotal(shipmentGroup, 'totalValueWithExpenses') }}</td>

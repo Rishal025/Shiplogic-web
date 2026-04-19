@@ -4,14 +4,13 @@ import { ReactiveFormsModule, FormArray, AbstractControl, FormGroup } from '@ang
 import { DomSanitizer } from '@angular/platform-browser';
 import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ConfirmationService } from 'primeng/api';
 import { NotificationService } from '../../../../../../core/services/notification.service';
+import { ConfirmDialogService } from '../../../../../../core/services/confirm-dialog.service';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { DatePickerModule } from 'primeng/datepicker';
 import { SelectModule } from 'primeng/select';
 import { AccordionModule } from 'primeng/accordion';
-import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import {
   selectShipmentData,
@@ -32,10 +31,9 @@ import * as ShipmentActions from '../../../../../../store/shipment/shipment.acti
     DatePickerModule,
     SelectModule,
     AccordionModule,
-    ConfirmDialogModule,
     DialogModule,
   ],
-  providers: [ConfirmationService],
+  providers: [],
   templateUrl: './shipment-documentation.component.html',
   styles: [`
     .primary-milestone-btn {
@@ -92,6 +90,14 @@ import * as ShipmentActions from '../../../../../../store/shipment/shipment.acti
       cursor: pointer;
     }
     .icon-btn-danger:hover { background-color: #fee2e2; color: #dc2626; }
+
+    @keyframes courierBounce {
+      0%, 100% { transform: translateY(-50%) translateX(-50%) translateY(0); }
+      50% { transform: translateY(-50%) translateX(-50%) translateY(-4px); }
+    }
+    .courier-parcel-bounce {
+      animation: courierBounce 1.4s ease-in-out infinite;
+    }
   `]
 })
 export class ShipmentDocumentationComponent {
@@ -107,7 +113,7 @@ export class ShipmentDocumentationComponent {
   private pendingFileKind: 'inwardAdvice' | 'murabahaSubmitted' | 'documentsReleased' | null = null;
 
   private store = inject(Store);
-  private confirmationService = inject(ConfirmationService);
+  private confirmDialog = inject(ConfirmDialogService);
   private notificationService = inject(NotificationService);
   private sanitizer = inject(DomSanitizer);
 
@@ -156,6 +162,8 @@ export class ShipmentDocumentationComponent {
     { label: 'OTHERS', value: 'OTHERS' }
   ];
 
+  // Track which accordion panels are open so they stay open after milestone saves
+  readonly openAccordionPanels = signal<string[]>([]);
   // Per-row and per-milestone edit states
   readonly editingMilestones = signal<Record<number, Record<string, boolean>>>({});
   readonly savingMilestone = signal<{row: number, milestone: string} | null>(null);
@@ -195,15 +203,38 @@ export class ShipmentDocumentationComponent {
       String(group.get('courierTrackNo')?.value || '').trim().length > 0 &&
       String(group.get('courierServiceProvider')?.value || '').trim().length > 0;
     const hasMilestone2 = this.isMilestoneFilled(group, 'receiving');
-    const hasMilestone3 = this.isMilestoneFilled(group, 'inward');
-    const hasMilestone4 = this.isMilestoneFilled(group, 'murabaha_process');
-    const hasMilestone5 = this.isMilestoneFilled(group, 'murabaha_submit');
+    const isBank = this.isBankReceiver(group);
+
+    // For Direct receiver: skip milestones 3, 4, 5 — go straight to 6 after M2
+    // For Bank receiver: full chain M1 → M2 → M3 → M4 → M5 → M6
 
     if (milestone === 'receiving') return hasMilestone1;
-    if (milestone === 'inward') return hasMilestone2 && this.isBankReceiver(group);
-    if (milestone === 'murabaha_process') return hasMilestone3;
-    if (milestone === 'murabaha_submit') return hasMilestone4;
-    if (milestone === 'release') return hasMilestone5;
+
+    if (milestone === 'inward') {
+      // Only show for Bank receiver
+      return hasMilestone2 && isBank;
+    }
+
+    if (milestone === 'murabaha_process') {
+      // Only show for Bank receiver, after inward is filled
+      return isBank && this.isMilestoneFilled(group, 'inward');
+    }
+
+    if (milestone === 'murabaha_submit') {
+      // Only show for Bank receiver, after murabaha_process is filled
+      return isBank && this.isMilestoneFilled(group, 'murabaha_process');
+    }
+
+    if (milestone === 'release') {
+      if (!hasMilestone2) return false;
+      if (isBank) {
+        // Bank: require murabaha_submit to be filled before release
+        return this.isMilestoneFilled(group, 'murabaha_submit');
+      }
+      // Direct: show release directly after M2 is filled
+      return true;
+    }
+
     return true;
   }
 
@@ -351,6 +382,19 @@ export class ShipmentDocumentationComponent {
     return num;
   }
 
+  /** Called when the accordion active value changes — keeps panels open after saves */
+  onAccordionChange(values: string[]): void {
+    this.openAccordionPanels.set(values);
+  }
+
+  /** Open a specific accordion panel (called after milestone save to keep it open) */
+  ensureAccordionOpen(panelValue: string): void {
+    const current = this.openAccordionPanels();
+    if (!current.includes(panelValue)) {
+      this.openAccordionPanels.set([...current, panelValue]);
+    }
+  }
+
   readonly submittedIndices = toSignal(this.store.select(selectSubmittedStep3Indices), { initialValue: [] });
   readonly precedingIndices = toSignal(this.store.select(selectSubmittedActualIndices), { initialValue: [] });
   readonly submittingRowIndex = toSignal(this.store.select(selectSubmittingRowIndex), { initialValue: null });
@@ -434,131 +478,205 @@ export class ShipmentDocumentationComponent {
     }
 
     switch (milestone) {
-      case 'courier':
-        // Optional notes and track no, but usually one should exist. Let's allow empty for now if BL is there.
-        return true;
-      case 'receiving':
-        if (!group.get('receiver')?.value) {
-          this.notificationService.error('Validation Error', 'Receiver type is required.');
+      case 'courier': {
+        const missing: string[] = [];
+        if (!String(group.get('courierTrackNo')?.value || '').trim())
+          missing.push('Courier Track No');
+        if (!String(group.get('courierServiceProvider')?.value || '').trim())
+          missing.push('Courier Provider');
+        if (!String(group.get('docArrivalNotes')?.value || '').trim())
+          missing.push('Document Arrival Notes');
+        if (missing.length > 0) {
+          this.notificationService.error('Required Fields Missing', `Please fill: ${missing.join(', ')}.`);
           return false;
         }
-        if (group.get('receiver')?.value === 'Bank' && !group.get('bankName')?.value) {
-          this.notificationService.error('Validation Error', 'Bank Name is required when receiver is Bank.');
+        return true;
+      }
+      case 'receiving': {
+        const missing: string[] = [];
+        if (!group.get('receiver')?.value)
+          missing.push('Receiver');
+        if (this.isBankReceiver(group) && !group.get('bankName')?.value)
+          missing.push('Bank Name');
+        if (!group.get('expectedDocDate')?.value)
+          missing.push('Expected Date of Doc Arrival');
+        if (missing.length > 0) {
+          this.notificationService.error('Required Fields Missing', `Please fill: ${missing.join(', ')}.`);
           return false;
         }
         return true;
-      case 'inward':
+      }
+      case 'inward': {
+        const inwardDate = group.get('inwardCollectionAdviceDate')?.value;
+        const inwardFile = this.getFile(index, 'inwardAdvice');
+        const inwardSavedUrl = this.getSavedFileUrl(group, 'inwardAdvice');
+        if (!inwardDate) {
+          this.notificationService.error('Validation Error', 'Inward Collection Advice Date is required.');
+          return false;
+        }
+        if (!inwardFile && !inwardSavedUrl) {
+          this.notificationService.error('Validation Error', 'Inward Collection Advice document is required.');
+          return false;
+        }
         return true;
-      case 'murabaha_process':
+      }
+      case 'murabaha_process': {
+        const releasedDate = group.get('murabahaContractReleasedDate')?.value;
+        const approvedDate = group.get('murabahaContractApprovedDate')?.value;
+        const missingDates: string[] = [];
+        if (!releasedDate) missingDates.push('Murabaha Contract Released Date');
+        if (!approvedDate) missingDates.push('Murabaha Contract Approved Date');
+        if (missingDates.length > 0) {
+          this.notificationService.error('Required Fields Missing', `Please fill: ${missingDates.join(' and ')}.`);
+          return false;
+        }
         return true;
-      case 'murabaha_submit':
+      }
+      case 'murabaha_submit': {
+        const submittedDate = group.get('murabahaContractSubmittedDate')?.value;
+        const submittedFile = this.getFile(index, 'murabahaSubmitted');
+        const submittedSavedUrl = this.getSavedFileUrl(group, 'murabahaSubmitted');
+        if (!submittedDate) {
+          this.notificationService.error('Validation Error', 'Contract Submission Date is required.');
+          return false;
+        }
+        if (!submittedFile && !submittedSavedUrl) {
+          this.notificationService.error('Validation Error', 'Contract Submission document is required.');
+          return false;
+        }
         return true;
-      case 'release':
+      }
+      case 'release': {
+        const releasedDate = group.get('documentsReleasedDate')?.value;
+        const releasedFile = this.getFile(index, 'documentsReleased');
+        const releasedSavedUrl = this.getSavedFileUrl(group, 'documentsReleased');
+        if (!releasedDate) {
+          this.notificationService.error('Validation Error', 'Documents Release Date is required.');
+          return false;
+        }
+        if (!releasedFile && !releasedSavedUrl) {
+          this.notificationService.error('Validation Error', 'Documents Release document is required.');
+          return false;
+        }
         return true;
+      }
       default:
         return true;
     }
   }
 
-  saveMilestone(index: number, milestone: string): void {
+  async saveMilestone(index: number, milestone: string): Promise<void> {
     const row = this.formArray.at(index);
     if (!this.isPrecedingSubmitted(index)) {
       this.notificationService.warn('Step Blocked', 'Please complete the BL Details step first.');
       return;
     }
-    
-    // Only check milestone-specific validity
+
     if (!this.isMilestoneSectionValid(index, milestone)) return;
 
-    this.confirmationService.confirm({
-      message: `Save ${milestone.replace('_', ' ')} details for Container #${index + 1}?`,
-      header: 'Save Documentation Stage',
-      accept: () => {
-        const formValue = row.getRawValue();
-        const containerId = formValue['containerId'];
-        if (!containerId) return;
+    const milestoneLabel: Record<string, string> = {
+      courier: 'Courier Logistics',
+      receiving: 'Receiver & Bank Setup',
+      inward: 'Inward Collection Advice',
+      murabaha_process: 'Murabaha Contract Phase',
+      murabaha_submit: 'Contract Submission',
+      release: 'Final Documents Release',
+    };
 
-        this.savingMilestone.set({ row: index, milestone });
-
-        const toDate = (val: any) =>
-          val ? (val instanceof Date ? val.toISOString().split('T')[0] : new Date(val).toISOString().split('T')[0]) : '';
-
-        const payload = new FormData();
-        payload.append('BLNo', formValue['BLNo'] || '');
-
-        switch (milestone) {
-          case 'courier':
-            payload.append('courierTrackNo', formValue['courierTrackNo'] || '');
-            payload.append('courierServiceProvider', formValue['courierServiceProvider'] || '');
-            payload.append('DHL', formValue['courierTrackNo'] || '');
-            payload.append('docArrivalNotes', formValue['docArrivalNotes'] || '');
-            break;
-          case 'receiving':
-            payload.append('receiver', formValue['receiver'] || '');
-            payload.append('bankName', formValue['bankName'] || '');
-            payload.append('expectedDocDate', toDate(formValue['expectedDocDate']));
-            break;
-          case 'inward':
-            payload.append('inwardCollectionAdviceDate', toDate(formValue['inwardCollectionAdviceDate']));
-            const inf = this.getFile(index, 'inwardAdvice');
-            if (inf) payload.append('inwardCollectionAdviceDocument', inf, inf.name);
-            break;
-          case 'murabaha_process':
-            payload.append('murabahaContractReleasedDate', toDate(formValue['murabahaContractReleasedDate']));
-            payload.append('murabahaContractApprovedDate', toDate(formValue['murabahaContractApprovedDate']));
-            break;
-          case 'murabaha_submit':
-            payload.append('murabahaContractSubmittedDate', toDate(formValue['murabahaContractSubmittedDate']));
-            const msf = this.getFile(index, 'murabahaSubmitted');
-            if (msf) payload.append('murabahaContractSubmittedDocument', msf, msf.name);
-            break;
-          case 'release':
-            payload.append('documentsReleasedDate', toDate(formValue['documentsReleasedDate']));
-            const drf = this.getFile(index, 'documentsReleased');
-            if (drf) payload.append('documentsReleasedDocument', drf, drf.name);
-            break;
-        }
-
-        this.store.dispatch(ShipmentActions.submitDocumentation({ containerId, index, payload }));
-      },
+    const confirmed = await this.confirmDialog.ask({
+      message: `Save ${milestoneLabel[milestone] || milestone} for Shipment #${index + 1}?`,
+      header: 'Save Milestone',
+      acceptLabel: 'Yes, Save',
     });
+    if (!confirmed) return;
+
+    const formValue = row.getRawValue();
+    const containerId = formValue['containerId'];
+    if (!containerId) return;
+
+    this.savingMilestone.set({ row: index, milestone });
+
+    // Keep the accordion panel open after the save reloads data
+    this.ensureAccordionOpen(`doc-${index}`);
+
+    const toDate = (val: any) =>
+      val ? (val instanceof Date ? val.toISOString().split('T')[0] : new Date(val).toISOString().split('T')[0]) : '';
+
+    const payload = new FormData();
+    payload.append('BLNo', formValue['BLNo'] || '');
+
+    switch (milestone) {
+      case 'courier':
+        payload.append('courierTrackNo', formValue['courierTrackNo'] || '');
+        payload.append('courierServiceProvider', formValue['courierServiceProvider'] || '');
+        payload.append('DHL', formValue['courierTrackNo'] || '');
+        payload.append('docArrivalNotes', formValue['docArrivalNotes'] || '');
+        break;
+      case 'receiving':
+        payload.append('receiver', formValue['receiver'] || '');
+        payload.append('bankName', formValue['bankName'] || '');
+        payload.append('expectedDocDate', toDate(formValue['expectedDocDate']));
+        break;
+      case 'inward':
+        payload.append('inwardCollectionAdviceDate', toDate(formValue['inwardCollectionAdviceDate']));
+        const inf = this.getFile(index, 'inwardAdvice');
+        if (inf) payload.append('inwardCollectionAdviceDocument', inf, inf.name);
+        break;
+      case 'murabaha_process':
+        payload.append('murabahaContractReleasedDate', toDate(formValue['murabahaContractReleasedDate']));
+        payload.append('murabahaContractApprovedDate', toDate(formValue['murabahaContractApprovedDate']));
+        break;
+      case 'murabaha_submit':
+        payload.append('murabahaContractSubmittedDate', toDate(formValue['murabahaContractSubmittedDate']));
+        const msf = this.getFile(index, 'murabahaSubmitted');
+        if (msf) payload.append('murabahaContractSubmittedDocument', msf, msf.name);
+        break;
+      case 'release':
+        payload.append('documentsReleasedDate', toDate(formValue['documentsReleasedDate']));
+        const drf = this.getFile(index, 'documentsReleased');
+        if (drf) payload.append('documentsReleasedDocument', drf, drf.name);
+        break;
+    }
+
+    this.store.dispatch(ShipmentActions.submitDocumentation({ containerId, index, payload }));
   }
 
   // Row-level save for legacy support
-  confirmSubmit(index: number): void {
+  async confirmSubmit(index: number): Promise<void> {
     if (!this.isMilestoneSectionValid(index, 'all')) return;
-    this.confirmationService.confirm({
-      message: `Save all documentation for Container #${index + 1}?`,
+    const confirmed = await this.confirmDialog.ask({
+      message: `Save all documentation for Shipment #${index + 1}?`,
       header: 'Save Documentation',
-      accept: () => {
-        const row = this.formArray.at(index);
-        const formValue = row.getRawValue();
-        const payload = new FormData();
-        const toDate = (v: any) => v ? (v instanceof Date ? v.toISOString().split('T')[0] : new Date(v).toISOString().split('T')[0]) : '';
-        
-        payload.append('BLNo', formValue['BLNo'] || '');
-        payload.append('courierTrackNo', formValue['courierTrackNo'] || '');
-        payload.append('courierServiceProvider', formValue['courierServiceProvider'] || '');
-        payload.append('docArrivalNotes', formValue['docArrivalNotes'] || '');
-        payload.append('expectedDocDate', toDate(formValue['expectedDocDate']));
-        payload.append('receiver', formValue['receiver'] || '');
-        payload.append('bankName', formValue['bankName'] || '');
-        payload.append('inwardCollectionAdviceDate', toDate(formValue['inwardCollectionAdviceDate']));
-        payload.append('murabahaContractReleasedDate', toDate(formValue['murabahaContractReleasedDate']));
-        payload.append('murabahaContractApprovedDate', toDate(formValue['murabahaContractApprovedDate']));
-        payload.append('murabahaContractSubmittedDate', toDate(formValue['murabahaContractSubmittedDate']));
-        payload.append('documentsReleasedDate', toDate(formValue['documentsReleasedDate']));
-
-        const fl1 = this.getFile(index, 'inwardAdvice');
-        const fl2 = this.getFile(index, 'murabahaSubmitted');
-        const fl3 = this.getFile(index, 'documentsReleased');
-        if (fl1) payload.append('inwardCollectionAdviceDocument', fl1, fl1.name);
-        if (fl2) payload.append('murabahaContractSubmittedDocument', fl2, fl2.name);
-        if (fl3) payload.append('documentsReleasedDocument', fl3, fl3.name);
-
-        this.store.dispatch(ShipmentActions.submitDocumentation({ containerId: formValue['containerId'], index, payload }));
-      }
+      acceptLabel: 'Yes, Save',
     });
+    if (!confirmed) return;
+
+    const row = this.formArray.at(index);
+    const formValue = row.getRawValue();
+    const payload = new FormData();
+    const toDate = (v: any) => v ? (v instanceof Date ? v.toISOString().split('T')[0] : new Date(v).toISOString().split('T')[0]) : '';
+
+    payload.append('BLNo', formValue['BLNo'] || '');
+    payload.append('courierTrackNo', formValue['courierTrackNo'] || '');
+    payload.append('courierServiceProvider', formValue['courierServiceProvider'] || '');
+    payload.append('docArrivalNotes', formValue['docArrivalNotes'] || '');
+    payload.append('expectedDocDate', toDate(formValue['expectedDocDate']));
+    payload.append('receiver', formValue['receiver'] || '');
+    payload.append('bankName', formValue['bankName'] || '');
+    payload.append('inwardCollectionAdviceDate', toDate(formValue['inwardCollectionAdviceDate']));
+    payload.append('murabahaContractReleasedDate', toDate(formValue['murabahaContractReleasedDate']));
+    payload.append('murabahaContractApprovedDate', toDate(formValue['murabahaContractApprovedDate']));
+    payload.append('murabahaContractSubmittedDate', toDate(formValue['murabahaContractSubmittedDate']));
+    payload.append('documentsReleasedDate', toDate(formValue['documentsReleasedDate']));
+
+    const fl1 = this.getFile(index, 'inwardAdvice');
+    const fl2 = this.getFile(index, 'murabahaSubmitted');
+    const fl3 = this.getFile(index, 'documentsReleased');
+    if (fl1) payload.append('inwardCollectionAdviceDocument', fl1, fl1.name);
+    if (fl2) payload.append('murabahaContractSubmittedDocument', fl2, fl2.name);
+    if (fl3) payload.append('documentsReleasedDocument', fl3, fl3.name);
+
+    this.store.dispatch(ShipmentActions.submitDocumentation({ containerId: formValue['containerId'], index, payload }));
   }
 
   openStatusModal(index: number): void {
@@ -569,6 +687,32 @@ export class ShipmentDocumentationComponent {
   onStatusModalVisibleChange(v: boolean): void {
     this.statusModalVisible.set(v);
     if (!v) this.statusModalShipmentIndex.set(null);
+  }
+
+  /**
+   * Returns 0–100 progress for the courier animation.
+   * For Direct receiver: 4 milestones (courier, receiving, release + courier delivery).
+   * For Bank receiver: all 6 milestones.
+   */
+  getCourierProgressPercent(index: number): number {
+    const group = this.formArray?.at(index) as FormGroup | null;
+    const isBank = group ? this.isBankReceiver(group) : true;
+
+    if (isBank) {
+      const milestones = ['courier', 'receiving', 'inward', 'murabaha_process', 'murabaha_submit', 'release'];
+      const completed = milestones.filter((m) => this.isMilestoneSaved(index, m)).length;
+      return Math.round((completed / milestones.length) * 100);
+    } else {
+      // Direct path: courier, receiving, release
+      const milestones = ['courier', 'receiving', 'release'];
+      const completed = milestones.filter((m) => this.isMilestoneSaved(index, m)).length;
+      return Math.round((completed / milestones.length) * 100);
+    }
+  }
+
+  /** Returns true when all 6 milestones are saved (documents fully released). */
+  isCourierDelivered(index: number): boolean {
+    return this.getCourierProgressPercent(index) === 100;
   }
 
   getShipmentReachedStage(index: number): string {

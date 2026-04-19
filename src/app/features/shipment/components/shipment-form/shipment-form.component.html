@@ -241,7 +241,7 @@
             </span>
           </div>
 
-          @if (isStep4Completed()) {
+          @if (submittedStep4Indices().length > 0) {
             <div class="sl-card overflow-hidden" [class.rbac-readonly-shell]="isStepReadOnly(5)">
               <app-shipment-storage
                 [formArray]="storageSplits"

@@ -86,3 +86,52 @@
     70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
     100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
 }
+
+/* ─── Ship Route Animation ─────────────────────────────────────────────── */
+
+/**
+ * .ship-moving
+ * 1. On entry: slides from left=0 to left=var(--ship-target) over 1.4s (ease-out)
+ * 2. After arrival: continuously bobs up/down
+ *
+ * We layer two animations:
+ *  - shipSlide: one-shot horizontal travel
+ *  - shipBob:   infinite vertical bob (starts after slide completes)
+ */
+@keyframes shipSlide {
+  0%   { left: 0%; }
+  100% { left: var(--ship-target, 50%); }
+}
+
+@keyframes shipBob {
+  0%, 100% { margin-bottom: 0px; }
+  50%       { margin-bottom: 3px; }
+}
+
+@keyframes waveScroll {
+  0%   { background-position: 0 0; }
+  100% { background-position: 60px 0; }
+}
+
+.ship-moving {
+  /* Slide to target position over 1.4s, then stay there */
+  animation:
+    shipSlide 1.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards,
+    shipBob   1.8s ease-in-out 1.4s infinite;
+  left: var(--ship-target, 50%);
+}
+
+.ship-wave {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 8px,
+    rgba(255, 255, 255, 0.4) 8px,
+    rgba(255, 255, 255, 0.4) 10px
+  );
+  background-size: 20px 100%;
+  animation: waveScroll 1s linear infinite;
+  border-radius: 9999px;
+}

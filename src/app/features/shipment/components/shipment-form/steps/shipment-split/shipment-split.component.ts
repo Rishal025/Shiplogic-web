@@ -15,6 +15,7 @@ import { TableModule } from 'primeng/table';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { ToastModule } from 'primeng/toast';
+import { ConfirmDialogService } from '../../../../../../core/services/confirm-dialog.service';
 
 import {
   selectActiveSplitTab,
@@ -77,6 +78,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   private confirmationService = inject(ConfirmationService);
   private shipmentService = inject(ShipmentService);
   private messageService = inject(MessageService);
+  private confirmDialog = inject(ConfirmDialogService);
 
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
   readonly isPlannedLocked = toSignal(this.store.select(selectIsPlannedLocked), {
@@ -98,6 +100,28 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   /** Row index for which bill-no extraction is in progress (show spinner). */
   readonly extractingBillNoRowIndex = signal<number | null>(null);
   readonly billDocumentFiles = signal<Record<number, File | null>>({});
+
+  // ─── Track Order Modal ────────────────────────────────────────────────────
+  readonly trackOrderModalVisible = signal(false);
+  readonly trackOrderData = signal<{
+    shipmentNo: string;
+    currentStage: string;
+    portOfLoading: string;
+    portOfDischarge: string;
+    etd: string;
+    eta: string;
+  } | null>(null);
+
+  readonly shipmentStages = [
+    'Shipment Entry',
+    'Shipment Tracker',
+    'BL Details',
+    'Document Tracker',
+    'Port and Customs Clearance Tracker',
+    'Storage Allocation & Arrival',
+    'Quality',
+    'Payment & Costing',
+  ] as const;
   readonly packagingListFiles = signal<Record<number, File | null>>({});
   readonly packagingBrands = signal<Record<number, string>>({});
   readonly showEtaShareModal = signal(false);
@@ -1166,35 +1190,38 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     return this.shipmentData()?.actual?.[index]?.packagingListDocumentName || '';
   }
 
-  confirmPlannedSubmission() {
+  async confirmPlannedSubmission(): Promise<void> {
     if (this.plannedSplits.invalid) return;
 
     const shipmentData = this.shipmentData();
     if (!shipmentData) return;
 
-    this.confirmationService.confirm({
+    const confirmed = await this.confirmDialog.ask({
       message: 'Lock the scheduled ETA? This will submit to the server and cannot be undone.',
       header: 'Confirm Scheduled ETA',
+      acceptLabel: 'Yes, Lock ETA',
+      rejectLabel: 'Cancel',
       icon: 'pi pi-lock',
-      accept: () => {
-        const targetNoOfShipments = Number(this.noOfShipmentsControl.value) || this.plannedSplits.length;
-        const containers = this.plannedSplits.getRawValue().slice(0, targetNoOfShipments).map(c => ({
-          ...c,
-          etd: c.etd ? new Date(c.etd).toISOString().split('T')[0] : '',
-          eta: c.eta ? new Date(c.eta).toISOString().split('T')[0] : '',
-        }));
-        this.store.dispatch(
-          ShipmentActions.submitPlannedContainers({
-            shipmentId: shipmentData.shipment._id || (shipmentData as any).shipment.id,
-            containers: containers,
-            plannedQtyMT: shipmentData.shipment.plannedQtyMT || 0,
-            noOfShipments: targetNoOfShipments,
-            keepTab: this.isPlannedLocked(),
-          })
-        );
-        this.editablePlannedRows.set([]);
-      },
+      severity: 'warning',
     });
+    if (!confirmed) return;
+
+    const targetNoOfShipments = Number(this.noOfShipmentsControl.value) || this.plannedSplits.length;
+    const containers = this.plannedSplits.getRawValue().slice(0, targetNoOfShipments).map(c => ({
+      ...c,
+      etd: c.etd ? new Date(c.etd).toISOString().split('T')[0] : '',
+      eta: c.eta ? new Date(c.eta).toISOString().split('T')[0] : '',
+    }));
+    this.store.dispatch(
+      ShipmentActions.submitPlannedContainers({
+        shipmentId: shipmentData.shipment._id || (shipmentData as any).shipment.id,
+        containers: containers,
+        plannedQtyMT: shipmentData.shipment.plannedQtyMT || 0,
+        noOfShipments: targetNoOfShipments,
+        keepTab: this.isPlannedLocked(),
+      })
+    );
+    this.editablePlannedRows.set([]);
   }
 
   getRowDiffs(entry: ScheduledHistoryEntry): HistoryDiffRow[] {
@@ -1283,7 +1310,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     return `ETA updated${idList}`;
   }
 
-  confirmActualSubmission(index: number) {
+  async confirmActualSubmission(index: number): Promise<void> {
     const row = this.actualSplits.at(index);
     if (row.invalid) return;
 
@@ -1301,91 +1328,152 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    this.confirmationService.confirm({
-      message: `Finalize record for Container #${index + 1}?`,
+    const confirmed = await this.confirmDialog.ask({
+      message: `Finalize record for Container #${index + 1}? This cannot be undone.`,
       header: 'Submit Actual',
-      accept: () => {
-        const formValue = row.getRawValue();
-        const containerId = formValue['containerId'];
-        if (!containerId) return;
+      acceptLabel: 'Yes, Submit',
+      rejectLabel: 'Cancel',
+    });
+    if (!confirmed) return;
 
-        const payload = new FormData();
-        payload.append('actualSerialNo', this.getActualShipmentId(index));
-        payload.append('commercialInvoiceNo', formValue['commercialInvoiceNo'] || '');
-        payload.append('qtyMT', String(formValue['qtyMT'] || 0));
-        payload.append('bags', String(formValue['bags'] || 0));
-        payload.append('pallet', String(formValue['pallet'] || 0));
-        payload.append('portOfLoading', formValue['portOfLoading'] || '');
-        payload.append('portOfDischarge', formValue['portOfDischarge'] || '');
-        payload.append('noOfContainers', String(formValue['noOfContainers'] || 0));
-        payload.append('noOfBags', String(formValue['noOfBags'] || 0));
-        payload.append('quantityByMt', String(formValue['quantityByMt'] || 0));
-        payload.append('shippingLine', formValue['shippingLine'] || '');
-        payload.append('freeDetentionDays', String(formValue['freeDetentionDays'] || 0));
-        payload.append('maximumDetentionDays', String(formValue['maximumDetentionDays'] || 0));
-        payload.append('freightPrepared', formValue['freightPrepared'] || 'No');
-        payload.append('billExtractionData', JSON.stringify(formValue['billExtractionData'] || null));
-        payload.append('extractedContainers', JSON.stringify(formValue['extractedContainers'] || []));
-        payload.append('buyingUnit', 'MT');
-        payload.append(
-          'shipOnBoardDate',
-          formValue['shipOnBoardDate'] ? new Date(formValue['shipOnBoardDate']).toISOString().split('T')[0] : ''
-        );
-        payload.append(
-          'updatedETD',
-          formValue['updatedETD'] ? new Date(formValue['updatedETD']).toISOString().split('T')[0] : ''
-        );
-        payload.append(
-          'updatedETA',
-          formValue['updatedETA'] ? new Date(formValue['updatedETA']).toISOString().split('T')[0] : ''
-        );
-        payload.append('BLNo', formValue['BLNo'] || '');
+    const formValue = row.getRawValue();
+    const containerId = formValue['containerId'];
+    if (!containerId) return;
 
-        const billDocument = this.getBillDocumentFile(index);
-        if (billDocument) {
-          payload.append('blDocument', billDocument, billDocument.name);
-        }
+    const payload = new FormData();
+    payload.append('actualSerialNo', this.getActualShipmentId(index));
+    payload.append('commercialInvoiceNo', formValue['commercialInvoiceNo'] || '');
+    payload.append('qtyMT', String(formValue['qtyMT'] || 0));
+    payload.append('bags', String(formValue['bags'] || 0));
+    payload.append('pallet', String(formValue['pallet'] || 0));
+    payload.append('portOfLoading', formValue['portOfLoading'] || '');
+    payload.append('portOfDischarge', formValue['portOfDischarge'] || '');
+    payload.append('noOfContainers', String(formValue['noOfContainers'] || 0));
+    payload.append('noOfBags', String(formValue['noOfBags'] || 0));
+    payload.append('quantityByMt', String(formValue['quantityByMt'] || 0));
+    payload.append('shippingLine', formValue['shippingLine'] || '');
+    payload.append('freeDetentionDays', String(formValue['freeDetentionDays'] || 0));
+    payload.append('maximumDetentionDays', String(formValue['maximumDetentionDays'] || 0));
+    payload.append('freightPrepared', formValue['freightPrepared'] || 'No');
+    payload.append('billExtractionData', JSON.stringify(formValue['billExtractionData'] || null));
+    payload.append('extractedContainers', JSON.stringify(formValue['extractedContainers'] || []));
+    payload.append('buyingUnit', 'MT');
+    payload.append(
+      'shipOnBoardDate',
+      formValue['shipOnBoardDate'] ? new Date(formValue['shipOnBoardDate']).toISOString().split('T')[0] : ''
+    );
+    payload.append(
+      'updatedETD',
+      formValue['updatedETD'] ? new Date(formValue['updatedETD']).toISOString().split('T')[0] : ''
+    );
+    payload.append(
+      'updatedETA',
+      formValue['updatedETA'] ? new Date(formValue['updatedETA']).toISOString().split('T')[0] : ''
+    );
+    payload.append('BLNo', formValue['BLNo'] || '');
 
-        const packagingListDocument = this.getPackagingListFile(index);
-        if (packagingListDocument) {
-          payload.append('packaging_list_document', packagingListDocument, packagingListDocument.name);
-        }
+    const billDocument = this.getBillDocumentFile(index);
+    if (billDocument) {
+      payload.append('blDocument', billDocument, billDocument.name);
+    }
 
-        const packagingList = row.get('packagingList')?.value;
-        if (packagingList) {
-          payload.append('packagingList', JSON.stringify(packagingList));
+    const packagingListDocument = this.getPackagingListFile(index);
+    if (packagingListDocument) {
+      payload.append('packaging_list_document', packagingListDocument, packagingListDocument.name);
+    }
 
-          // Derive packagingDate from production_date in packaging list
-          const rawProductionDate =
-            packagingList.production_date ||
-            packagingList.productionDate ||
-            packagingList.packing_date ||
-            packagingList.packingDate ||
-            null;
+    const packagingList = row.get('packagingList')?.value;
+    if (packagingList) {
+      payload.append('packagingList', JSON.stringify(packagingList));
 
-          if (rawProductionDate) {
-            // Parse MM/YYYY format (e.g. "01/2026") → first day of that month
-            const mmYyyyMatch = String(rawProductionDate).match(/^(\d{1,2})\/(\d{4})$/);
-            if (mmYyyyMatch) {
-              const parsedDate = new Date(
-                Number(mmYyyyMatch[2]),
-                Number(mmYyyyMatch[1]) - 1,
-                1
-              );
-              payload.append('packagingDate', parsedDate.toISOString().split('T')[0]);
-            } else {
-              const parsedDate = new Date(rawProductionDate);
-              if (!isNaN(parsedDate.getTime())) {
-                payload.append('packagingDate', parsedDate.toISOString().split('T')[0]);
-              }
-            }
+      const rawProductionDate =
+        packagingList.production_date ||
+        packagingList.productionDate ||
+        packagingList.packing_date ||
+        packagingList.packingDate ||
+        null;
+
+      if (rawProductionDate) {
+        const mmYyyyMatch = String(rawProductionDate).match(/^(\d{1,2})\/(\d{4})$/);
+        if (mmYyyyMatch) {
+          const parsedDate = new Date(Number(mmYyyyMatch[2]), Number(mmYyyyMatch[1]) - 1, 1);
+          payload.append('packagingDate', parsedDate.toISOString().split('T')[0]);
+        } else {
+          const parsedDate = new Date(rawProductionDate);
+          if (!isNaN(parsedDate.getTime())) {
+            payload.append('packagingDate', parsedDate.toISOString().split('T')[0]);
           }
         }
+      }
+    }
 
-        this.store.dispatch(
-          ShipmentActions.submitActualContainer({ containerId, index, payload })
-        );
-      },
+    this.store.dispatch(ShipmentActions.submitActualContainer({ containerId, index, payload }));
+  }
+
+  // ─── Track Order Modal ────────────────────────────────────────────────────
+
+  private readonly STAGE_ORDER = [
+    'Shipment Entry',
+    'Shipment Tracker',
+    'BL Details',
+    'Document Tracker',
+    'Port and Customs Clearance Tracker',
+    'Storage Allocation & Arrival',
+    'Quality',
+    'Payment & Costing',
+  ] as const;
+
+  openTrackOrderModal(rowIndex: number, group: FormGroup): void {
+    const shipment = this.shipmentData()?.shipment as any;
+    const actual = this.shipmentData()?.actual?.[rowIndex] as any;
+    const planned = this.shipmentData()?.planned?.[rowIndex] as any;
+
+    const formatDate = (value: unknown): string => {
+      if (!value) return '—';
+      const d = value instanceof Date ? value : new Date(value as string);
+      if (isNaN(d.getTime())) return '—';
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+
+    this.trackOrderData.set({
+      shipmentNo: this.getActualShipmentId(rowIndex),
+      currentStage: shipment?.currentStage || 'Shipment Entry',
+      portOfLoading: actual?.portOfLoading || shipment?.portOfLoading || '',
+      portOfDischarge: actual?.portOfDischarge || shipment?.portOfDischarge || '',
+      etd: formatDate(actual?.updatedETD || planned?.etd || group.get('updatedETD')?.value),
+      eta: formatDate(actual?.updatedETA || planned?.eta || group.get('updatedETA')?.value),
     });
+    this.trackOrderModalVisible.set(true);
+  }
+
+  onTrackOrderModalVisibleChange(visible: boolean): void {
+    this.trackOrderModalVisible.set(visible);
+    if (!visible) this.trackOrderData.set(null);
+  }
+
+  /**
+   * Returns 0–100 progress for the ship animation based on the current stage.
+   * Stages map linearly from 0% (Shipment Entry) to 100% (Payment & Costing).
+   */
+  getShipProgress(currentStage: string): number {
+    const index = this.STAGE_ORDER.indexOf(currentStage as any);
+    if (index < 0) return 0;
+    return Math.round((index / (this.STAGE_ORDER.length - 1)) * 100);
+  }
+
+  /** True when the shipment has reached or passed the Storage stage (ship has arrived). */
+  isShipArrived(currentStage: string): boolean {
+    const index = this.STAGE_ORDER.indexOf(currentStage as any);
+    const storageIndex = this.STAGE_ORDER.indexOf('Storage Allocation & Arrival');
+    return index >= storageIndex;
+  }
+
+  isStageCompleted(currentStage: string, stageIndex: number): boolean {
+    const currentIndex = this.STAGE_ORDER.indexOf(currentStage as any);
+    return stageIndex < currentIndex;
+  }
+
+  isCurrentStage(currentStage: string, stageIndex: number): boolean {
+    return this.STAGE_ORDER[stageIndex] === currentStage;
   }
 }

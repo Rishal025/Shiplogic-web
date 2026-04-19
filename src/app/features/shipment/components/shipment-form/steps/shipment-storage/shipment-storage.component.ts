@@ -15,6 +15,7 @@ import { DialogModule } from 'primeng/dialog';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
 import { NotificationService } from '../../../../../../core/services/notification.service';
 import { WarehouseService } from '../../../../../../core/services/warehouse.service';
+import { ConfirmDialogService } from '../../../../../../core/services/confirm-dialog.service';
 
 @Component({
   selector: 'app-shipment-storage',
@@ -42,6 +43,7 @@ export class ShipmentStorageComponent {
   private shipmentService = inject(ShipmentService);
   private notificationService = inject(NotificationService);
   private warehouseService = inject(WarehouseService);
+  private confirmDialog = inject(ConfirmDialogService);
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
 
   constructor() {
@@ -311,7 +313,7 @@ export class ShipmentStorageComponent {
     return this.savingRowKey() === this.saveRowKey(shipmentIndex, containerIndex);
   }
 
-  saveArrivalRow(index: number, containerIndex: number): void {
+  async saveArrivalRow(index: number, containerIndex: number): Promise<void> {
     const group = this.formArray.at(index) as FormGroup | null;
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!group || !shipmentId) return;
@@ -322,8 +324,36 @@ export class ShipmentStorageComponent {
       return;
     }
 
+    const confirmed = await this.confirmDialog.ask({
+      message: `Save storage arrival details for Container ${containerIndex + 1}?`,
+      header: 'Save Storage Arrival',
+      acceptLabel: 'Yes, Save',
+    });
+    if (!confirmed) return;
+
     const row = this.getContainersArray(group)[containerIndex] as FormGroup | undefined;
     if (!row) return;
+
+    // Validate required storage arrival fields
+    const receivedOnDate = row.get('receivedOnDate')?.value;
+    const receivedOnTime = row.get('receivedOnTime')?.value;
+    const grn = String(row.get('grn')?.value || '').trim();
+    const batch = String(row.get('batch')?.value || '').trim();
+    const productionDate = row.get('productionDate')?.value;
+    const expiryDate = row.get('expiryDate')?.value;
+
+    const missingArrivalFields: string[] = [];
+    if (!receivedOnDate) missingArrivalFields.push('Received On Date');
+    if (!receivedOnTime) missingArrivalFields.push('Received On Time');
+    if (!grn) missingArrivalFields.push('GRN #');
+    if (!batch) missingArrivalFields.push('Batch #');
+    if (!productionDate) missingArrivalFields.push('Production Date');
+    if (!expiryDate) missingArrivalFields.push('Expiry Date');
+
+    if (missingArrivalFields.length > 0) {
+      this.notificationService.error('Required Fields Missing', `Please fill: ${missingArrivalFields.join(', ')}`);
+      return;
+    }
 
     const formData = new FormData();
     const rowFile = this.getRowFile(index, containerIndex);

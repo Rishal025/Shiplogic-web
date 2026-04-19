@@ -200,8 +200,8 @@ export class ShipmentFormComponent implements OnDestroy {
       {
         index: 5,
         tabKey: 'storage_arrival',
-        viewPermissionKey: 'shipment.tab.storage_arrival.view',
-        editPermissionKey: 'shipment.tab.storage_arrival.edit',
+        viewPermissionKey: 'shipment.tab.storage.view',
+        editPermissionKey: 'shipment.tab.storage.storage_arrival.edit',
         label: 'Storage Allocation & Arrival',
         subLabel: 'Logistics',
         completed: this.submittedActualIndices().length > 0 && this.allSubmitted(this.submittedActualIndices().length, this.submittedStep5Indices()),
@@ -237,7 +237,16 @@ export class ShipmentFormComponent implements OnDestroy {
   });
 
   readonly stepperSteps = computed<Step[]>(() =>
-    this.trackerStepConfigs().map(({ label, subLabel, completed }) => ({ label, subLabel, completed }))
+    this.trackerStepConfigs().map(({ label, subLabel, completed, viewPermissionKey }) => ({
+      label,
+      subLabel,
+      completed,
+      // Hide the step entirely in the stepper when the user has no view permission.
+      // Admin/Manager bypass is handled inside shouldEnforceTabPermissions().
+      hidden: this.shouldEnforceTabPermissions()
+        ? !this.rbacService.hasPermission(viewPermissionKey)
+        : false,
+    }))
   );
 
   /**
@@ -247,7 +256,8 @@ export class ShipmentFormComponent implements OnDestroy {
   readonly maxEnabledStep = computed<number>(() => {
     // Always allow navigating up to Port & Customs (index 4).
     let max = 4;
-    if (this.isStep4Completed()) {
+    // Storage unlocks as soon as at least one shipment has completed Port & Customs
+    if (this.submittedStep4Indices().length > 0) {
       max = 5;
     }
     if (this.isStep4Completed() && this.isStep5Completed()) {
@@ -351,14 +361,22 @@ export class ShipmentFormComponent implements OnDestroy {
         !!(shipment.courierTrackNo || shipment.courierServiceProvider || shipment.docArrivalNotes);
       const hasReceiving =
         !!(shipment.expectedDocDate || (shipment.receiver && shipment.bankName));
+      const hasRelease =
+        !!(shipment.documentsReleasedDate || shipment.documentsReleasedDocumentUrl);
+
+      // For Direct receiver: only courier + receiving + release required (skip bank milestones)
+      const isDirect = shipment.receiver && String(shipment.receiver).toLowerCase() === 'direct';
+      if (isDirect) {
+        return hasCourier && hasReceiving && hasRelease;
+      }
+
+      // For Bank receiver: full chain required
       const hasInward =
         !!(shipment.inwardCollectionAdviceDate || shipment.inwardCollectionAdviceDocumentUrl);
       const hasMurabahaProcess =
         !!(shipment.murabahaContractReleasedDate || shipment.murabahaContractApprovedDate);
       const hasMurabahaSubmit =
         !!(shipment.murabahaContractSubmittedDate || shipment.murabahaContractSubmittedDocumentUrl);
-      const hasRelease =
-        !!(shipment.documentsReleasedDate || shipment.documentsReleasedDocumentUrl);
 
       return hasCourier && hasReceiving && hasInward && hasMurabahaProcess && hasMurabahaSubmit && hasRelease;
     });
@@ -1311,6 +1329,7 @@ export class ShipmentFormComponent implements OnDestroy {
           sn: [row?.sn ?? index + 1],
           sampleNo: [row?.sampleNo || row?.shipment_no_batch_no || fallbackReport?.shipment_no_batch_no || ''],
           phase: [row?.phase || 'S1'],
+          purpose: [row?.purpose || ''],
           date: [row?.date ? new Date(row.date) : (row?.report_date ? new Date(row.report_date) : defaultDate)],
           inhouseReportNo: [row?.inhouseReportNo || ''],
           inhouseReportDate: [row?.inhouseReportDate ? new Date(row.inhouseReportDate) : defaultDate],

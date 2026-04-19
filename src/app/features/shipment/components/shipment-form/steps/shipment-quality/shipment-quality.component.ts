@@ -15,6 +15,7 @@ import { selectShipmentData } from '../../../../../../store/shipment/shipment.se
 import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
 import { NotificationService } from '../../../../../../core/services/notification.service';
+import { ConfirmDialogService } from '../../../../../../core/services/confirm-dialog.service';
 
 type QualityDocKind = 'inhouse' | 'strategic' | 'thirdParty' | 'attachment' | 'report';
 
@@ -45,6 +46,7 @@ export class ShipmentQualityComponent {
   private store = inject(Store);
   private shipmentService = inject(ShipmentService);
   private notificationService = inject(NotificationService);
+  private confirmDialog = inject(ConfirmDialogService);
 
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
   readonly phaseOptions = [
@@ -96,6 +98,7 @@ export class ShipmentQualityComponent {
         sn: [rows.length + 1],
         sampleNo: [''],
         phase: ['S1'],
+        purpose: [''],
         date: [null],
         inhouseReportNo: [''],
         inhouseReportDate: [null],
@@ -219,6 +222,73 @@ export class ShipmentQualityComponent {
     return this.shipmentData()?.shipment?.q1Report || null;
   }
 
+  /** Returns quality_parameters array from q1Report if present */
+  getQ1QualityParameters(): string[] {
+    const q1 = this.getQ1ReportData();
+    const params = q1?.quality_parameters;
+    if (!params) return [];
+    if (Array.isArray(params)) return params.map((p: any) => String(p));
+    if (typeof params === 'string') return params.split(',').map((s: string) => s.trim()).filter(Boolean);
+    return [];
+  }
+
+  /** Returns quality_parameters as structured rows (array of objects with criteria etc.) */
+  getQ1QualityParameterRows(): Array<{ sNo: number; criteria: string; preferredStandard: string; actual: string; remark: string }> {
+    const q1 = this.getQ1ReportData();
+    const params = q1?.quality_parameters;
+    if (!Array.isArray(params)) return [];
+    return params.map((p: any, i: number) => ({
+      sNo: p.s_no ?? i + 1,
+      criteria: p.criteria || '—',
+      preferredStandard: p.preferred_standard || '—',
+      actual: p.actual != null ? String(p.actual) : '—',
+      remark: p.remark || '—',
+    }));
+  }
+
+  /** Returns purpose from sample_details */
+  getQ1Purpose(): string {
+    const q1 = this.getQ1ReportData();
+    return q1?.sample_details?.purpose || '';
+  }
+
+  /** Returns cooking_result from q1Report — handles both string and object formats */
+  getQ1CookingResult(): string {
+    const q1 = this.getQ1ReportData();
+    if (!q1?.cooking_result) return '';
+    const cr = q1.cooking_result;
+    // Handle object: { result_options: "...", selected_result: "NORMAL" }
+    if (typeof cr === 'object' && cr !== null) {
+      return String(cr.selected_result || '');
+    }
+    return String(cr);
+  }
+
+  /** Returns cooking result options string */
+  getQ1CookingResultOptions(): string {
+    const q1 = this.getQ1ReportData();
+    const cr = q1?.cooking_result;
+    if (typeof cr === 'object' && cr !== null) {
+      return String(cr.result_options || '');
+    }
+    return '';
+  }
+
+  /** Returns remarks from q1Report if present */
+  getQ1Remarks(): string {
+    const q1 = this.getQ1ReportData();
+    return q1?.remarks || q1?.analysis_details?.remarks || '';
+  }
+
+  /** Returns analysis date + time from q1Report */
+  getQ1AnalysisDateTime(): string {
+    const q1 = this.getQ1ReportData();
+    const date = q1?.analysis_details?.date || '';
+    const time = q1?.analysis_details?.time || '';
+    if (!date) return '';
+    return time ? `${date}, ${time}` : date;
+  }
+
   openS1Report(): void {
     const url = this.shipmentData()?.shipment?.s1QualityReportUrl;
     const name = this.shipmentData()?.shipment?.s1QualityReportName || 'S1 Quality Report';
@@ -245,7 +315,7 @@ export class ShipmentQualityComponent {
     if (!visible) this.closeDocumentPreview();
   }
 
-  saveRow(index: number): void {
+  async saveRow(index: number): Promise<void> {
     const group = this.formArray.at(index) as FormGroup | null;
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!group || !shipmentId) return;
@@ -253,6 +323,30 @@ export class ShipmentQualityComponent {
     const containerId = group.get('containerId')?.value;
     if (!containerId) {
       this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
+      return;
+    }
+
+    const confirmed = await this.confirmDialog.ask({
+      message: `Save quality details for Shipment ${index + 1}?`,
+      header: 'Save Quality',
+      acceptLabel: 'Yes, Save',
+    });
+    if (!confirmed) return;
+
+    // Validate required quality fields
+    const qualityRowControls = this.getQualityRows(group).controls;
+    const invalidQualityRows: number[] = [];
+    qualityRowControls.forEach((rowCtrl, rowIdx) => {
+      const phase = String(rowCtrl.get('phase')?.value || '').trim();
+      const date = rowCtrl.get('date')?.value;
+      const attachmentUrl = rowCtrl.get('attachmentDocumentUrl')?.value;
+      const attachmentFile = this.getFile(index, rowIdx, 'attachment', 'qualityRows');
+      if (!phase || !date || (!attachmentUrl && !attachmentFile)) {
+        invalidQualityRows.push(rowIdx + 1);
+      }
+    });
+    if (invalidQualityRows.length > 0) {
+      this.notificationService.error('Required Fields Missing', `Rows ${invalidQualityRows.join(', ')}: Phase, Date, and Attachment are required.`);
       return;
     }
 

@@ -10,6 +10,7 @@ import { AuthService, User } from '../../../core/services/auth.service';
 import { NotificationInboxService } from '../../../core/services/notification-inbox.service';
 import { AppNotification } from '../../../core/models/notification.model';
 import { NotificationService } from '../../../core/services/notification.service';
+import { ConfirmDialogService } from '../../../core/services/confirm-dialog.service';
 import { DialogModule } from 'primeng/dialog';
 import { BadgeModule } from 'primeng/badge';
 import { RealtimeService } from '../../../core/services/realtime.service';
@@ -27,6 +28,7 @@ export class NavbarComponent {
   private authService = inject(AuthService);
   private notificationInboxService = inject(NotificationInboxService);
   private notificationService = inject(NotificationService);
+  private confirmDialog = inject(ConfirmDialogService);
   private realtimeService = inject(RealtimeService);
   private router = inject(Router);
   
@@ -121,7 +123,7 @@ export class NavbarComponent {
     this.showConfirmPassword.set(false);
   }
 
-  submitChangePassword(): void {
+  async submitChangePassword(): Promise<void> {
     if (this.changePasswordForm.invalid) {
       this.changePasswordForm.markAllAsTouched();
       return;
@@ -132,6 +134,15 @@ export class NavbarComponent {
       this.notificationService.error('Password mismatch', 'New password and confirm password must match.');
       return;
     }
+
+    const confirmed = await this.confirmDialog.ask({
+      message: 'Are you sure you want to update your password?',
+      header: 'Update Password',
+      acceptLabel: 'Yes, Update',
+      rejectLabel: 'Cancel',
+      icon: 'pi pi-lock',
+    });
+    if (!confirmed) return;
 
     this.changingPassword.set(true);
     this.authService.changePassword({ currentPassword: currentPassword!, newPassword: newPassword! }).subscribe({
@@ -160,7 +171,17 @@ export class NavbarComponent {
     }).format(date);
   }
 
-  onLogout(): void {
-    this.store.dispatch(logout());
+  async onLogout(): Promise<void> {
+    const confirmed = await this.confirmDialog.ask({
+      message: 'Are you sure you want to log out?',
+      header: 'Log Out',
+      acceptLabel: 'Yes, Log Out',
+      rejectLabel: 'Cancel',
+      icon: 'pi pi-sign-out',
+      severity: 'danger',
+    });
+    if (confirmed) {
+      this.store.dispatch(logout());
+    }
   }
 }

@@ -58,9 +58,9 @@
           <div [formGroup]="$any(group)" class="px-5 pb-5 pt-2 flex flex-col gap-6">
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">B/L No</label>
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">B/L No<span class="text-red-500 ml-0.5">*</span></label>
                 <div class="flex items-center gap-2">
-                  <input pInputText formControlName="blNo" class="table-input-text w-full" placeholder="Enter B/L No" />
+                  <input pInputText formControlName="blNo" class="table-input-text w-full" placeholder="Enter B/L No" [readonly]="submittedActualIndices().includes(i)" />
                   @if (getSavedBlDocumentUrl(group)) {
                     <button
                       type="button"
@@ -74,39 +74,39 @@
                 </div>
               </div>
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shipped On Board</label>
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shipped On Board<span class="text-red-500 ml-0.5">*</span></label>
                 <p-datepicker formControlName="shippedOnBoard" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
               </div>
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Port of Loading</label>
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Port of Loading<span class="text-red-500 ml-0.5">*</span></label>
                 <input pInputText formControlName="portOfLoading" class="table-input-text w-full" placeholder="Port of Loading" />
               </div>
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Port of Discharge</label>
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Port of Discharge<span class="text-red-500 ml-0.5">*</span></label>
                 <input pInputText formControlName="portOfDischarge" class="table-input-text w-full" placeholder="Port of Discharge" />
               </div>
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">No of Containers</label>
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">No of Containers<span class="text-red-500 ml-0.5">*</span></label>
                 <p-inputNumber formControlName="noOfContainers" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
               </div>
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">No of Bags</label>
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">No of Bags<span class="text-red-500 ml-0.5">*</span></label>
                 <p-inputNumber formControlName="noOfBags" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
               </div>
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quantity by MT</label>
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quantity by MT<span class="text-red-500 ml-0.5">*</span></label>
                 <p-inputNumber formControlName="quantityByMt" styleClass="w-full" inputStyleClass="table-input w-full" [minFractionDigits]="2" [maxFractionDigits]="2" placeholder="0.00" />
               </div>
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shipping Line</label>
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Shipping Line<span class="text-red-500 ml-0.5">*</span></label>
                 <input pInputText formControlName="shippingLine" class="table-input-text w-full" placeholder="Shipping Line" />
               </div>
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Free Detention Days</label>
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Free Detention Days<span class="text-red-500 ml-0.5">*</span></label>
                 <p-inputNumber formControlName="freeDetentionDays" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
               </div>
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Maximum Detention Days</label>
+                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Maximum Detention Days<span class="text-red-500 ml-0.5">*</span></label>
                 <p-inputNumber formControlName="maximumDetentionDays" styleClass="w-full" inputStyleClass="table-input w-full" [useGrouping]="false" placeholder="0" />
               </div>
               <div class="flex flex-col gap-1.5 md:col-span-2 xl:col-span-1">
@@ -421,9 +421,9 @@
                   }
                   <div class="hidden md:grid md:grid-cols-[60px_minmax(0,1.45fr)_140px_minmax(0,1.25fr)] gap-3 px-4 py-2.5 bg-slate-50/70 border-b border-slate-100">
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>
-                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Container Serial No</span>
-                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Bags</span>
-                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Warehouse</span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Container Serial No<span class="text-red-500 ml-0.5">*</span></span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Bags<span class="text-red-500 ml-0.5">*</span></span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Warehouse<span class="text-red-500 ml-0.5">*</span></span>
                   </div>
                   <div class="flex flex-col">
                     @for (row of getStorageRows(group).controls; track $index) {
@@ -565,48 +565,104 @@
 }
 
 <p-dialog
-  [header]="'Track Order Status'"
+  [header]="'Track Order'"
   [visible]="statusModalVisible()"
   (visibleChange)="onStatusModalVisibleChange($event)"
   [modal]="true"
   [dismissableMask]="true"
-  [style]="{ width: '92vw', maxWidth: '520px' }"
+  [style]="{ width: '92vw', maxWidth: '560px' }"
   [draggable]="false"
   [resizable]="false"
   appendTo="body">
   @if (statusModalShipmentIndex(); as idx) {
-    <div class="flex flex-col gap-4">
-      <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-        <p class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Shipment</p>
-        <p class="text-sm font-bold text-slate-800 mt-1">{{ getShipmentNoLabel(idx) }}</p>
+    <div class="flex flex-col gap-5 pb-2">
+
+      <!-- Shipment info + current stage -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Shipment</p>
+          <p class="text-sm font-bold text-slate-800 mt-0.5 truncate">{{ getShipmentNoLabel(idx) }}</p>
+        </div>
+        <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+          <p class="text-[10px] font-black text-blue-400 uppercase tracking-wider">Current Stage</p>
+          <p class="text-sm font-bold text-blue-700 mt-0.5">{{ getShipmentReachedStage(idx) }}</p>
+        </div>
       </div>
-      <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-        <p class="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Current Stage</p>
-        <p class="text-sm font-bold text-emerald-700 mt-1">{{ getShipmentReachedStage(idx) }}</p>
-      </div>
-      <div class="flex flex-col gap-2">
-        @for (stage of shipmentStages; track $index; let s = $index) {
-          <div
-            class="flex items-center justify-between rounded-lg border px-3 py-2"
-            [class.border-emerald-200]="isStageCompletedForShipment(idx, s)"
-            [class.bg-emerald-50]="isStageCompletedForShipment(idx, s)"
-            [class.border-blue-200]="isCurrentStageForShipment(idx, s)"
-            [class.bg-blue-50]="isCurrentStageForShipment(idx, s)"
-            [class.border-slate-200]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
-            [class.bg-white]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
-          >
-            <span class="text-xs font-semibold text-slate-700">{{ stage }}</span>
-            <span
-              class="text-[10px] font-black uppercase tracking-wider"
-              [class.text-emerald-600]="isStageCompletedForShipment(idx, s)"
-              [class.text-blue-600]="isCurrentStageForShipment(idx, s)"
-              [class.text-slate-400]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
-            >
-              {{ isCurrentStageForShipment(idx, s) ? 'Current' : (isStageCompletedForShipment(idx, s) ? 'Done' : 'Pending') }}
-            </span>
+
+      <!-- Ship route animation -->
+      <div class="rounded-2xl border border-slate-200 bg-white p-5">
+        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-5">Shipment Route</p>
+
+        <div class="relative flex items-center justify-between gap-3">
+
+          <!-- Origin port -->
+          <div class="flex flex-col items-center gap-2 shrink-0 w-24">
+            <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center shadow-sm">
+              <i class="pi pi-map-marker text-blue-600 text-lg"></i>
+            </div>
+            <div class="text-center">
+              <p class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Origin</p>
+              <p class="text-[11px] font-bold text-slate-700 leading-tight">
+                {{ shipmentData()?.actual?.[idx]?.portOfLoading || shipmentData()?.shipment?.portOfLoading || 'Port of Loading' }}
+              </p>
+            </div>
           </div>
-        }
+
+          <!-- Sea route track -->
+          <div class="relative flex-1 h-12 mx-2 overflow-visible rounded-full">
+            <!-- Sea gradient background — fills bottom half -->
+            <div class="absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-r from-blue-100 via-blue-200 to-blue-100 rounded-full"></div>
+            <!-- Scrolling wave stripes -->
+            <div class="absolute bottom-0 left-0 right-0 h-5 bl-ship-wave rounded-full"></div>
+            <!-- Filled progress track -->
+            <div
+              class="absolute bottom-0 left-0 h-5 bg-blue-400/30 rounded-full transition-all duration-1000"
+              [style.width]="getShipProgress(getShipmentReachedStage(idx)) + '%'">
+            </div>
+            <!-- Ship image — slides from 0 to target on open -->
+            <div
+              class="bl-ship-moving absolute bottom-3"
+              [style.--ship-target]="getShipProgress(getShipmentReachedStage(idx)) + '%'">
+              <div class="w-14 h-10 flex items-center justify-center -translate-x-1/2 drop-shadow-lg">
+                <img src="ship.svg" alt="Ship" class="w-full h-full object-contain" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Destination port -->
+          <div class="flex flex-col items-center gap-2 shrink-0 w-24">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center shadow-sm transition-colors duration-700"
+              [class.bg-emerald-100]="isShipArrived(getShipmentReachedStage(idx))"
+              [class.bg-slate-100]="!isShipArrived(getShipmentReachedStage(idx))">
+              <i class="pi text-lg transition-colors duration-700"
+                [class.pi-check-circle]="isShipArrived(getShipmentReachedStage(idx))"
+                [class.text-emerald-600]="isShipArrived(getShipmentReachedStage(idx))"
+                [class.pi-building]="!isShipArrived(getShipmentReachedStage(idx))"
+                [class.text-slate-400]="!isShipArrived(getShipmentReachedStage(idx))"></i>
+            </div>
+            <div class="text-center">
+              <p class="text-[9px] font-black uppercase tracking-wider transition-colors duration-700"
+                [class.text-emerald-500]="isShipArrived(getShipmentReachedStage(idx))"
+                [class.text-slate-400]="!isShipArrived(getShipmentReachedStage(idx))">Destination</p>
+              <p class="text-[11px] font-bold text-slate-700 leading-tight">
+                {{ shipmentData()?.actual?.[idx]?.portOfDischarge || shipmentData()?.shipment?.portOfDischarge || 'Port of Discharge' }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="mt-4 flex items-center justify-center gap-2">
+          <div class="h-1.5 flex-1 rounded-full bg-slate-100 overflow-hidden">
+            <div
+              class="h-full rounded-full bg-blue-500 transition-all duration-1000"
+              [style.width]="getShipProgress(getShipmentReachedStage(idx)) + '%'">
+            </div>
+          </div>
+          <span class="text-[10px] font-black text-blue-600 shrink-0">{{ getShipProgress(getShipmentReachedStage(idx)) }}%</span>
+        </div>
       </div>
+
     </div>
   }
 </p-dialog>

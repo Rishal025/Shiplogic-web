@@ -17,7 +17,9 @@
     </div>
   </div>
 } @else {
-  <p-accordion [multiple]="true" styleClass="flex flex-col gap-3">
+  <p-accordion [multiple]="true" styleClass="flex flex-col gap-3"
+    [value]="openAccordionPanels()"
+    (valueChange)="onAccordionChange($any($event))">
     @for (group of formArray.controls; track $index; let i = $index) {
       <p-accordion-panel [value]="'doc-' + i" styleClass="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         <p-accordion-header styleClass="bg-white hover:bg-slate-50 px-4 py-3">
@@ -54,11 +56,6 @@
                     Save
                   }
                 </button>
-                @if (isRowSubmitted(i)) {
-                  <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
-                    <i class="pi pi-check-circle text-[10px]"></i> Tracked
-                  </span>
-                }
               } @else {
                 <span class="text-[9px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full shrink-0">
                   Awaiting Step 3
@@ -104,11 +101,11 @@
                         </div>
                       </div>
                       <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Courier Track No</label>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Courier Track No<span class="text-red-500 ml-0.5">*</span></label>
                         <input pInputText formControlName="courierTrackNo" class="table-input-text w-full" placeholder="Enter tracking no" />
                       </div>
                       <div class="flex flex-col gap-1.5">
-                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Courier Provider</label>
+                        <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Courier Provider<span class="text-red-500 ml-0.5">*</span></label>
                         <input pInputText formControlName="courierServiceProvider" class="table-input-text w-full" placeholder="Provider name" />
                       </div>
                       <div class="md:col-span-2 lg:col-span-3 flex flex-col gap-1.5">
@@ -449,8 +446,6 @@
   </p-accordion>
 }
 
-<p-confirmDialog breakpoints="{'960px': '75vw', '640px': '90vw'}" [closable]="false"></p-confirmDialog>
-
 <input #inwardAdviceFileInput type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" class="!hidden" (change)="onFileInputChange($event, 'inwardAdvice')" />
 <input #murabahaSubmittedFileInput type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" class="!hidden" (change)="onFileInputChange($event, 'murabahaSubmitted')" />
 <input #documentsReleasedFileInput type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" class="!hidden" (change)="onFileInputChange($event, 'documentsReleased')" />
@@ -479,47 +474,114 @@
 </p-dialog>
 
 <p-dialog
-  [header]="'Shipment Tracker'"
+  [header]="'Document Tracker'"
   [visible]="statusModalVisible()"
   (visibleChange)="onStatusModalVisibleChange($event)"
   [modal]="true"
   [dismissableMask]="true"
-  [style]="{ width: '92vw', maxWidth: '520px' }"
+  [style]="{ width: '92vw', maxWidth: '560px' }"
   [draggable]="false"
   [resizable]="false"
   appendTo="body">
   @if (statusModalShipmentIndex(); as idx) {
-    <div class="flex flex-col gap-4">
-      <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-        <p class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Shipment</p>
-        <p class="text-sm font-bold text-slate-800 mt-1">{{ getShipmentNoLabel(idx) }}</p>
+    <div class="flex flex-col gap-5 pb-2">
+
+      <!-- Shipment info -->
+      <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Shipment</p>
+        <p class="text-sm font-bold text-slate-800 mt-0.5">{{ getShipmentNoLabel(idx) }}</p>
       </div>
-      <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-        <p class="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Current Stage</p>
-        <p class="text-sm font-bold text-emerald-700 mt-1">{{ getShipmentReachedStage(idx) }}</p>
+
+      <!-- Current stage pill -->
+      <div class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 flex items-center gap-2">
+        <i class="pi pi-send text-blue-500 text-sm"></i>
+        <div>
+          <p class="text-[10px] font-black text-blue-500 uppercase tracking-wider">Current Stage</p>
+          <p class="text-sm font-bold text-blue-700 mt-0.5">{{ getShipmentReachedStage(idx) }}</p>
+        </div>
       </div>
-      <div class="flex flex-col gap-2">
-        @for (stage of shipmentStages; track $index; let s = $index) {
-          <div
-            class="flex items-center justify-between rounded-lg border px-3 py-2"
-            [class.border-emerald-200]="isStageCompletedForShipment(idx, s)"
-            [class.bg-emerald-50]="isStageCompletedForShipment(idx, s)"
-            [class.border-blue-200]="isCurrentStageForShipment(idx, s)"
-            [class.bg-blue-50]="isCurrentStageForShipment(idx, s)"
-            [class.border-slate-200]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
-            [class.bg-white]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
-          >
-            <span class="text-xs font-semibold text-slate-700">{{ stage }}</span>
-            <span
-              class="text-[10px] font-black uppercase tracking-wider"
-              [class.text-emerald-600]="isStageCompletedForShipment(idx, s)"
-              [class.text-blue-600]="isCurrentStageForShipment(idx, s)"
-              [class.text-slate-400]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
-            >
-              {{ isCurrentStageForShipment(idx, s) ? 'Current' : (isStageCompletedForShipment(idx, s) ? 'Done' : 'Pending') }}
-            </span>
+
+      <!-- Courier animation tracker -->
+      <div class="rounded-2xl border border-slate-200 bg-white p-5">
+        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-4">Document Journey</p>
+
+        <!-- Animated courier route -->
+        <div class="relative flex items-center justify-between gap-2 mb-6">
+          <!-- Origin node -->
+          <div class="flex flex-col items-center gap-1.5 shrink-0">
+            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+              <i class="pi pi-building text-blue-600 text-sm"></i>
+            </div>
+            <span class="text-[9px] font-black text-slate-500 uppercase tracking-wider text-center">Supplier</span>
           </div>
-        }
+
+          <!-- Route line with animated parcel -->
+          <div class="relative flex-1 h-1 bg-slate-200 rounded-full overflow-visible mx-1">
+            <!-- Filled progress based on stage -->
+            <div
+              class="absolute inset-y-0 left-0 bg-blue-400 rounded-full transition-all duration-700"
+              [style.width]="getCourierProgressPercent(idx) + '%'">
+            </div>
+            <!-- Animated parcel icon -->
+            <div
+              class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 transition-all duration-700 courier-parcel-bounce"
+              [style.left]="getCourierProgressPercent(idx) + '%'">
+              <div class="w-8 h-8 rounded-full bg-white border-2 border-blue-400 shadow-md flex items-center justify-center">
+                <i class="pi pi-box text-blue-500 text-xs"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Destination node -->
+          <div class="flex flex-col items-center gap-1.5 shrink-0">
+            <div class="w-10 h-10 rounded-full flex items-center justify-center"
+              [class.bg-emerald-100]="isCourierDelivered(idx)"
+              [class.bg-slate-100]="!isCourierDelivered(idx)">
+              <i class="pi text-sm"
+                [class.pi-check-circle]="isCourierDelivered(idx)"
+                [class.text-emerald-600]="isCourierDelivered(idx)"
+                [class.pi-home]="!isCourierDelivered(idx)"
+                [class.text-slate-400]="!isCourierDelivered(idx)"></i>
+            </div>
+            <span class="text-[9px] font-black uppercase tracking-wider text-center"
+              [class.text-emerald-600]="isCourierDelivered(idx)"
+              [class.text-slate-500]="!isCourierDelivered(idx)">Bank / Buyer</span>
+          </div>
+        </div>
+
+        <!-- Milestone checklist -->
+        <div class="flex flex-col gap-2">
+          @for (stage of shipmentStages; track $index; let s = $index) {
+            <div
+              class="flex items-center justify-between rounded-lg border px-3 py-2 transition-colors"
+              [class.border-emerald-200]="isStageCompletedForShipment(idx, s)"
+              [class.bg-emerald-50]="isStageCompletedForShipment(idx, s)"
+              [class.border-blue-200]="isCurrentStageForShipment(idx, s)"
+              [class.bg-blue-50]="isCurrentStageForShipment(idx, s)"
+              [class.border-slate-100]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
+              [class.bg-white]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
+            >
+              <div class="flex items-center gap-2">
+                <i class="pi text-[11px]"
+                  [class.pi-check-circle]="isStageCompletedForShipment(idx, s)"
+                  [class.text-emerald-500]="isStageCompletedForShipment(idx, s)"
+                  [class.pi-circle-fill]="isCurrentStageForShipment(idx, s)"
+                  [class.text-blue-500]="isCurrentStageForShipment(idx, s)"
+                  [class.pi-circle]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
+                  [class.text-slate-300]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"></i>
+                <span class="text-xs font-semibold text-slate-700">{{ stage }}</span>
+              </div>
+              <span
+                class="text-[10px] font-black uppercase tracking-wider"
+                [class.text-emerald-600]="isStageCompletedForShipment(idx, s)"
+                [class.text-blue-600]="isCurrentStageForShipment(idx, s)"
+                [class.text-slate-300]="!isStageCompletedForShipment(idx, s) && !isCurrentStageForShipment(idx, s)"
+              >
+                {{ isCurrentStageForShipment(idx, s) ? 'Current' : (isStageCompletedForShipment(idx, s) ? 'Done' : 'Pending') }}
+              </span>
+            </div>
+          }
+        </div>
       </div>
     </div>
   }
