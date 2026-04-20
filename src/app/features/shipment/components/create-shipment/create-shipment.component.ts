@@ -286,11 +286,14 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
     this.exchangeRateService.getActive().subscribe({
       next: (rates) => {
         this.exchangeRates.set(rates);
-        const options = rates.map((r) => ({
-          label: r.isDefault ? `Direct (${r.rate})` : `${r.bankName} (${r.rate})`,
-          value: r.bankName,
-          rate: r.rate,
-        }));
+        // Build options showing only bank name (not the rate) — clean like the old bankNames dropdown
+        const options = rates
+          .filter((r) => !r.isDefault) // exclude Direct from the dropdown — it's the silent fallback
+          .map((r) => ({
+            label: r.bankName,
+            value: r.bankName,
+            rate: r.rate,
+          }));
         this.exchangeRateOptions.set(options);
 
         // Set the default rate from the "Direct" entry
@@ -300,7 +303,6 @@ export class CreateShipmentComponent implements OnInit, OnDestroy {
         }
       },
       error: () => {
-        // Silently fall back to 3.67 if the API is unavailable
         this.selectedExchangeRate.set(3.67);
       },
     });

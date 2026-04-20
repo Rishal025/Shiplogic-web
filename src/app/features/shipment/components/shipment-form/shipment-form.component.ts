@@ -576,6 +576,22 @@ export class ShipmentFormComponent implements OnDestroy {
     this.shipmentForm.get('noOfShipments')?.setValue(n, { emitEvent: false });
   }
 
+  /** Adds a remainder row (auto-generated when allocated MT < total MT). */
+  onAddRemainderRow(event: { qtyMT: number; fcl: number; copyFrom: any }): void {
+    const group = this.fb.group({
+      size: [event.copyFrom?.size ?? this.shipmentForm.get('containerSize')?.value, Validators.required],
+      qtyMT: [event.qtyMT, Validators.required],
+      weekWiseShipment: [event.copyFrom?.weekWiseShipment ?? ''],
+      FCL: [event.fcl, Validators.required],
+      etd: [null],
+      eta: [null],
+      isManualRow: [true],
+      isRemainderRow: [true],
+    }, { validators: this.dateOrderValidator('etd', 'eta', 'etaBeforeEtd') });
+    this.plannedSplits.push(group);
+    this.shipmentForm.get('noOfShipments')?.setValue(this.plannedSplits.length, { emitEvent: false });
+  }
+
   removePlannedRow(index: number): void {
     if (this.plannedSplits.length <= 1) return;
     const row = this.plannedSplits.at(index) as FormGroup | null;

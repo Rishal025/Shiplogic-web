@@ -166,53 +166,38 @@ export class ShipmentPaymentCostingComponent {
       allocationFactor: string; expensesAllocated: string; totalValueWithExpenses: string; landedCostPerUnit: string;
     }>;
   }): void {
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
     const pageW = doc.internal.pageSize.getWidth();
-    const margin = 36;
-    const contentW = pageW - margin * 2;
+    const pageH = doc.internal.pageSize.getHeight();
+    const M = 28;
+    const CW = pageW - M * 2;
+    const fmtN = (v: unknown) => this.formatCurrency(v);
 
-    // ── HEADER ──────────────────────────────────────────────────────────────
-    doc.setFontSize(13);
-    doc.setFont('helvetica', 'bold');
-    doc.text('ROYAL HORIZON GENERAL TRADING', margin, 44);
-    doc.setFontSize(10);
+    // ── HEADER ───────────────────────────────────────────────────────────────
+    doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+    doc.text('ROYAL HORIZON GENERAL TRADING', M, 22);
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'normal');
+    doc.text('COSTING SHEET', M, 31);
+
+    const bW = 120, bH = 22, bX = pageW - M - bW, bY = 14;
+    doc.setDrawColor(0); doc.setLineWidth(0.4);
+    doc.rect(bX, bY, bW, bH);
+    doc.line(bX, bY + 11, bX + bW, bY + 11);
+    doc.line(bX + 38, bY, bX + 38, bY + bH);
+    doc.setFontSize(6.5); doc.setFont('helvetica', 'bold');
+    doc.text('Date', bX + 3, bY + 8);
+    doc.text('C.S No.', bX + 3, bY + 19);
     doc.setFont('helvetica', 'normal');
-    doc.text('COSTING SHEET', margin, 58);
+    doc.text(config.date, bX + 42, bY + 8);
+    doc.text(config.csNo, bX + 42, bY + 19);
 
-    const boxW = 130;
-    const boxX = pageW - margin - boxW;
-    doc.setDrawColor(0);
-    doc.setLineWidth(0.5);
-    doc.rect(boxX, 30, boxW, 34);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Date:', boxX + 6, 43);
-    doc.text('CS No:', boxX + 6, 57);
-    doc.setFont('helvetica', 'normal');
-    doc.text(config.date, boxX + 36, 43);
-    doc.text(config.csNo, boxX + 36, 57);
-
-    doc.setLineWidth(1);
-    doc.line(margin, 68, pageW - margin, 68);
-
-    // ── SECTION 1 ────────────────────────────────────────────────────────────
-    let y = 80;
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('SECTION 1: IMPORT / INVOICE DETAILS', margin, y);
-    y += 8;
-
-    const colW = contentW / 2 - 4;
-    const leftX = margin;
-    const rightX = margin + colW + 8;
-    const rowH = 14;
-
+    // ── IMPORT DETAILS TABLE ─────────────────────────────────────────────────
     const leftFields: [string, string][] = [
       ['Vendor', config.vendor], ['Country', config.country],
       ['Invoice Amount FC', config.invoiceAmountFC], ['Exchange Rate', config.exchangeRate],
       ['Invoice Amount AED', config.invoiceAmountAED], ['Inco Terms', config.incoTerms],
       ['Payment Terms', config.paymentTerms], ['Com Inv', config.comInv],
-      ['Prof No', config.profNo], ['Murabaha / TT No', config.murabahaNo],
+      ['Prof No', config.profNo], ['Murabaha/TT No', config.murabahaNo],
     ];
     const rightFields: [string, string][] = [
       ['Shipment No', config.shipmentNo2], ['Shipping Line', config.shippingLine],
@@ -222,147 +207,236 @@ export class ShipmentPaymentCostingComponent {
       ['No of Days at Port', config.noOfDaysAtPort], ['GRV No', config.grvNo],
       ['Dec No', config.decNo], ['Dec Value', config.decValue],
     ];
-
-    const maxRows = Math.max(leftFields.length, rightFields.length);
-    const tableTop = y + 2;
-    const tableH = (maxRows + 1) * rowH + 4;
-
-    doc.setLineWidth(0.4);
-    doc.rect(leftX, tableTop, colW, tableH);
-    doc.rect(rightX, tableTop, colW, tableH);
-
-    doc.setFillColor(30, 41, 59);
-    doc.rect(leftX, tableTop, colW, rowH, 'F');
-    doc.rect(rightX, tableTop, colW, rowH, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7.5);
-    doc.setTextColor(255);
-    doc.text('FIELD', leftX + 4, tableTop + rowH - 3);
-    doc.text('VALUE', leftX + colW * 0.52, tableTop + rowH - 3);
-    doc.text('FIELD', rightX + 4, tableTop + rowH - 3);
-    doc.text('VALUE', rightX + colW * 0.52, tableTop + rowH - 3);
-    doc.setTextColor(0);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-
-    for (let i = 0; i < maxRows; i++) {
-      const rowY = tableTop + (i + 1) * rowH;
-      if (i % 2 === 0) {
-        doc.setFillColor(248, 250, 252);
-        doc.rect(leftX, rowY, colW, rowH, 'F');
-        doc.rect(rightX, rowY, colW, rowH, 'F');
-      }
-      doc.setLineWidth(0.2);
-      doc.line(leftX, rowY, leftX + colW, rowY);
-      doc.line(rightX, rowY, rightX + colW, rowY);
-      if (leftFields[i]) {
-        doc.setFont('helvetica', 'bold');
-        doc.text(leftFields[i][0], leftX + 4, rowY + rowH - 3);
-        doc.setFont('helvetica', 'normal');
-        doc.text(leftFields[i][1] || '—', leftX + colW * 0.52, rowY + rowH - 3);
-      }
-      if (rightFields[i]) {
-        doc.setFont('helvetica', 'bold');
-        doc.text(rightFields[i][0], rightX + 4, rowY + rowH - 3);
-        doc.setFont('helvetica', 'normal');
-        doc.text(rightFields[i][1] || '—', rightX + colW * 0.52, rowY + rowH - 3);
-      }
+    const nRows = Math.max(leftFields.length, rightFields.length);
+    const importBody: any[][] = [];
+    for (let i = 0; i < nRows; i++) {
+      importBody.push([
+        leftFields[i]?.[0] ?? '', leftFields[i]?.[1] ?? '',
+        rightFields[i]?.[0] ?? '', rightFields[i]?.[1] ?? '',
+      ]);
     }
 
-    y = tableTop + tableH + 14;
+    autoTable(doc, {
+      startY: 36,
+      body: importBody,
+      theme: 'grid',
+      styles: { fontSize: 6.5, cellPadding: { top: 1.5, bottom: 1.5, left: 3, right: 3 }, lineColor: [180, 180, 180], lineWidth: 0.2 },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: CW * 0.13, fillColor: [245, 247, 250] },
+        1: { cellWidth: CW * 0.24 },
+        2: { fontStyle: 'bold', cellWidth: CW * 0.13, fillColor: [245, 247, 250] },
+        3: { cellWidth: 'auto' },
+      },
+      margin: { left: M, right: M },
+      tableLineColor: [0, 0, 0],
+      tableLineWidth: 0.4,
+    });
 
-    // ── SECTION 2 ────────────────────────────────────────────────────────────
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('SECTION 2: COST BREAKDOWN', margin, y);
-    y += 4;
+    let y = (doc as any).lastAutoTable.finalY + 6;
 
+    // ── COST BREAKDOWN + CUSTOM VALUE (side by side) ─────────────────────────
     const costTotal = config.costRows.reduce((s, r) => s + (Number(r.actualCostDH) || 0), 0);
-    const requestTotal = config.costRows.reduce((s, r) => s + (Number(r.requestAmount) || 0), 0);
-    const costBody: any[][] = config.costRows.map((r) => [r.sn, r.description, r.requestAmount, r.actualCostDH, r.billRef || '', r.remarks || '']);
-    costBody.push(['', 'TOTAL', this.formatCurrency(requestTotal), this.formatCurrency(costTotal), '', '']);
+    const costBody: any[][] = config.costRows.map((r) => [
+      r.sn, r.description, r.actualCostDH ? fmtN(r.actualCostDH) : '', r.billRef || '', r.remarks || '',
+    ]);
+    costBody.push(['', 'TOTAL', fmtN(costTotal), '', '']);
+
+    const customBody: any[][] = config.costRows.map((r) => {
+      const dh = Number(r.actualCostDH) || 0;
+      const vat = dh * 0.05;
+      return [vat ? fmtN(vat) : '', '', '', vat ? fmtN(vat) : ''];
+    });
+    const totalVat = config.costRows.reduce((s, r) => s + (Number(r.actualCostDH) || 0) * 0.05, 0);
+    customBody.push([fmtN(totalVat), '', '', fmtN(totalVat)]);
+
+    const costTW = CW * 0.555;
+    const custTW = CW - costTW - 4;
+    const custX = M + costTW + 4;
+
+    doc.setFontSize(6); doc.setFont('helvetica', 'bold');
+    doc.text('CUSTOM VALUE TAKEN WITHOUT DISCOUNT', custX + 2, y + 5);
+    y += 7;
 
     autoTable(doc, {
       startY: y,
-      head: [['SN', 'Description', 'Request Amount', 'Actual Paid', 'Bill Ref.', 'Payment Ref / Remarks']],
+      head: [['Sn', 'Description', 'Cost DH', 'Bill Ref.', 'Payment Ref./Remarks']],
       body: costBody,
       theme: 'grid',
-      styles: { fontSize: 7.5, cellPadding: 3 },
-      headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', fontSize: 7.5 },
+      styles: { fontSize: 6.5, cellPadding: { top: 1.8, bottom: 1.8, left: 2.5, right: 2.5 }, lineColor: [180, 180, 180], lineWidth: 0.2 },
+      headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: 'bold', fontSize: 6.5, lineColor: [0, 0, 0], lineWidth: 0.3 },
       columnStyles: {
-        0: { cellWidth: 24 }, 1: { cellWidth: 160 },
-        2: { halign: 'right', cellWidth: 72 },
-        3: { halign: 'right', cellWidth: 72 }, 4: { cellWidth: 72 }, 5: { cellWidth: 'auto' },
+        0: { cellWidth: 18, halign: 'center' },
+        1: { cellWidth: 'auto' },
+        2: { halign: 'right', cellWidth: 58 },
+        3: { cellWidth: 52 },
+        4: { cellWidth: 68 },
       },
       didParseCell: (data: any) => {
         if (data.row.index === costBody.length - 1) {
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.fillColor = [241, 245, 249];
+          data.cell.styles.fillColor = [240, 240, 240];
         }
       },
-      margin: { left: margin, right: margin },
+      tableWidth: costTW,
+      tableLineColor: [0, 0, 0],
+      tableLineWidth: 0.4,
+      margin: { left: M, right: M + custTW + 4 },
     });
 
-    y = (doc as any).lastAutoTable.finalY + 14;
+    const costFinalY = (doc as any).lastAutoTable.finalY;
 
-    // ── SECTION 3 ────────────────────────────────────────────────────────────
-    if (y > doc.internal.pageSize.getHeight() - 120) { doc.addPage(); y = 40; }
+    // Custom value: VAT Applied RH = Costed DH × 0.05
+    // Paid WD Vat For RH = VAT Applied RH (same value — RH pays the VAT)
+    // Paid WD Vat For Supplier Ac = user-entered (blank by default)
+    // Total Paid Frm Adv = Paid WD Vat For RH + Paid WD Vat For Supplier Ac
+    const customBody2: any[][] = config.costRows.map((r) => {
+      const dh = Number(r.actualCostDH) || 0;
+      const paidRH = dh; // Paid WD Vat For RH = Costed DH
+      const totalPaid = paidRH; // Total Paid Frm Adv = Paid WD Vat For RH + 0
+      return [
+        '',                          // VAT Applied RH — blank
+        paidRH ? fmtN(paidRH) : '', // Paid WD Vat For RH = Costed DH
+        '',                          // Paid WD Vat For Supplier AC — blank
+        totalPaid ? fmtN(totalPaid) : '', // Total Paid Frm Adv
+      ];
+    });
+    const totPaidRH2 = config.costRows.reduce((s, r) => s + (Number(r.actualCostDH) || 0), 0);
+    customBody2.push(['', fmtN(totPaidRH2), '', fmtN(totPaidRH2)]);
 
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('SECTION 3: ITEM COSTING', margin, y);
-    y += 4;
+    autoTable(doc, {
+      startY: y,
+      head: [['Vat Applied\nRH', 'Paid WD Vat\nFor RH', 'Paid WD Vat\nFor Supplier Ac', 'Totl Paid\nFrm Adv']],
+      body: customBody2,
+      theme: 'grid',
+      styles: { fontSize: 6, cellPadding: { top: 1.8, bottom: 1.8, left: 2, right: 2 }, halign: 'right', lineColor: [180, 180, 180], lineWidth: 0.2 },
+      headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: 'bold', fontSize: 6, lineColor: [0, 0, 0], lineWidth: 0.3 },
+      columnStyles: {
+        0: { halign: 'right', cellWidth: 'auto' },
+        1: { halign: 'right', cellWidth: 'auto' },
+        2: { halign: 'right', cellWidth: 'auto' },
+        3: { halign: 'right', cellWidth: 'auto' },
+      },
+      didParseCell: (data: any) => {
+        if (data.row.index === customBody2.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [240, 240, 240];
+        }
+      },
+      tableWidth: custTW,
+      tableLineColor: [0, 0, 0],
+      tableLineWidth: 0.4,
+      margin: { left: custX, right: M },
+    });
 
-    const itemBody = config.itemRows.map((r) => [
-      r.slNo, r.item, r.packing, r.qty, r.uom,
-      r.unitCostFC, r.unitCostDH, r.totalCostFC, r.totalCostDH,
-      r.allocationFactor, r.expensesAllocated, r.totalValueWithExpenses, r.landedCostPerUnit,
+    y = Math.max(costFinalY, (doc as any).lastAutoTable.finalY) + 6;
+
+    // ── ITEM COSTING TABLE ───────────────────────────────────────────────────
+    if (y > pageH - 90) { doc.addPage(); y = M; }
+
+    const exRate = Number(config.exchangeRate) || 3.67;
+    const totalCostDHSum = config.itemRows.reduce((s, r) => s + (Number(r.totalCostDH) || 0), 0);
+    const totalCostFCSum = config.itemRows.reduce((s, r) => s + (Number(r.totalCostFC) || 0), 0);
+    const totalExpAllocated = config.itemRows.reduce((s, r) => s + (Number(r.expensesAllocated) || 0), 0);
+    const grandTotalValue = config.itemRows.reduce((s, r) => s + (Number(r.totalValueWithExpenses) || 0), 0);
+    const totalQty = config.itemRows.reduce((s, r) => s + (Number(r.qty) || 0), 0);
+
+    const itemBody: any[][] = config.itemRows.map((r) => {
+      const unitFC = Number(r.unitCostFC) || 0;
+      const unitDH = unitFC * exRate;
+      const qty = Number(r.qty) || 0;
+      const totFC = unitFC * qty;
+      const totDH = unitDH * qty;
+      const allocFactor = totalCostDHSum > 0 ? totDH / totalCostDHSum : 0;
+      const expAlloc = allocFactor * costTotal;
+      const totWithExp = totDH + expAlloc;
+      const landedCost = qty > 0 ? totWithExp / qty : 0;
+      return [
+        r.slNo, r.item, r.packing,
+        qty ? fmtN(qty) : '', r.uom,
+        unitFC ? fmtN(unitFC) : '', unitDH ? fmtN(unitDH) : '',
+        totFC ? fmtN(totFC) : '', totDH ? fmtN(totDH) : '',
+        allocFactor ? (allocFactor * 100).toFixed(4) + '%' : '0.0000%',
+        expAlloc ? fmtN(expAlloc) : '',
+        totWithExp ? fmtN(totWithExp) : '',
+        landedCost ? fmtN(landedCost) : '',
+      ];
+    });
+    itemBody.push([
+      'TOTAL', '', '',
+      totalQty ? fmtN(totalQty) : '', '',
+      '', '',
+      totalCostFCSum ? fmtN(totalCostFCSum) : '', totalCostDHSum ? fmtN(totalCostDHSum) : '',
+      '1.00',
+      totalExpAllocated ? fmtN(totalExpAllocated) : '',
+      grandTotalValue ? fmtN(grandTotalValue) : '',
+      '',
     ]);
 
     autoTable(doc, {
       startY: y,
-      head: [['Sl No', 'Item', 'Packing', 'Qty', 'UOM', 'Unit Cost FC', 'Unit Cost DH', 'Total Cost FC', 'Total Cost DH', 'Alloc. Factor', 'Exp. Allocated', 'Total w/ Exp.', 'Landed Cost/Unit']],
+      head: [[
+        'Sl No', 'Item', 'Packing', 'Qty', 'UOM',
+        { content: 'Unit Cost', colSpan: 2 } as any,
+        { content: 'Total Cost', colSpan: 2 } as any,
+        'Expenses\nAllocation\nFactor', 'Expenses\nAllocated', 'Total Value\nWith Expenses', 'Landed\nCost/Unit',
+      ], [
+        '', '', '', '', '',
+        'FC', 'DH', 'FC', 'DH',
+        '', '', '', '',
+      ]],
       body: itemBody.length ? itemBody : [['—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—']],
       theme: 'grid',
-      styles: { fontSize: 6.5, cellPadding: 2.5 },
-      headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', fontSize: 6.5 },
+      styles: { fontSize: 6.5, cellPadding: { top: 1.8, bottom: 1.8, left: 2.5, right: 2.5 }, lineColor: [180, 180, 180], lineWidth: 0.2 },
+      headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: 'bold', fontSize: 6.5, lineColor: [0, 0, 0], lineWidth: 0.3, halign: 'center' },
       columnStyles: {
-        0: { cellWidth: 22 }, 1: { cellWidth: 60 }, 2: { cellWidth: 40 },
-        3: { halign: 'right', cellWidth: 28 }, 4: { cellWidth: 22 },
-        5: { halign: 'right', cellWidth: 38 }, 6: { halign: 'right', cellWidth: 38 },
-        7: { halign: 'right', cellWidth: 38 }, 8: { halign: 'right', cellWidth: 38 },
-        9: { halign: 'right', cellWidth: 34 }, 10: { halign: 'right', cellWidth: 38 },
-        11: { halign: 'right', cellWidth: 38 }, 12: { halign: 'right', cellWidth: 'auto' },
+        0: { cellWidth: 20, halign: 'center' },
+        1: { cellWidth: 90 },
+        2: { cellWidth: 55 },
+        3: { halign: 'right', cellWidth: 40 },
+        4: { cellWidth: 28 },
+        5: { halign: 'right', cellWidth: 42 },
+        6: { halign: 'right', cellWidth: 42 },
+        7: { halign: 'right', cellWidth: 42 },
+        8: { halign: 'right', cellWidth: 42 },
+        9: { halign: 'right', cellWidth: 46 },
+        10: { halign: 'right', cellWidth: 46 },
+        11: { halign: 'right', cellWidth: 52 },
+        12: { halign: 'right', cellWidth: 'auto' },
       },
-      margin: { left: margin, right: margin },
+      didParseCell: (data: any) => {
+        if (data.row.index === itemBody.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [240, 240, 240];
+        }
+      },
+      tableLineColor: [0, 0, 0],
+      tableLineWidth: 0.4,
+      margin: { left: M, right: M },
     });
 
-    y = (doc as any).lastAutoTable.finalY + 20;
+    y = (doc as any).lastAutoTable.finalY + 10;
 
-    // ── SECTION 4: SIGNATURES ────────────────────────────────────────────────
-    if (y > doc.internal.pageSize.getHeight() - 70) { doc.addPage(); y = 40; }
+    // ── APPROVALS ────────────────────────────────────────────────────────────
+    if (y > pageH - 44) { doc.addPage(); y = M; }
 
-    const sigLabels = ['AP', 'FC', 'CFO', 'MD'];
-    const sigW = contentW / sigLabels.length;
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'bold');
-    sigLabels.forEach((label, i) => {
-      const sx = margin + i * sigW;
-      doc.setLineWidth(0.5);
-      doc.line(sx + 10, y + 28, sx + sigW - 10, y + 28);
-      doc.text(label, sx + sigW / 2, y + 40, { align: 'center' });
+    const sigs = ['AP', 'FC', 'CFO', 'CEO'];
+    const sigW = CW / sigs.length;
+    sigs.forEach((label, i) => {
+      const sx = M + i * sigW;
+      doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+      doc.text(label, sx + 4, y + 8);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5);
+      doc.setDrawColor(150); doc.setLineWidth(0.3);
+      doc.line(sx + 4, y + 22, sx + sigW - 8, y + 22);
     });
 
     // Footer
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(150);
+    doc.setFontSize(6); doc.setFont('helvetica', 'normal'); doc.setTextColor(150);
     const now = new Date();
-    const genLine = `Generated by Royal Shipment Tracker — ${now.toLocaleDateString('en-GB')} ${now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`;
-    const dlLine = `Downloaded by: ${config.downloadedBy}`;
-    const footerY = doc.internal.pageSize.getHeight() - 22;
-    doc.text(genLine, pageW / 2, footerY, { align: 'center' });
-    doc.text(dlLine, pageW / 2, footerY + 10, { align: 'center' });
+    doc.text(
+      `Generated by Royal Shipment Tracker — ${now.toLocaleDateString('en-GB')} ${now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}   |   Downloaded by: ${config.downloadedBy}`,
+      pageW / 2, pageH - 10, { align: 'center' }
+    );
     doc.setTextColor(0);
 
     doc.save(`${config.shipmentNo.replace(/[^a-z0-9_-]/gi, '_')}-costing-sheet.pdf`);
@@ -667,6 +741,30 @@ export class ShipmentPaymentCostingComponent {
         reference: [''],
       })
     );
+  }
+
+  /** Returns the effective exchange rate: amountAED / totalFC, or 3.67 as fallback. */
+  private getExchangeRate(): number {
+    const shipment = this.shipmentData()?.shipment as any;
+    const totalFC = Number(shipment?.totalFC) || 0;
+    const amountAED = Number(shipment?.amountAED) || 0;
+    if (totalFC > 0 && amountAED > 0) return amountAED / totalFC;
+    return 3.67;
+  }
+
+  /** Called when unitCostFC or qty changes in a packaging expense row — auto-calculates DH and totals. */
+  onPackagingRowCalc(row: AbstractControl): void {
+    const rate = this.getExchangeRate();
+    const unitCostFC = Number(row.get('unitCostFC')?.value) || 0;
+    const qty = Number(row.get('qty')?.value) || 0;
+
+    const unitCostDH = Math.round(unitCostFC * rate * 100) / 100;
+    const totalCostFC = Math.round(unitCostFC * qty * 100) / 100;
+    const totalCostDH = Math.round(unitCostDH * qty * 100) / 100;
+
+    row.get('unitCostDH')?.setValue(unitCostDH, { emitEvent: false });
+    row.get('totalCostFC')?.setValue(totalCostFC, { emitEvent: false });
+    row.get('totalCostDH')?.setValue(totalCostDH, { emitEvent: false });
   }
 
   openPackagingExpensesModal(index: number): void {

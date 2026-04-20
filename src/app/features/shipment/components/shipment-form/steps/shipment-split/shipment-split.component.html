@@ -91,9 +91,7 @@
       </div>
       <div class="split-toolbar-totals flex flex-wrap gap-6 border-t xl:border-t-0 xl:border-l border-slate-700 pt-4 xl:pt-0 xl:pl-4 shrink-0" aria-label="Current Totals">
         <div class="flex flex-col">
-          <span class="text-[9px] text-slate-500 font-bold uppercase">
-            {{ activeSplitTab() === 'planned' ? 'Scheduled' : 'Actual' }} MT
-          </span>
+          <span class="text-[9px] text-slate-500 font-bold uppercase">Scheduled MT</span>
           <span class="text-sm font-black"
             [class.text-white]="getPlannedTotals().mt <= (shipmentData()?.shipment?.plannedQtyMT || 0)"
             [class.text-red-500]="getPlannedTotals().mt > (shipmentData()?.shipment?.plannedQtyMT || 0)">
@@ -101,8 +99,24 @@
           </span>
         </div>
         <div class="flex flex-col">
-          <span class="text-[9px] text-slate-500 font-bold uppercase">FCL Units</span>
-          <span class="text-sm font-black text-white">{{ getPlannedTotals().fcl }}</span>
+          <span class="text-[9px] text-slate-500 font-bold uppercase">Total MT</span>
+          <span class="text-sm font-black text-slate-300">
+            {{ (shipmentData()?.shipment?.plannedQtyMT || 0) | number }}
+          </span>
+        </div>
+        <div class="flex flex-col border-l border-slate-700 pl-6">
+          <span class="text-[9px] text-slate-500 font-bold uppercase">Scheduled FCL</span>
+          <span class="text-sm font-black"
+            [class.text-white]="getPlannedTotals().fcl <= (shipmentData()?.shipment?.fcl || 0)"
+            [class.text-red-500]="getPlannedTotals().fcl > (shipmentData()?.shipment?.fcl || 0)">
+            {{ getPlannedTotals().fcl }}
+          </span>
+        </div>
+        <div class="flex flex-col">
+          <span class="text-[9px] text-slate-500 font-bold uppercase">Total FCL</span>
+          <span class="text-sm font-black text-slate-300">
+            {{ shipmentData()?.shipment?.fcl || 0 }}
+          </span>
         </div>
       </div>
     </div>
@@ -166,7 +180,12 @@
         </ng-template>
         <ng-template pTemplate="body" let-group let-i="rowIndex">
           <tr [formGroup]="$any(group)">
-            <td class="planned-col-shipment text-slate-700 font-semibold text-xs">{{ getScheduledShipmentId(i) }}</td>
+            <td class="planned-col-shipment text-slate-700 font-semibold text-xs">
+              {{ getScheduledShipmentId(i) }}
+              @if (group.get('isRemainderRow')?.value) {
+                <span class="ml-1 px-1 py-0.5 rounded text-[8px] font-black bg-amber-100 text-amber-700 uppercase">Remainder</span>
+              }
+            </td>
             <td class="planned-col-compact">
               <p-inputNumber formControlName="FCL" styleClass="w-full"
                 inputStyleClass="table-input text-center" ariaLabel="FCL Units" placeholder="1"
@@ -185,6 +204,7 @@
               <p-inputNumber formControlName="qtyMT" styleClass="w-full"
                 inputStyleClass="table-input"
                 ariaLabel="Quantity in MT" placeholder="0.00"
+                (onBlur)="onPlannedQtyMTChange(i)"
               ></p-inputNumber>
             </td>
             <td class="planned-col-date">

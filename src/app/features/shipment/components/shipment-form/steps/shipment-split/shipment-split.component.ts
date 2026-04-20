@@ -73,6 +73,8 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   @Output() confirmNoOfShipments = new EventEmitter<number>();
   @Output() addPlannedRow = new EventEmitter<void>();
   @Output() removePlannedRow = new EventEmitter<number>();
+  @Output() addRemainderRow = new EventEmitter<{ qtyMT: number; fcl: number; copyFrom: any }>();
+  @Output() removeRemainderRow = new EventEmitter<number>();
 
   private store = inject(Store);
   private confirmationService = inject(ConfirmationService);
@@ -594,6 +596,78 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     return String(date.getDate());
   }
 
+  /** Called when qtyMT changes in a planned row — auto-sets FCL = ceil(qtyMT / 25) and recalculates remainder row. */
+  onPlannedQtyMTChange(rowIndex: number): void {
+    if (this.isRebalancingPlannedRows || !this.plannedSplits?.length) return;
+
+    const row = this.plannedSplits.at(rowIndex);
+    if (!row) return;
+
+    // Auto-calc FCL from qtyMT
+    const qtyMT = Number(row.get('qtyMT')?.value) || 0;
+    const autoFcl = qtyMT > 0 ? Math.ceil(qtyMT / 25) : 0;
+    row.get('FCL')?.setValue(autoFcl, { emitEvent: false });
+
+    // Recalculate remainder row
+    this.recalculateRemainderRow();
+  }
+
+  /** Recalculates and manages the auto-added remainder row. */
+  recalculateRemainderRow(): void {
+    if (this.isRebalancingPlannedRows || !this.plannedSplits?.length) return;
+
+    const totalQtyMT = Number(this.shipmentData()?.shipment?.plannedQtyMT ?? this.totalQtyMT) || 0;
+    if (totalQtyMT <= 0) return;
+
+    const submittedActual = new Set(this.submittedActualIndices());
+
+    // Sum all non-remainder rows (rows that are not auto-remainder rows)
+    let allocatedMT = 0;
+    let remainderRowIndex = -1;
+    this.plannedSplits.controls.forEach((ctrl, i) => {
+      if (ctrl.get('isRemainderRow')?.value) {
+        remainderRowIndex = i;
+      } else {
+        allocatedMT += Number(ctrl.get('qtyMT')?.value) || 0;
+      }
+    });
+
+    const remainderMT = Math.round((totalQtyMT - allocatedMT) * 100) / 100;
+
+    if (remainderMT > 0) {
+      // Need a remainder row
+      if (remainderRowIndex >= 0) {
+        // Update existing remainder row
+        const remainderRow = this.plannedSplits.at(remainderRowIndex);
+        const newFcl = Math.ceil(remainderMT / 25);
+        this.isRebalancingPlannedRows = true;
+        remainderRow.get('qtyMT')?.setValue(remainderMT, { emitEvent: false });
+        remainderRow.get('FCL')?.setValue(newFcl, { emitEvent: false });
+        this.isRebalancingPlannedRows = false;
+      } else {
+        // Add a new remainder row — copy most fields from last non-remainder row
+        const lastRow = this.plannedSplits.controls
+          .filter(c => !c.get('isRemainderRow')?.value)
+          .slice(-1)[0];
+        const lastVal = lastRow?.getRawValue() || {};
+        const newFcl = Math.ceil(remainderMT / 25);
+        this.isRebalancingPlannedRows = true;
+        // We emit via parent — use @Output to add row
+        this.addRemainderRow.emit({ qtyMT: remainderMT, fcl: newFcl, copyFrom: lastVal });
+        this.isRebalancingPlannedRows = false;
+      }
+    } else if (remainderMT <= 0 && remainderRowIndex >= 0) {
+      // Remainder is 0 or negative — remove the remainder row if not submitted as actual
+      if (!submittedActual.has(remainderRowIndex)) {
+        this.removeRemainderRow.emit(remainderRowIndex);
+      }
+    }
+
+    // Update noOfShipments to reflect current count
+    const totalRows = this.plannedSplits.length;
+    this.noOfShipmentsControl.setValue(totalRows, { emitEvent: false });
+  }
+
   onPlannedFclBlur(rowIndex: number): void {
     if (!this.plannedSplits?.length || this.isRebalancingPlannedRows) {
       return;
@@ -810,7 +884,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     if (this.isPlannedLocked()) return false;
     if (this.plannedSplits.length <= 1) return false;
     const row = this.plannedSplits.at(index);
-    return !!row?.get('isManualRow')?.value;
+    return !!row?.get('isManualRow')?.value || !!row?.get('isRemainderRow')?.value;
   }
 
   isPlannedRowLocked(index: number): boolean {

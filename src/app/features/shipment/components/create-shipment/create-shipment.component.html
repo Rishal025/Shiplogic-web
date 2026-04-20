@@ -539,31 +539,25 @@
                 <div class="text-xl font-black text-blue-900">{{ (shipmentForm.get('totalUSD')?.value || 0) | currency:'USD' }}</div>
               </div>
               <div class="financial-total-box">
-                <label class="text-[10px] font-bold uppercase tracking-wider text-emerald-500">
-                  Total AED (Auto)
-                  <span class="ml-1 text-[9px] font-semibold text-emerald-400">@ {{ selectedExchangeRate() | number:'1.2-4' }}</span>
-                </label>
+                <label class="text-[10px] font-bold uppercase tracking-wider text-emerald-500">Total AED (Auto)</label>
                 <div class="text-xl font-black text-emerald-900">{{ (shipmentForm.get('totalAED')?.value || 0) | number:'1.2-2' }} AED</div>
               </div>
             </div>
 
-            <!-- Bank / Exchange Rate selector — always visible, drives AED calculation -->
+            <!-- Bank selector — optional, drives AED calculation in background -->
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div class="flex flex-col gap-1.5">
-                <label class="sl-label">Bank / Exchange Rate</label>
+              <div class="flex flex-col">
+                <label class="sl-label">Bank Name</label>
                 <p-select
                   [options]="exchangeRateOptions()"
                   formControlName="bankName"
                   optionLabel="label"
                   optionValue="value"
-                  placeholder="Direct (default rate)"
+                  placeholder="Select Bank Name"
                   [showClear]="true"
                   styleClass="w-full"
                   appendTo="body">
                 </p-select>
-                <span class="text-[10px] text-slate-400">
-                  Select a bank to use its exchange rate. Leave blank to use the Direct rate.
-                </span>
               </div>
               <div class="flex flex-col">
                 <label class="sl-label">Payment Terms</label>
