@@ -1,16 +1,19 @@
 import { Component, Input, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormGroup, AbstractControl } from '@angular/forms';
+import { ReactiveFormsModule, AbstractControl, FormsModule } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { InputNumberModule } from 'primeng/inputnumber';
+import { InputTextModule } from 'primeng/inputtext';
 import { selectShipmentData, selectIsPlannedLocked } from '../../../../../../store/shipment/shipment.selectors';
+import { ShipmentService } from '../../../../../../core/services/shipment.service';
+import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
 
 @Component({
   selector: 'app-shipment-summary',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, InputNumberModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, InputNumberModule, InputTextModule],
   templateUrl: './shipment-summary.component.html',
 })
 export class ShipmentSummaryComponent {
@@ -18,11 +21,12 @@ export class ShipmentSummaryComponent {
 
   private store = inject(Store);
   private sanitizer = inject(DomSanitizer);
+  private shipmentService = inject(ShipmentService);
 
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
-  readonly isPlannedLocked = toSignal(this.store.select(selectIsPlannedLocked), {
-    initialValue: false,
-  });
+  readonly isPlannedLocked = toSignal(this.store.select(selectIsPlannedLocked), { initialValue: false });
+
+  // ── Document preview ──────────────────────────────────────────────────────
   readonly showPreviewModal = signal(false);
   readonly previewUrl = signal<string | null>(null);
   readonly previewTitle = signal('');
@@ -35,6 +39,48 @@ export class ShipmentSummaryComponent {
     return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   });
 
+  // ── Vendor Email Inline Edit ──────────────────────────────────────────────
+  readonly editingEmail = signal(false);
+  readonly emailDraft = signal('');
+  readonly emailSaving = signal(false);
+  readonly emailError = signal<string | null>(null);
+
+  startEmailEdit(): void {
+    this.emailDraft.set(this.shipmentData()?.shipment?.supplierEmail || '');
+    this.emailError.set(null);
+    this.editingEmail.set(true);
+  }
+
+  cancelEmailEdit(): void {
+    this.editingEmail.set(false);
+    this.emailError.set(null);
+  }
+
+  saveEmail(): void {
+    const email = this.emailDraft().trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      this.emailError.set('Please enter a valid email address.');
+      return;
+    }
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    if (!shipmentId) return;
+
+    this.emailSaving.set(true);
+    this.emailError.set(null);
+    this.shipmentService.updateSupplierEmail(shipmentId, email).subscribe({
+      next: () => {
+        this.emailSaving.set(false);
+        this.editingEmail.set(false);
+        this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+      },
+      error: (err) => {
+        this.emailSaving.set(false);
+        this.emailError.set(err?.error?.message || 'Failed to update email. Please try again.');
+      },
+    });
+  }
+
+  // ── Document preview methods ──────────────────────────────────────────────
   openDocument(url?: string | null, title = 'Document'): void {
     if (!url) return;
     this.previewUrl.set(url);
@@ -80,6 +126,7 @@ export class ShipmentSummaryComponent {
     return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/.test(clean);
   }
 
+  // ── Data helpers ──────────────────────────────────────────────────────────
   getNoOfShipmentsLabel(): string {
     const value = this.shipmentData()?.shipment?.noOfShipments ?? 0;
     return value > 0 ? String(value) : 'Not Created Yet';
@@ -128,14 +175,8 @@ export class ShipmentSummaryComponent {
   }
 
   getStatusBadgeClass(badge: 'success' | 'info' | 'warn'): string {
-    if (badge === 'success') {
-      return 'bg-emerald-50 text-emerald-700';
-    }
-
-    if (badge === 'info') {
-      return 'bg-sky-50 text-sky-700';
-    }
-
+    if (badge === 'success') return 'bg-emerald-50 text-emerald-700';
+    if (badge === 'info') return 'bg-sky-50 text-sky-700';
     return 'bg-amber-50 text-amber-700';
   }
 

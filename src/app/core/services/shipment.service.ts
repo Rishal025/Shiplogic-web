@@ -344,4 +344,15 @@ export class ShipmentService {
   submitGRN(containerId: string, grnData: GRNPayload): Observable<any> {
     return this.http.patch(`${this.apiUrl}/container/grn/${containerId}`, grnData);
   }
+
+  /**
+   * PATCH /shipment/:id/supplier-email
+   * Updates the vendor email on a shipment.
+   */
+  updateSupplierEmail(shipmentId: string, supplierEmail: string): Observable<{ message: string; supplierEmail: string }> {
+    return this.http.patch<{ message: string; supplierEmail: string }>(
+      `${this.apiUrl}/${shipmentId}/supplier-email`,
+      { supplierEmail }
+    );
+  }
 }

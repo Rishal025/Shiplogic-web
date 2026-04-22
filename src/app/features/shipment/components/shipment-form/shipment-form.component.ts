@@ -597,17 +597,26 @@ export class ShipmentFormComponent implements OnDestroy {
     const row = this.plannedSplits.at(index) as FormGroup | null;
     const isManualRow = !!row?.get('isManualRow')?.value;
     if (!isManualRow) return;
-    const totalQtyMT = this.shipmentData()?.shipment?.plannedQtyMT ?? 0;
-    const totalFcl = Number(this.shipmentData()?.shipment?.fcl) || 0;
+
+    // Check if this is an auto-generated remainder row
+    const isRemainderRow = !!row?.get('isRemainderRow')?.value;
+
     this.plannedSplits.removeAt(index);
     const n = this.plannedSplits.length;
-    const qtyPerRow = this.distributeQtyMT(totalQtyMT, n);
-    const fclPerRow = this.distributeFcl(totalFcl, n);
-    this.plannedSplits.controls.forEach((c, i) => {
-      c.get('qtyMT')?.setValue(qtyPerRow[i], { emitEvent: false });
-      c.get('FCL')?.setValue(fclPerRow[i], { emitEvent: false });
-    });
     this.shipmentForm.get('noOfShipments')?.setValue(n, { emitEvent: false });
+
+    // Remainder rows are removed silently — preserve all other rows exactly as the user set them.
+    // Only redistribute when the user manually deletes a normal row via the trash button.
+    if (!isRemainderRow) {
+      const totalQtyMT = this.shipmentData()?.shipment?.plannedQtyMT ?? 0;
+      const totalFcl = Number(this.shipmentData()?.shipment?.fcl) || 0;
+      const qtyPerRow = this.distributeQtyMT(totalQtyMT, n);
+      const fclPerRow = this.distributeFcl(totalFcl, n);
+      this.plannedSplits.controls.forEach((c, i) => {
+        c.get('qtyMT')?.setValue(qtyPerRow[i], { emitEvent: false });
+        c.get('FCL')?.setValue(fclPerRow[i], { emitEvent: false });
+      });
+    }
   }
 
   private createPlannedGroup(qtyMT?: number, isManualRow = false, fcl?: number): FormGroup {

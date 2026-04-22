@@ -603,12 +603,14 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     const row = this.plannedSplits.at(rowIndex);
     if (!row) return;
 
-    // Auto-calc FCL from qtyMT
+    // Auto-calc FCL from qtyMT — set flag so onPlannedFclBlur does NOT redistribute
     const qtyMT = Number(row.get('qtyMT')?.value) || 0;
     const autoFcl = qtyMT > 0 ? Math.ceil(qtyMT / 25) : 0;
+    this.isRebalancingPlannedRows = true;
     row.get('FCL')?.setValue(autoFcl, { emitEvent: false });
+    this.isRebalancingPlannedRows = false;
 
-    // Recalculate remainder row
+    // Recalculate remainder row only — never touch other rows
     this.recalculateRemainderRow();
   }
 
@@ -669,6 +671,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   }
 
   onPlannedFclBlur(rowIndex: number): void {
+    // If rebalancing is in progress (e.g. triggered by onPlannedQtyMTChange), skip entirely
     if (!this.plannedSplits?.length || this.isRebalancingPlannedRows) {
       return;
     }
@@ -679,28 +682,18 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const currentFclValues = this.plannedSplits.controls.map((control) => {
-      const value = Number(control.get('FCL')?.value);
-      return Number.isFinite(value) && value > 0 ? Math.round(value) : 0;
-    });
+    // Only update FCL for this row — do NOT redistribute qtyMT across all rows.
+    // qtyMT is user-controlled; only the remainder row's qtyMT is auto-managed.
+    const qtyMT = Number(this.plannedSplits.at(rowIndex).get('qtyMT')?.value) || 0;
+    const autoFcl = qtyMT > 0 ? Math.ceil(qtyMT / 25) : 0;
+    const currentFcl = Number(this.plannedSplits.at(rowIndex).get('FCL')?.value) || 0;
 
-    const allocatedBefore = currentFclValues.slice(0, rowIndex).reduce((sum, value) => sum + value, 0);
-    currentFclValues[rowIndex] = Math.min(currentFclValues[rowIndex], Math.max(0, totalFcl - allocatedBefore));
-
-    const remainingRows = this.plannedSplits.length - rowIndex - 1;
-    const remainingFcl = Math.max(0, totalFcl - allocatedBefore - currentFclValues[rowIndex]);
-    const nextFclValues = [
-      ...currentFclValues.slice(0, rowIndex + 1),
-      ...this.distributeRemainingFcl(remainingFcl, remainingRows),
-    ];
-    const nextQtyValues = this.distributeQtyByFcl(totalQtyMT, nextFclValues, totalFcl);
-
-    this.isRebalancingPlannedRows = true;
-    this.plannedSplits.controls.forEach((control, index) => {
-      control.get('FCL')?.setValue(nextFclValues[index] ?? 0, { emitEvent: false });
-      control.get('qtyMT')?.setValue(nextQtyValues[index] ?? 0, { emitEvent: false });
-    });
-    this.isRebalancingPlannedRows = false;
+    // If user manually typed a FCL that differs from auto-calc, respect it but recalc remainder
+    if (currentFcl !== autoFcl) {
+      // User manually set FCL — just recalculate the remainder row
+      this.recalculateRemainderRow();
+    }
+    // If FCL matches auto-calc (set by onPlannedQtyMTChange), nothing extra to do
   }
 
   private distributeRemainingFcl(totalFcl: number, rowCount: number): number[] {
