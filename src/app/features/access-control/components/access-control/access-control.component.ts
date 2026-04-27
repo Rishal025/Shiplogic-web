@@ -38,7 +38,11 @@ interface RowDefinition {
   viewActionKey?: string;
   /** Explicit action keys that represent "edit" for this row */
   editActionKey?: string;
+  /** Explicit permission key overrides for cases where a child row reuses a parent permission */
+  viewPermissionKey?: string;
+  editPermissionKey?: string;
   children?: RowDefinition[];
+  hiddenPermissionKeys?: string[];
 }
 
 @Component({
@@ -100,6 +104,7 @@ export class AccessControlComponent {
       key: 'shipment_entry',
       label: 'Shipment Entry',
       tabKey: 'shipment_entry',
+      hiddenPermissionKeys: ['shipment.field.shipment_entry.piNo.edit'],
     },
     {
       key: 'shipment_tracker_split',
@@ -110,6 +115,47 @@ export class AccessControlComponent {
       key: 'bl_details',
       label: 'BL Details',
       tabKey: 'bl_details',
+      children: [
+        {
+          key: 'clearing_advance',
+          label: 'Clearing Advance',
+          tabKey: 'bl_details',
+          viewPermissionKey: 'shipment.tab.bl_details.view',
+          editPermissionKey: 'shipment.tab.bl_details.edit',
+        },
+        {
+          key: 'storage_allocations_bl',
+          label: 'Storage Allocations',
+          tabKey: 'bl_details',
+          viewPermissionKey: 'shipment.tab.bl_details.view',
+          editPermissionKey: 'shipment.tab.bl_details.edit',
+        },
+        {
+          key: 'packaging_list',
+          label: 'Packaging List',
+          tabKey: 'bl_details',
+          viewPermissionKey: 'shipment.tab.bl_details.view',
+          editPermissionKey: 'shipment.tab.bl_details.edit',
+        },
+        {
+          key: 'payment_allocation',
+          label: 'Payment Allocation',
+          tabKey: 'payment_costing',
+          viewPermissionKey: 'shipment.tab.payment_costing.payment_allocation.view',
+          editPermissionKey: 'shipment.tab.payment_costing.payment_allocation.edit',
+          viewActionKey: 'payment_allocation_view',
+          editActionKey: 'payment_allocation_edit',
+        },
+        {
+          key: 'costing_table',
+          label: 'Payment Costing Table',
+          tabKey: 'payment_costing',
+          viewPermissionKey: 'shipment.tab.payment_costing.costing_table.view',
+          editPermissionKey: 'shipment.tab.payment_costing.costing_table.edit',
+          viewActionKey: 'costing_table_view',
+          editActionKey: 'costing_table_edit',
+        },
+      ],
     },
     {
       key: 'document_tracker',
@@ -147,34 +193,6 @@ export class AccessControlComponent {
       label: 'Quality',
       tabKey: 'quality',
     },
-    {
-      key: 'payment_costing',
-      label: 'Payment & Costing',
-      tabKey: 'payment_costing',
-      children: [
-        {
-          key: 'payment_allocation',
-          label: 'Payment Allocation',
-          tabKey: 'payment_costing',
-          viewActionKey: 'payment_allocation_view',
-          editActionKey: 'payment_allocation_edit',
-        },
-        {
-          key: 'costing_table',
-          label: 'Payment Costing Table',
-          tabKey: 'payment_costing',
-          viewActionKey: 'costing_table_view',
-          editActionKey: 'costing_table_edit',
-        },
-        {
-          key: 'packaging_expenses',
-          label: 'Packaging Expenses',
-          tabKey: 'payment_costing',
-          viewActionKey: 'packaging_expenses_view',
-          editActionKey: 'packaging_expenses_edit',
-        },
-      ],
-    },
   ];
 
   /** Build a PermissionMatrixRow from a RowDefinition + flat permission list */
@@ -187,19 +205,24 @@ export class AccessControlComponent {
     });
 
     // View permission: explicit action key OR key ending in '.view' with type tab/screen
-    const viewPermission = def.viewActionKey
+    const viewPermission = def.viewPermissionKey
+      ? (allPermissions.find((p) => p.key === def.viewPermissionKey) ?? null)
+      : def.viewActionKey
       ? (scopedPermissions.find((p) => p.action === def.viewActionKey) ?? null)
       : (scopedPermissions.find((p) => p.key.endsWith('.view') && (p.type === 'tab' || p.type === 'screen')) ?? null);
 
     // Edit permission: explicit action key OR key ending in '.edit' with type action (not field)
-    const editPermission = def.editActionKey
+    const editPermission = def.editPermissionKey
+      ? (allPermissions.find((p) => p.key === def.editPermissionKey) ?? null)
+      : def.editActionKey
       ? (scopedPermissions.find((p) => p.action === def.editActionKey) ?? null)
       : (scopedPermissions.find((p) => p.key.endsWith('.edit') && p.type === 'action') ?? null);
 
     // Field permissions
+    const hiddenPermissionKeys = new Set(def.hiddenPermissionKeys ?? []);
     const fieldPermissions = def.viewActionKey
       ? [] // sub-tab rows don't have their own field permissions
-      : scopedPermissions.filter((p) => p.type === 'field');
+      : scopedPermissions.filter((p) => p.type === 'field' && !hiddenPermissionKeys.has(p.key));
 
     // Action permissions — everything that is type=action but NOT the view/edit we already captured
     const capturedKeys = new Set<string>();
@@ -209,7 +232,7 @@ export class AccessControlComponent {
     const actionPermissions = def.viewActionKey
       ? []
       : scopedPermissions.filter(
-          (p) => p.type === 'action' && !capturedKeys.has(p.key)
+          (p) => p.type === 'action' && !capturedKeys.has(p.key) && !hiddenPermissionKeys.has(p.key)
         );
 
     // Recurse for children

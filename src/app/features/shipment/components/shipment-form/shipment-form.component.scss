@@ -50,6 +50,15 @@
             .table-input-text {
                 pointer-events: none !important;
             }
+
+            .rbac-allow-interaction {
+                pointer-events: auto !important;
+            }
+
+            button:has(.pi-eye),
+            .icon-btn-secondary {
+                pointer-events: auto !important;
+            }
         }
 
         /* High-Density Table Styling */

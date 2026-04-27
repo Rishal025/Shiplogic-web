@@ -16,6 +16,8 @@ import { ShipmentService } from '../../../../../../core/services/shipment.servic
 import { NotificationService } from '../../../../../../core/services/notification.service';
 import { WarehouseService } from '../../../../../../core/services/warehouse.service';
 import { ConfirmDialogService } from '../../../../../../core/services/confirm-dialog.service';
+import { RbacService } from '../../../../../../core/services/rbac.service';
+import { AuthService } from '../../../../../../core/services/auth.service';
 
 @Component({
   selector: 'app-shipment-storage',
@@ -45,6 +47,8 @@ export class ShipmentStorageComponent {
   private notificationService = inject(NotificationService);
   private warehouseService = inject(WarehouseService);
   private confirmDialog = inject(ConfirmDialogService);
+  private rbacService = inject(RbacService);
+  private authService = inject(AuthService);
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
 
   constructor() {
@@ -155,6 +159,32 @@ export class ShipmentStorageComponent {
     return base?.trim() ? `${base}-${index + 1}` : '–';
   }
 
+  private shouldEnforceTabPermissions(): boolean {
+    const role = this.authService.getCurrentUser()?.role;
+    return role !== 'Admin' && role !== 'Manager';
+  }
+
+  canViewShipmentTab(tab: 'allocation' | 'arrival'): boolean {
+    if (!this.shouldEnforceTabPermissions()) {
+      return true;
+    }
+
+    if (tab === 'allocation') {
+      return this.rbacService.hasPermission('shipment.tab.storage.storage_allocation.view');
+    }
+
+    return (
+      this.rbacService.hasPermission('shipment.tab.storage.storage_arrival.view') ||
+      this.rbacService.hasPermission('shipment.tab.storage_arrival.view')
+    );
+  }
+
+  private getDefaultShipmentTab(): 'allocation' | 'arrival' {
+    if (this.canViewShipmentTab('allocation')) return 'allocation';
+    if (this.canViewShipmentTab('arrival')) return 'arrival';
+    return 'allocation';
+  }
+
   setActiveTab(shipmentIndex: number, containerIndex: number, tab: 'allocation' | 'arrival'): void {
     const key = `${shipmentIndex}-${containerIndex}`;
     this.activeTabs.update((current) => ({ ...current, [key]: tab }));
@@ -167,12 +197,19 @@ export class ShipmentStorageComponent {
 
   /** Per-shipment tab (single toggle for all containers in that shipment) */
   setShipmentTab(shipmentIndex: number, tab: 'allocation' | 'arrival'): void {
+    if (!this.canViewShipmentTab(tab)) {
+      return;
+    }
     this.activeTabs.update((current) => ({ ...current, [`s-${shipmentIndex}`]: tab }));
     this.persistUiState();
   }
 
   getShipmentTab(shipmentIndex: number): 'allocation' | 'arrival' {
-    return (this.activeTabs()[`s-${shipmentIndex}`] as 'allocation' | 'arrival') ?? 'allocation';
+    const current = this.activeTabs()[`s-${shipmentIndex}`] as 'allocation' | 'arrival' | undefined;
+    if (current && this.canViewShipmentTab(current)) {
+      return current;
+    }
+    return this.getDefaultShipmentTab();
   }
 
   private normalizeAccordionValues(values: string | string[] | null | undefined): string[] {
@@ -215,7 +252,11 @@ export class ShipmentStorageComponent {
         activeTabs?: Record<string, 'allocation' | 'arrival'> | null;
       };
       this.openAccordionPanels.set(this.normalizeAccordionValues(parsed.openAccordionPanels));
-      this.activeTabs.set(parsed.activeTabs ?? {});
+      const restoredTabs = parsed.activeTabs ?? {};
+      const sanitizedTabs = Object.fromEntries(
+        Object.entries(restoredTabs).filter(([, tab]) => this.canViewShipmentTab(tab))
+      ) as Record<string, 'allocation' | 'arrival'>;
+      this.activeTabs.set(sanitizedTabs);
     } catch {
       window.sessionStorage.removeItem(key);
     }

@@ -17,6 +17,7 @@ import { NotificationService } from '../../../../../../core/services/notificatio
 import { ConfirmDialogService } from '../../../../../../core/services/confirm-dialog.service';
 import { TransportationCompanyService } from '../../../../../../core/services/transportation-company.service';
 import { AuthService } from '../../../../../../core/services/auth.service';
+import { RbacService } from '../../../../../../core/services/rbac.service';
 import {
   selectShipmentData,
   selectSubmittedStep3Indices,
@@ -308,6 +309,7 @@ export class ShipmentArrivalComponent {
   private confirmDialog = inject(ConfirmDialogService);
   private transportationCompanyService = inject(TransportationCompanyService);
   private authService = inject(AuthService);
+  private rbacService = inject(RbacService);
 
   /** Options for the Transport Company Name dropdown */
   readonly transportCompanyOptions = signal<Array<{ label: string; value: string }>>([]);
@@ -326,7 +328,12 @@ export class ShipmentArrivalComponent {
       const indices = this.submittedIndices();
       if (!this.formArray) return;
       indices.forEach((idx) => {
-        if (this.formArray.at(idx)) this.formArray.at(idx).disable({ emitEvent: false });
+        if (!this.formArray.at(idx)) return;
+        if (this.canOverrideSubmittedLocks()) {
+          this.formArray.at(idx).enable({ emitEvent: false });
+          return;
+        }
+        this.formArray.at(idx).disable({ emitEvent: false });
       });
     });
 
@@ -431,7 +438,11 @@ export class ShipmentArrivalComponent {
   }
 
   private canOverrideSubmittedLocks(): boolean {
-    return ['Admin', 'Manager'].includes(this.authService.getCurrentUser()?.role || '');
+    const role = this.authService.getCurrentUser()?.role || '';
+    return (
+      ['Admin', 'Manager'].includes(role) ||
+      this.rbacService.hasPermission('shipment.tab.port_customs.edit')
+    );
   }
 
   isRowEditLocked(index: number): boolean {

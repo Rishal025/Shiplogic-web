@@ -9,6 +9,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { selectShipmentData, selectIsPlannedLocked } from '../../../../../../store/shipment/shipment.selectors';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
 import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
+import { RbacService } from '../../../../../../core/services/rbac.service';
 
 @Component({
   selector: 'app-shipment-summary',
@@ -22,9 +23,11 @@ export class ShipmentSummaryComponent {
   private store = inject(Store);
   private sanitizer = inject(DomSanitizer);
   private shipmentService = inject(ShipmentService);
+  private rbacService = inject(RbacService);
 
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
   readonly isPlannedLocked = toSignal(this.store.select(selectIsPlannedLocked), { initialValue: false });
+  readonly canEditSupplierEmail = computed(() => this.rbacService.hasPermission('shipment.field.shipment_entry.supplierEmail.edit'));
 
   // ── Document preview ──────────────────────────────────────────────────────
   readonly showPreviewModal = signal(false);
@@ -46,6 +49,7 @@ export class ShipmentSummaryComponent {
   readonly emailError = signal<string | null>(null);
 
   startEmailEdit(): void {
+    if (!this.canEditSupplierEmail()) return;
     this.emailDraft.set(this.shipmentData()?.shipment?.supplierEmail || '');
     this.emailError.set(null);
     this.editingEmail.set(true);
