@@ -11,7 +11,9 @@
     </div>
   </div>
 } @else {
-  <p-accordion [multiple]="true" styleClass="flex flex-col gap-3">
+  <p-accordion [multiple]="true" styleClass="flex flex-col gap-3"
+    [value]="activeAccordionValues()"
+    (valueChange)="activeAccordionValues.set($any($event))">
     @for (group of formArray.controls; track $index; let i = $index) {
       <p-accordion-panel [value]="'bl-' + i" styleClass="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         <p-accordion-header styleClass="bg-white hover:bg-slate-50 px-4 py-3">
@@ -190,6 +192,31 @@
                 >
                   Packaging List
                 </button>
+                <!-- POINT 7: Payment Allocation and Payment Costing moved from Step 8 -->
+                @if (paymentFormArray) {
+                  <button
+                    type="button"
+                    (click)="setActiveTab(i, 'payment_allocation')"
+                    class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                    [class.bg-slate-900]="getActiveTab(i) === 'payment_allocation'"
+                    [class.text-white]="getActiveTab(i) === 'payment_allocation'"
+                    [class.bg-slate-100]="getActiveTab(i) !== 'payment_allocation'"
+                    [class.text-slate-500]="getActiveTab(i) !== 'payment_allocation'"
+                  >
+                    Payment Allocation
+                  </button>
+                  <button
+                    type="button"
+                    (click)="setActiveTab(i, 'payment_costing')"
+                    class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
+                    [class.bg-slate-900]="getActiveTab(i) === 'payment_costing'"
+                    [class.text-white]="getActiveTab(i) === 'payment_costing'"
+                    [class.bg-slate-100]="getActiveTab(i) !== 'payment_costing'"
+                    [class.text-slate-500]="getActiveTab(i) !== 'payment_costing'"
+                  >
+                    Payment Costing
+                  </button>
+                }
               </div>
 
               @if (getActiveTab(i) === 'cost') {
@@ -272,7 +299,7 @@
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">SN</span>
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Description</span>
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Request Amount</span>
-                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Paid Amount</span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Remarks</span>
                   </div>
 
                   <div class="flex flex-col">
@@ -282,7 +309,8 @@
                           <div class="flex items-center min-h-10 text-sm font-bold text-slate-700">{{ row.get('sn')?.value }}</div>
                           <div class="flex items-center min-h-10 text-sm font-semibold text-slate-700">{{ row.get('description')?.value }}</div>
                           <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" [useGrouping]="true" />
-                          <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" [readonly]="!isCostSheetEditing(i)" [useGrouping]="true" />
+                          <!-- POINT 5: Replaced Paid Amount with Remarks -->
+                          <input pInputText formControlName="remarks" class="table-input-text w-full" placeholder="Remarks..." [readonly]="!isCostSheetEditing(i)" />
                         </div>
 
                         <div class="md:hidden flex flex-col gap-3">
@@ -301,9 +329,10 @@
                                 <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Request Amount</label>
                                 <p-inputNumber formControlName="requestAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" />
                               </div>
+                              <!-- POINT 5: Replaced Paid Amount with Remarks (mobile) -->
                               <div class="flex flex-col gap-1.5">
-                                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Paid Amount</label>
-                                <p-inputNumber formControlName="paidAmount" styleClass="w-full" inputStyleClass="table-input w-full" placeholder="0.00" [minFractionDigits]="2" [maxFractionDigits]="2" [readonly]="!isCostSheetEditing(i)" />
+                                <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Remarks</label>
+                                <input pInputText formControlName="remarks" class="table-input-text w-full" placeholder="Remarks..." [readonly]="!isCostSheetEditing(i)" />
                               </div>
                             </div>
                           </div>
@@ -316,7 +345,7 @@
                       <span class="text-[10px] font-black uppercase tracking-wider text-slate-500">Total</span>
                       <span></span>
                       <span class="text-sm font-black text-slate-800">{{ getCostSheetTotal(group, 'requestAmount') }}</span>
-                      <span class="text-sm font-black text-slate-800">{{ getCostSheetTotal(group, 'paidAmount') }}</span>
+                      <span class="text-[10px] text-slate-400 italic">—</span>
                     </div>
                     <div class="md:hidden grid grid-cols-2 gap-3">
                       <div class="rounded-xl border border-slate-200 bg-white px-3 py-2">
@@ -384,7 +413,7 @@
                     }
                   </div>
                 </div>
-              } @else {
+              } @else if (getActiveTab(i) === 'storage') {
                 <div class="rounded-2xl border border-slate-200 overflow-hidden">
                   <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-3">
                     <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Storage Allocations</span>
@@ -480,6 +509,32 @@
                       </div>
                     }
                   </div>
+                </div>
+              }
+              <!-- POINT 7: Payment Allocation tab (moved from Step 8) -->
+              @if (getActiveTab(i) === 'payment_allocation' && paymentFormArray) {
+                <div class="rounded-2xl border border-slate-200 overflow-hidden">
+                  <div class="px-4 py-3 bg-slate-50 border-b border-slate-100">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Payment Allocation</span>
+                  </div>
+                  <app-shipment-payment-costing
+                    [formArray]="paymentFormArray"
+                    [initialTab]="'allocation'"
+                    [singleShipmentIndex]="i"
+                  ></app-shipment-payment-costing>
+                </div>
+              }
+              <!-- POINT 7: Payment Costing tab (moved from Step 8) -->
+              @if (getActiveTab(i) === 'payment_costing' && paymentFormArray) {
+                <div class="rounded-2xl border border-slate-200 overflow-hidden">
+                  <div class="px-4 py-3 bg-slate-50 border-b border-slate-100">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Payment Costing</span>
+                  </div>
+                  <app-shipment-payment-costing
+                    [formArray]="paymentFormArray"
+                    [initialTab]="'costing'"
+                    [singleShipmentIndex]="i"
+                  ></app-shipment-payment-costing>
                 </div>
               }
             </div>

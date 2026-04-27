@@ -11,7 +11,11 @@
     </div>
   </div>
 } @else {
-  <p-accordion [multiple]="true" styleClass="flex flex-col gap-3">
+  <p-accordion
+    [multiple]="true"
+    [value]="openAccordionPanels()"
+    (valueChange)="onAccordionChange($any($event))"
+    styleClass="flex flex-col gap-3">
     @for (group of formArray.controls; track $index; let i = $index) {
       <p-accordion-panel [value]="'storage-' + i" styleClass="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         <p-accordion-header styleClass="bg-white hover:bg-slate-50 px-4 py-3">
@@ -115,6 +119,31 @@
             <!-- ===== STORAGE ARRIVAL TABLE ===== -->
             @if (getShipmentTab(i) === 'arrival') {
               <div class="storage-arrival-shell rounded-xl border border-slate-200 overflow-hidden">
+                <!-- POINT 13: Global Save All button -->
+                <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+                  <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Storage Arrival</span>
+                  <div class="flex items-center gap-2">
+                    @if (saveAllProgress(); as progress) {
+                      <span class="text-[10px] text-slate-500 font-semibold">
+                        Saving {{ progress.current }} / {{ progress.total }}...
+                      </span>
+                    }
+                    <button
+                      type="button"
+                      (click)="saveAllArrivalRows(i)"
+                      [disabled]="savingAllRows()"
+                      class="inline-flex items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-violet-600 hover:bg-violet-100 disabled:opacity-50"
+                    >
+                      @if (savingAllRows()) {
+                        <i class="pi pi-spin pi-spinner text-[10px]"></i>
+                        Saving All...
+                      } @else {
+                        <i class="pi pi-list-check text-[10px]"></i>
+                        Save All
+                      }
+                    </button>
+                  </div>
+                </div>
                 <div class="storage-arrival-viewport overflow-x-auto">
                   <table class="w-full border-separate border-spacing-0" style="min-width: 2100px;">
                     <thead>

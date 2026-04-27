@@ -434,6 +434,9 @@ export interface ExtractBillNoResponse {
 export interface ExtractArrivalNoticeResponse {
   arrival_on?: string | null;
   free_retension_days?: number;
+  print_date?: string | null;
+  printed_date?: string | null;
+  issue_date?: string | null;
   metadata?: {
     input_tokens?: number;
     output_tokens?: number;

@@ -282,8 +282,6 @@
                         <th class="extracted-table-head min-w-[100px]">FCL</th>
                         <th class="extracted-table-head min-w-[110px]">Pallet</th>
                         <th class="extracted-table-head min-w-[120px]">Bags</th>
-                        <th class="extracted-table-head min-w-[130px]">Unit</th>
-                        <th class="extracted-table-head min-w-[150px]">FC / Unit</th>
                         <th class="extracted-table-head min-w-[160px]">Total USD</th>
                       </tr>
                     </thead>
@@ -305,8 +303,6 @@
                           <td class="extracted-table-cell text-slate-700">{{ (item.fcl ?? 0) | number:'1.0-2' }}</td>
                           <td class="extracted-table-cell text-slate-700">{{ (item.pallet ?? 0) | number:'1.0-2' }}</td>
                           <td class="extracted-table-cell text-slate-700">{{ (item.bags ?? 0) | number:'1.0-0' }}</td>
-                          <td class="extracted-table-cell text-slate-700">{{ item.buyingUnit || '—' }}</td>
-                          <td class="extracted-table-cell text-slate-700">{{ (item.fcPerUnit ?? 0) | currency:'USD' }}</td>
                           <td class="extracted-table-cell text-slate-700">{{ (item.totalUSD ?? 0) | currency:'USD' }}</td>
                         </tr>
                       }
@@ -379,14 +375,6 @@
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">Bags</label>
                         <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ (item.bags ?? 0) | number:'1.0-0' }}</div>
-                      </div>
-                      <div class="flex flex-col gap-2">
-                        <label class="sl-label">Buying Unit</label>
-                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ item.buyingUnit || '—' }}</div>
-                      </div>
-                      <div class="flex flex-col gap-2">
-                        <label class="sl-label">FC per Unit</label>
-                        <div class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{{ (item.fcPerUnit ?? 0) | currency:'USD' }}</div>
                       </div>
                       <div class="flex flex-col gap-2">
                         <label class="sl-label">Total USD</label>
@@ -500,7 +488,8 @@
             <h2>Payment Details</h2>
           </div>
           <div class="sl-card-body flex flex-col gap-5">
-            @if (extractedItems().length) {
+            <!-- POINT 1: Buying Unit (UOM) and FC Per Unit commented out — not needed on create shipment for now -->
+            <!-- @if (extractedItems().length) {
               <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div class="extracted-stat-card">
                   <span class="extracted-stat-card__label">Buying Unit (UOM)</span>
@@ -522,7 +511,7 @@
                   <p-inputNumber formControlName="fcPerUnit" mode="currency" currency="USD" locale="en-US" placeholder="$0.00" styleClass="w-full" inputStyleClass="w-full"></p-inputNumber>
                 </div>
               </div>
-            }
+            } -->
 
             @if (extractedFclPerUnit() !== null) {
               <div class="grid grid-cols-1 gap-4 md:grid-cols-2">

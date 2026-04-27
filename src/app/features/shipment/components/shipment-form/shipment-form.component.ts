@@ -33,7 +33,6 @@ import { ShipmentDocumentationComponent } from './steps/shipment-documentation/s
 import { ShipmentArrivalComponent } from './steps/shipment-arrival/shipment-arrival.component';
 import { ShipmentStorageComponent } from './steps/shipment-storage/shipment-storage.component';
 import { ShipmentQualityComponent } from './steps/shipment-quality/shipment-quality.component';
-import { ShipmentPaymentCostingComponent } from './steps/shipment-payment-costing/shipment-payment-costing.component';
 import { RbacService } from '../../../../core/services/rbac.service';
 import { AuthService } from '../../../../core/services/auth.service';
 
@@ -103,7 +102,6 @@ interface TrackerStepConfig extends Step {
     ShipmentArrivalComponent,
     ShipmentStorageComponent,
     ShipmentQualityComponent,
-    ShipmentPaymentCostingComponent,
   ],
   templateUrl: './shipment-form.component.html',
   styleUrls: ['./shipment-form.component.scss'],
@@ -215,15 +213,8 @@ export class ShipmentFormComponent implements OnDestroy {
         subLabel: 'QA',
         completed: this.submittedActualIndices().length > 0 && this.allSubmitted(this.submittedActualIndices().length, this.submittedStep6Indices()),
       },
-      {
-        index: 7,
-        tabKey: 'payment_costing',
-        viewPermissionKey: 'shipment.tab.payment_costing.view',
-        editPermissionKey: 'shipment.tab.payment_costing.edit',
-        label: 'Payment & Costing',
-        subLabel: 'FAS',
-        completed: this.submittedActualIndices().length > 0 && this.allSubmitted(this.submittedActualIndices().length, this.submittedStep7Indices()),
-      },
+      // POINT 7: Step 8 (Payment & Costing) removed from stepper.
+      // Payment Allocation and Payment Costing tabs are now inside BL Details (Step 3).
     ];
   });
 
@@ -1277,7 +1268,8 @@ export class ShipmentFormComponent implements OnDestroy {
           sn: [index + 1],
           description: [description],
           requestAmount: [existingMap.get(index + 1)?.requestAmount ?? null],
-          paidAmount: [existingMap.get(index + 1)?.paidAmount ?? null],
+          // POINT 5: paidAmount removed, replaced with remarks
+          remarks: [existingMap.get(index + 1)?.remarks ?? ''],
         })
       )
     );

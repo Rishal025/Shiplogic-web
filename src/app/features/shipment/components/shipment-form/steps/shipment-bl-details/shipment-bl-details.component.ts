@@ -19,6 +19,7 @@ import { SelectModule } from 'primeng/select';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { TabsModule } from 'primeng/tabs';
 import { DialogModule } from 'primeng/dialog';
+import { ShipmentPaymentCostingComponent } from '../shipment-payment-costing/shipment-payment-costing.component';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -79,12 +80,15 @@ const COST_SHEET_DESCRIPTIONS = [
     ToggleSwitchModule,
     TabsModule,
     DialogModule,
+    ShipmentPaymentCostingComponent,
   ],
   templateUrl: './shipment-bl-details.component.html',
   styleUrl: './shipment-bl-details.component.scss',
 })
 export class ShipmentBlDetailsComponent {
   @Input({ required: true }) formArray!: FormArray;
+  /** POINT 7: Payment Allocation + Payment Costing form array (moved from Step 8) */
+  @Input() paymentFormArray: FormArray | null = null;
 
   private sanitizer = inject(DomSanitizer);
   private store = inject(Store);
@@ -108,7 +112,7 @@ export class ShipmentBlDetailsComponent {
   readonly editingCostSheet = signal<Record<number, boolean>>({});
   readonly costSheetDescriptions = COST_SHEET_DESCRIPTIONS;
 
-  readonly activeTabs = signal<Record<number, 'cost' | 'storage' | 'packaging'>>({});
+  readonly activeTabs = signal<Record<number, 'cost' | 'storage' | 'packaging' | 'payment_allocation' | 'payment_costing'>>({});
   readonly expandedCostSheet = signal<Record<number, boolean>>({});
   readonly bookingFiles = signal<Record<number, File | null>>({});
   readonly statusModalVisible = signal(false);
@@ -117,6 +121,9 @@ export class ShipmentBlDetailsComponent {
   readonly storageValidationModalVisible = signal(false);
   readonly storageValidationMessage = signal('');
   readonly storageValidationDetails = signal<Array<{ storage: string; packaging: string }>>([]);
+
+  // POINT 8: Track open accordion panels so they stay open after save
+  readonly activeAccordionValues = signal<string[]>([]);
   readonly shipmentStages = [
     'Shipment Entry',
     'Shipment Tracker',
@@ -190,6 +197,15 @@ export class ShipmentBlDetailsComponent {
     }
   }
 
+  /** POINT 8: Ensure accordion panel stays open after save */
+  private ensureAccordionOpen(index: number): void {
+    const panelValue = `bl-${index}`;
+    const current = this.activeAccordionValues();
+    if (!current.includes(panelValue)) {
+      this.activeAccordionValues.set([...current, panelValue]);
+    }
+  }
+
   setCostSheetSearchTerm(index: number, term: string): void {
     this.costSheetSearchTerm.update((current) => ({ ...current, [index]: term }));
   }
@@ -200,11 +216,11 @@ export class ShipmentBlDetailsComponent {
     return base?.trim() ? `${base}-${index + 1}` : '–';
   }
 
-  setActiveTab(index: number, tab: 'cost' | 'storage' | 'packaging'): void {
+  setActiveTab(index: number, tab: 'cost' | 'storage' | 'packaging' | 'payment_allocation' | 'payment_costing'): void {
     this.activeTabs.update((current) => ({ ...current, [index]: tab }));
   }
 
-  getActiveTab(index: number): 'cost' | 'storage' | 'packaging' {
+  getActiveTab(index: number): 'cost' | 'storage' | 'packaging' | 'payment_allocation' | 'payment_costing' {
     return this.activeTabs()[index] ?? 'cost';
   }
 
@@ -937,6 +953,7 @@ export class ShipmentBlDetailsComponent {
       next: () => {
         this.savingKey.set(null);
         this.notificationService.success('Saved', 'B/L details saved successfully.');
+        this.ensureAccordionOpen(index); // POINT 8: keep accordion open
         this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
       },
       error: (error) => {
@@ -968,7 +985,8 @@ export class ShipmentBlDetailsComponent {
       sn: Number(entry.sn) || 0,
       description: entry.description || '',
       requestAmount: Number(entry.requestAmount ?? 0),
-      paidAmount: Number(entry.paidAmount ?? 0),
+      // POINT 5: paidAmount removed, replaced with remarks
+      remarks: entry.remarks ?? '',
     }));
 
     this.savingKey.set(`cost-${index}`);
@@ -986,6 +1004,7 @@ export class ShipmentBlDetailsComponent {
         if (bookingFile) this.clearBookingFile(index);
         this.editingCostSheet.update((current) => ({ ...current, [index]: false }));
         this.notificationService.success('Saved', 'Cost sheet booking saved successfully.');
+        this.ensureAccordionOpen(index); // POINT 8: keep accordion open
         this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
       },
       error: (error) => {
@@ -1049,6 +1068,7 @@ export class ShipmentBlDetailsComponent {
       next: () => {
         this.savingKey.set(null);
         this.notificationService.success('Saved', 'Storage allocations saved successfully.');
+        this.ensureAccordionOpen(index); // POINT 8: keep accordion open
         this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
       },
       error: (error) => {

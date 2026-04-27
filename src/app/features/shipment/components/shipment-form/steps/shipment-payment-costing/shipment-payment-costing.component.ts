@@ -46,6 +46,10 @@ import * as ShipmentActions from '../../../../../../store/shipment/shipment.acti
 })
 export class ShipmentPaymentCostingComponent {
   @Input({ required: true }) formArray!: FormArray;
+  /** POINT 7: When embedded inside BL Details, set the initial tab to show */
+  @Input() initialTab: 'allocation' | 'costing' | null = null;
+  /** POINT 7: When embedded inside BL Details, restrict to a single shipment index */
+  @Input() singleShipmentIndex: number | null = null;
 
   @ViewChild('refBillDocInput') refBillDocInputRef?: ElementRef<HTMLInputElement>;
   @ViewChild('paymentCostingDocInput') paymentCostingDocInputRef?: ElementRef<HTMLInputElement>;
@@ -101,6 +105,11 @@ export class ShipmentPaymentCostingComponent {
     if (!url || this.previewIsImage()) return null;
     return this.sanitizer.bypassSecurityTrustResourceUrl(url);
   });
+
+  getSingleShipmentGroup(): AbstractControl | null {
+    if (this.singleShipmentIndex == null) return null;
+    return this.formArray?.controls?.[this.singleShipmentIndex] ?? null;
+  }
 
   getShipmentNoLabel(index: number): string {
     if (this.formArray?.controls[index] == null) return '–';
@@ -637,7 +646,8 @@ export class ShipmentPaymentCostingComponent {
   }
 
   getActiveTab(index: number): 'allocation' | 'costing' {
-    return this.activeTabs()[index] ?? 'allocation';
+    // POINT 7: When embedded in BL Details, use initialTab to pre-select the correct tab
+    return this.activeTabs()[index] ?? this.initialTab ?? 'allocation';
   }
 
   setActiveTab(index: number, tab: 'allocation' | 'costing'): void {
@@ -1016,16 +1026,8 @@ export class ShipmentPaymentCostingComponent {
     });
     if (!confirmed) return;
 
-    // Validate Actual Paid in payment costings
-    const costingControls = this.getPaymentCostings(group).controls;
-    const missingActualPaid = costingControls.some(row => {
-      const actualPaid = row.get('actualPaid')?.value;
-      return actualPaid == null || actualPaid === '';
-    });
-    if (missingActualPaid) {
-      this.notificationService.error('Required Fields Missing', 'Actual Paid is required for all payment costing rows.');
-      return;
-    }
+    // POINT 7: Actual Paid validation removed — column no longer exists
+    // Proceed directly to save
 
     // Validate packaging expenses required fields — only for rows that have any data entered
     const packagingControls = this.getPackagingExpenses(group).controls;
@@ -1064,7 +1066,7 @@ export class ShipmentPaymentCostingComponent {
       description: row.get('description')?.value || '',
       requestAmount: Number(row.get('requestAmount')?.value) || 0,
       paidAmount: Number(row.get('paidAmount')?.value) || 0,
-      actualPaid: Number(row.get('actualPaid')?.value) || 0,
+      // POINT 7: actualPaid removed — difference is now paidAmount - requestAmount
       refBillNo: row.get('refBillNo')?.value || '',
       refBillDate: toDate(row.get('refBillDate')?.value),
       refBillVendor: row.get('refBillVendor')?.value || '',
@@ -1148,21 +1150,21 @@ export class ShipmentPaymentCostingComponent {
     return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(total);
   }
 
-  /** Actual Paid − Paid Amount for a single costing row */
+  /** POINT 7: Difference = Paid Amount − Request Amount (Actual Paid column removed) */
   getDifference(row: AbstractControl): string {
-    const actualPaid = Number(row.get('actualPaid')?.value) || 0;
     const paidAmount = Number(row.get('paidAmount')?.value) || 0;
-    const diff = actualPaid - paidAmount;
+    const requestAmount = Number(row.get('requestAmount')?.value) || 0;
+    const diff = paidAmount - requestAmount;
     return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(diff);
   }
 
-  /** Sum of (Actual Paid − Paid Amount) across all costing rows */
+  /** POINT 7: Sum of (Paid Amount − Request Amount) across all costing rows */
   getDifferenceTotal(group: AbstractControl): string {
     const costings = this.getPaymentCostings(group);
     const total = costings.controls.reduce((sum, row) => {
-      const actualPaid = Number(row.get('actualPaid')?.value) || 0;
       const paidAmount = Number(row.get('paidAmount')?.value) || 0;
-      return sum + (actualPaid - paidAmount);
+      const requestAmount = Number(row.get('requestAmount')?.value) || 0;
+      return sum + (paidAmount - requestAmount);
     }, 0);
     return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(total);
   }

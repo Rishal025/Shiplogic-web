@@ -442,12 +442,56 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     this.updateActualBagCapacityError();
   }
 
-  setTab(tab: 'planned' | 'actual' | 'history') {
+  setTab(tab: 'planned' | 'actual' | 'history' | 'report') {
     this.store.dispatch(ShipmentActions.setActiveSplitTab({ tab }));
   }
 
   get scheduledHistory(): ScheduledHistoryEntry[] {
     return this.shipmentData()?.scheduledHistory || [];
+  }
+
+  /**
+   * POINT 3: Build ETA/ETD report data — column-wise per shipment row showing
+   * each update iteration: initial value, then each subsequent change.
+   */
+  get etaEtdReport(): Array<{
+    shipmentId: string;
+    updates: Array<{ iteration: number; eta: string; etd: string; updatedAt: string; updatedBy: string }>;
+  }> {
+    const history = this.scheduledHistory;
+    if (!history.length) return [];
+
+    // Group history entries by shipment row index
+    const reportMap = new Map<number, Array<{ iteration: number; eta: string; etd: string; updatedAt: string; updatedBy: string }>>();
+
+    history.forEach((entry) => {
+      const rows = entry.after || [];
+      rows.forEach((row: any, rowIndex: number) => {
+        if (!reportMap.has(rowIndex)) {
+          reportMap.set(rowIndex, []);
+        }
+        const updates = reportMap.get(rowIndex)!;
+        const eta = row.eta ? this.formatHistoryTimestamp(row.eta) : '—';
+        const etd = row.etd ? this.formatHistoryTimestamp(row.etd) : '—';
+        const updatedAt = entry.createdAt ? this.formatHistoryTimestamp(entry.createdAt) : '—';
+        const updatedBy = entry.user?.name || entry.user?.email || 'System';
+        // Only add if ETA or ETD changed from previous entry
+        const prev = updates[updates.length - 1];
+        if (!prev || prev.eta !== eta || prev.etd !== etd) {
+          updates.push({ iteration: updates.length + 1, eta, etd, updatedAt, updatedBy });
+        }
+      });
+    });
+
+    const result: Array<{ shipmentId: string; updates: Array<{ iteration: number; eta: string; etd: string; updatedAt: string; updatedBy: string }> }> = [];
+    reportMap.forEach((updates, rowIndex) => {
+      result.push({
+        shipmentId: this.getScheduledShipmentId(rowIndex),
+        updates,
+      });
+    });
+
+    return result;
   }
 
   isPlannedRowEditable(index: number): boolean {
@@ -671,29 +715,64 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   }
 
   onPlannedFclBlur(rowIndex: number): void {
-    // If rebalancing is in progress (e.g. triggered by onPlannedQtyMTChange), skip entirely
+    // If rebalancing is in progress, skip entirely
     if (!this.plannedSplits?.length || this.isRebalancingPlannedRows) {
       return;
     }
 
     const totalFcl = Number(this.shipmentData()?.shipment?.fcl) || 0;
     const totalQtyMT = Number(this.shipmentData()?.shipment?.plannedQtyMT ?? this.totalQtyMT) || 0;
-    if (totalFcl <= 0 || rowIndex < 0 || rowIndex >= this.plannedSplits.length) {
+    if (rowIndex < 0 || rowIndex >= this.plannedSplits.length) {
       return;
     }
 
-    // Only update FCL for this row — do NOT redistribute qtyMT across all rows.
-    // qtyMT is user-controlled; only the remainder row's qtyMT is auto-managed.
-    const qtyMT = Number(this.plannedSplits.at(rowIndex).get('qtyMT')?.value) || 0;
-    const autoFcl = qtyMT > 0 ? Math.ceil(qtyMT / 25) : 0;
-    const currentFcl = Number(this.plannedSplits.at(rowIndex).get('FCL')?.value) || 0;
+    // POINT 6: QTY MT is now read-only and auto-calculated from FCL.
+    // Formula: qtyMT = FCL × (totalQtyMT / totalFcl) — i.e. qty per container × FCL for this row.
+    const row = this.plannedSplits.at(rowIndex);
+    let rowFcl = Number(row.get('FCL')?.value) || 0;
+    const maxAllowedFcl = this.getMaxAllowedPlannedFcl(rowIndex);
 
-    // If user manually typed a FCL that differs from auto-calc, respect it but recalc remainder
-    if (currentFcl !== autoFcl) {
-      // User manually set FCL — just recalculate the remainder row
-      this.recalculateRemainderRow();
+    if (rowFcl > maxAllowedFcl) {
+      rowFcl = maxAllowedFcl;
+      this.isRebalancingPlannedRows = true;
+      row.get('FCL')?.setValue(maxAllowedFcl, { emitEvent: false });
+      this.isRebalancingPlannedRows = false;
+      this.messageService.add({
+        severity: 'error',
+        summary: 'FCL exceeds supported maximum',
+        detail: `You cannot assign more than ${maxAllowedFcl} FCL for this row. Total shipment FCL supported is ${totalFcl}.`,
+      });
     }
-    // If FCL matches auto-calc (set by onPlannedQtyMTChange), nothing extra to do
+
+    if (totalFcl > 0 && totalQtyMT > 0 && rowFcl > 0) {
+      const qtyPerContainer = totalQtyMT / totalFcl;
+      const autoQtyMT = this.roundQty(rowFcl * qtyPerContainer);
+      this.isRebalancingPlannedRows = true;
+      row.get('qtyMT')?.setValue(autoQtyMT, { emitEvent: false });
+      this.isRebalancingPlannedRows = false;
+    } else if (rowFcl === 0) {
+      this.isRebalancingPlannedRows = true;
+      row.get('qtyMT')?.setValue(0, { emitEvent: false });
+      this.isRebalancingPlannedRows = false;
+    }
+
+    // Recalculate remainder row after FCL change
+    this.recalculateRemainderRow();
+  }
+
+  getMaxAllowedPlannedFcl(rowIndex: number): number {
+    if (!this.plannedSplits?.length) return 0;
+    const totalFcl = Number(this.shipmentData()?.shipment?.fcl) || 0;
+    if (totalFcl <= 0) return 0;
+
+    const row = this.plannedSplits.at(rowIndex);
+    const currentRowFcl = Number(row?.get('FCL')?.value) || 0;
+    const allocatedExcludingRow = this.plannedSplits.controls.reduce((sum, control, index) => {
+      if (index === rowIndex) return sum;
+      return sum + (Number(control.get('FCL')?.value) || 0);
+    }, 0);
+
+    return Math.max(0, totalFcl - allocatedExcludingRow + currentRowFcl);
   }
 
   private distributeRemainingFcl(totalFcl: number, rowCount: number): number[] {
@@ -1262,6 +1341,18 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
 
     const shipmentData = this.shipmentData();
     if (!shipmentData) return;
+
+    // Block save if scheduled MT exceeds total planned MT
+    const totals = this.getPlannedTotals();
+    const totalQtyMT = Number(shipmentData.shipment?.plannedQtyMT) || 0;
+    if (totals.mt > totalQtyMT) {
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Cannot Save',
+        detail: `Scheduled MT (${totals.mt}) exceeds Total MT (${totalQtyMT}). Please adjust the quantities before locking.`,
+      });
+      return;
+    }
 
     const confirmed = await this.confirmDialog.ask({
       message: 'Lock the scheduled ETA? This will submit to the server and cannot be undone.',

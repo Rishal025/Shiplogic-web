@@ -37,6 +37,7 @@ export class ShipmentStorageComponent {
 
   @ViewChild('storageRowFileInput') storageRowFileInputRef?: ElementRef<HTMLInputElement>;
   @ViewChild('storageGlobalFileInput') storageGlobalFileInputRef?: ElementRef<HTMLInputElement>;
+  private restoredUiStateKey: string | null = null;
 
   private store = inject(Store);
   private sanitizer = inject(DomSanitizer);
@@ -94,14 +95,25 @@ export class ShipmentStorageComponent {
         });
       });
     });
+
+    effect(() => {
+      const shipmentId = this.shipmentData()?.shipment?._id;
+      if (!shipmentId || !this.formArray || this.formArray.length === 0) return;
+      this.restoreUiState();
+    });
   }
 
   // Tab state uses compound key "shipmentIndex-containerIndex"
   readonly activeTabs = signal<Record<string, 'allocation' | 'arrival'>>({});
+  readonly openAccordionPanels = signal<string[]>([]);
   readonly expandedContainers = signal<Record<number, boolean>>({});
   readonly savingRowKey = signal<string | null>(null);
   readonly rowFiles = signal<Record<string, File | null>>({});
   readonly globalFiles = signal<Record<number, File | null>>({});
+
+  // POINT 13: Global save all state
+  readonly savingAllRows = signal(false);
+  readonly saveAllProgress = signal<{ current: number; total: number } | null>(null);
   readonly previewUrl = signal<string | null>(null);
   readonly previewTitle = signal('');
   readonly previewIsImage = signal(false);
@@ -156,10 +168,75 @@ export class ShipmentStorageComponent {
   /** Per-shipment tab (single toggle for all containers in that shipment) */
   setShipmentTab(shipmentIndex: number, tab: 'allocation' | 'arrival'): void {
     this.activeTabs.update((current) => ({ ...current, [`s-${shipmentIndex}`]: tab }));
+    this.persistUiState();
   }
 
   getShipmentTab(shipmentIndex: number): 'allocation' | 'arrival' {
     return (this.activeTabs()[`s-${shipmentIndex}`] as 'allocation' | 'arrival') ?? 'allocation';
+  }
+
+  private normalizeAccordionValues(values: string | string[] | null | undefined): string[] {
+    if (Array.isArray(values)) return values.filter(Boolean);
+    if (typeof values === 'string' && values.trim()) return [values];
+    return [];
+  }
+
+  private getUiStateStorageKey(): string | null {
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    return shipmentId ? `shipment-storage-ui:${shipmentId}` : null;
+  }
+
+  private persistUiState(): void {
+    if (typeof window === 'undefined') return;
+    const key = this.getUiStateStorageKey();
+    if (!key) return;
+
+    window.sessionStorage.setItem(
+      key,
+      JSON.stringify({
+        openAccordionPanels: this.normalizeAccordionValues(this.openAccordionPanels()),
+        activeTabs: this.activeTabs(),
+      })
+    );
+  }
+
+  private restoreUiState(): void {
+    if (typeof window === 'undefined') return;
+    const key = this.getUiStateStorageKey();
+    if (!key || this.restoredUiStateKey === key) return;
+
+    this.restoredUiStateKey = key;
+    const rawState = window.sessionStorage.getItem(key);
+    if (!rawState) return;
+
+    try {
+      const parsed = JSON.parse(rawState) as {
+        openAccordionPanels?: string[] | null;
+        activeTabs?: Record<string, 'allocation' | 'arrival'> | null;
+      };
+      this.openAccordionPanels.set(this.normalizeAccordionValues(parsed.openAccordionPanels));
+      this.activeTabs.set(parsed.activeTabs ?? {});
+    } catch {
+      window.sessionStorage.removeItem(key);
+    }
+  }
+
+  onAccordionChange(values: string | string[] | null | undefined): void {
+    const normalized = this.normalizeAccordionValues(values);
+    if (normalized.length === 0 && (this.savingRowKey() !== null || this.savingAllRows())) {
+      return;
+    }
+    this.openAccordionPanels.set(normalized);
+    this.persistUiState();
+  }
+
+  private ensureAccordionOpen(shipmentIndex: number): void {
+    const panelValue = `storage-${shipmentIndex}`;
+    const current = this.normalizeAccordionValues(this.openAccordionPanels());
+    if (!current.includes(panelValue)) {
+      this.openAccordionPanels.set([...current, panelValue]);
+      this.persistUiState();
+    }
   }
 
   private rowFileKey(shipmentIndex: number, containerIndex: number): string {
@@ -314,6 +391,8 @@ export class ShipmentStorageComponent {
   }
 
   async saveArrivalRow(index: number, containerIndex: number): Promise<void> {
+    this.ensureAccordionOpen(index);
+    this.setShipmentTab(index, 'arrival');
     const group = this.formArray.at(index) as FormGroup | null;
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!group || !shipmentId) return;
@@ -388,5 +467,98 @@ export class ShipmentStorageComponent {
         this.notificationService.error('Save failed', error.error?.message || 'Could not save storage arrival row.');
       }
     });
+  }
+
+  /**
+   * POINT 13: Save all arrival rows for a shipment at once (global save).
+   * Single-row save is preserved alongside this.
+   */
+  async saveAllArrivalRows(shipmentIndex: number): Promise<void> {
+    this.ensureAccordionOpen(shipmentIndex);
+    this.setShipmentTab(shipmentIndex, 'arrival');
+    const group = this.formArray.at(shipmentIndex) as FormGroup | null;
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    if (!group || !shipmentId) return;
+
+    const containerId = group.get('containerId')?.value;
+    if (!containerId) {
+      this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
+      return;
+    }
+
+    const containers = this.getContainersArray(group);
+    if (containers.length === 0) {
+      this.notificationService.info('No rows', 'No storage arrival rows to save.');
+      return;
+    }
+
+    const confirmed = await this.confirmDialog.ask({
+      message: `Save all ${containers.length} storage arrival row(s) for this shipment?`,
+      header: 'Save All Storage Arrival',
+      acceptLabel: 'Yes, Save All',
+    });
+    if (!confirmed) return;
+
+    this.savingAllRows.set(true);
+    this.saveAllProgress.set({ current: 0, total: containers.length });
+    let savedCount = 0;
+    let failedCount = 0;
+
+    for (let containerIndex = 0; containerIndex < containers.length; containerIndex++) {
+      const row = containers[containerIndex] as FormGroup;
+      if (!row) continue;
+
+      const formData = new FormData();
+      const rowFile = this.getRowFile(shipmentIndex, containerIndex);
+      if (rowFile) formData.append('storageRowDocument', rowFile, rowFile.name);
+
+      formData.append('containerSerialNo', row.get('containerSerialNo')?.value || '');
+      formData.append('bags', String(Number(row.get('bags')?.value) || 0));
+      formData.append('warehouse', row.get('warehouse')?.value || '');
+      formData.append('storageAvailability', String(Number(row.get('storageAvailability')?.value) || 0));
+      formData.append('receivedOnDate', this.toDate(row.get('receivedOnDate')?.value));
+      formData.append('receivedOnTime', this.toTime(row.get('receivedOnTime')?.value));
+      formData.append('customsInspection', row.get('customsInspection')?.value || 'No');
+      formData.append('grn', row.get('grn')?.value || '');
+      formData.append('batch', row.get('batch')?.value || '');
+      formData.append('productionDate', this.toDate(row.get('productionDate')?.value));
+      formData.append('expiryDate', this.toDate(row.get('expiryDate')?.value));
+      formData.append('remarks', row.get('remarks')?.value || '');
+      formData.append('documentUrl', row.get('documentUrl')?.value || '');
+      formData.append('documentName', row.get('documentName')?.value || '');
+
+      try {
+        await new Promise<void>((resolve, reject) => {
+          this.shipmentService.submitStorageArrivalRow(containerId, containerIndex, formData).subscribe({
+            next: () => {
+              if (rowFile) this.clearRowFile(shipmentIndex, containerIndex);
+              savedCount++;
+              this.saveAllProgress.set({ current: containerIndex + 1, total: containers.length });
+              resolve();
+            },
+            error: (err) => {
+              failedCount++;
+              this.saveAllProgress.set({ current: containerIndex + 1, total: containers.length });
+              reject(err);
+            }
+          });
+        });
+      } catch {
+        // continue with remaining rows even if one fails
+      }
+    }
+
+    this.savingAllRows.set(false);
+    this.saveAllProgress.set(null);
+
+    if (savedCount > 0) {
+      this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+    }
+
+    if (failedCount === 0) {
+      this.notificationService.success('All Saved', `${savedCount} storage arrival row(s) saved successfully.`);
+    } else {
+      this.notificationService.warn('Partial Save', `${savedCount} saved, ${failedCount} failed. Please retry the failed rows individually.`);
+    }
   }
 }

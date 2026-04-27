@@ -16,6 +16,7 @@ import { ShipmentService } from '../../../../../../core/services/shipment.servic
 import { NotificationService } from '../../../../../../core/services/notification.service';
 import { ConfirmDialogService } from '../../../../../../core/services/confirm-dialog.service';
 import { TransportationCompanyService } from '../../../../../../core/services/transportation-company.service';
+import { AuthService } from '../../../../../../core/services/auth.service';
 import {
   selectShipmentData,
   selectSubmittedStep3Indices,
@@ -79,6 +80,7 @@ export class ShipmentArrivalComponent {
 
   private pendingFileRow: number | null = null;
   private pendingDocKind: Step5DocKind | null = null;
+  private restoredUiStateKey: string | null = null;
 
   readonly shipmentData = toSignal(inject(Store).select(selectShipmentData));
 
@@ -95,6 +97,184 @@ export class ShipmentArrivalComponent {
   readonly lockedSections = signal<Record<string, boolean>>({});
   readonly lockedPortCustomsSections = signal<Record<number, boolean>>({});
   readonly lockedTransportationSections = signal<Record<number, boolean>>({});
+  readonly openAccordionPanels = signal<string[]>([]);
+
+  // POINT 11: Bulk save modal state
+  readonly bulkSaveModalVisible = signal(false);
+  readonly bulkSaveRowIndex = signal<number | null>(null);
+  readonly bulkSaving = signal(false);
+
+  openBulkSaveModal(index: number): void {
+    this.bulkSaveRowIndex.set(index);
+    this.bulkSaveModalVisible.set(true);
+  }
+
+  closeBulkSaveModal(): void {
+    this.bulkSaveModalVisible.set(false);
+    this.bulkSaveRowIndex.set(null);
+  }
+
+  private normalizeAccordionValues(values: string | string[] | null | undefined): string[] {
+    if (Array.isArray(values)) return values.filter(Boolean);
+    if (typeof values === 'string' && values.trim()) return [values];
+    return [];
+  }
+
+  private getUiStateStorageKey(): string | null {
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    return shipmentId ? `shipment-arrival-ui:${shipmentId}` : null;
+  }
+
+  private persistUiState(): void {
+    if (typeof window === 'undefined') return;
+    const key = this.getUiStateStorageKey();
+    if (!key) return;
+    window.sessionStorage.setItem(
+      key,
+      JSON.stringify({ openAccordionPanels: this.normalizeAccordionValues(this.openAccordionPanels()) })
+    );
+  }
+
+  private restoreUiState(): void {
+    if (typeof window === 'undefined') return;
+    const key = this.getUiStateStorageKey();
+    if (!key || this.restoredUiStateKey === key) return;
+
+    this.restoredUiStateKey = key;
+    const rawState = window.sessionStorage.getItem(key);
+    if (!rawState) return;
+
+    try {
+      const parsed = JSON.parse(rawState) as { openAccordionPanels?: string[] | null };
+      this.openAccordionPanels.set(this.normalizeAccordionValues(parsed.openAccordionPanels));
+    } catch {
+      window.sessionStorage.removeItem(key);
+    }
+  }
+
+  onAccordionChange(values: string | string[] | null | undefined): void {
+    const normalized = this.normalizeAccordionValues(values);
+    if (normalized.length === 0 && (this.sectionSavingKey() !== null || this.submittingRowIndex() !== null)) {
+      return;
+    }
+    this.openAccordionPanels.set(normalized);
+    this.persistUiState();
+  }
+
+  private ensureAccordionOpen(index: number): void {
+    const panelValue = `arr-${index}`;
+    const current = this.normalizeAccordionValues(this.openAccordionPanels());
+    if (!current.includes(panelValue)) {
+      this.openAccordionPanels.set([...current, panelValue]);
+      this.persistUiState();
+    }
+  }
+
+  async executeBulkSave(index: number): Promise<void> {
+    const sections: Array<'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'> = [
+      'arrivalNotice', 'advanceRequest', 'doReleased', 'dpApproval', 'customsClearance', 'municipality', 'transportation'
+    ];
+
+    const pendingSections = sections.filter(s => !this.isLogisticsSectionLocked(index, s));
+
+    if (pendingSections.length === 0) {
+      this.messageService.add({ severity: 'info', summary: 'Nothing to save', detail: 'All sections are already saved.' });
+      this.closeBulkSaveModal();
+      return;
+    }
+
+    this.bulkSaving.set(true);
+    let savedCount = 0;
+
+    for (const section of pendingSections) {
+      try {
+        await this.saveLogisticsSectionQuiet(index, section);
+        savedCount++;
+      } catch {
+        // continue with remaining sections
+      }
+    }
+
+    this.bulkSaving.set(false);
+    this.closeBulkSaveModal();
+
+    if (savedCount > 0) {
+      this.messageService.add({
+        severity: 'success',
+        summary: 'Bulk Save Complete',
+        detail: `${savedCount} section(s) saved successfully.`
+      });
+    }
+  }
+
+  /** Save a section without confirmation dialog (used in bulk save) */
+  private async saveLogisticsSectionQuiet(
+    index: number,
+    section: 'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'
+  ): Promise<void> {
+    const group = this.formArray.at(index);
+    const containerId = group?.get('containerId')?.value;
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    if (!group || !containerId || !shipmentId) return;
+    this.ensureAccordionOpen(index);
+
+    const toDate = (val: unknown) => (val ? new Date(val as Date).toISOString().split('T')[0] : '');
+    const payload = new FormData();
+    payload.append('sectionKey', section);
+
+    if (section === 'transportation') {
+      this.updateDelayHours(index);
+      const transportationBooked = this.getTransportationRows(group).getRawValue().map((tb: any) => ({
+        containerSerialNo: tb.containerSerialNo || '',
+        transportCompanyName: tb.transportCompanyName || '',
+        bookedDate: toDate(tb.bookedDate),
+        bookingTime: this.toTimeString(tb.bookingTime),
+        transportDate: toDate(tb.transportDate),
+        transportTime: this.toTimeString(tb.transportTime),
+        delayHours: tb.delayHours ?? null,
+      }));
+      payload.append('transportationBooked', JSON.stringify(transportationBooked));
+    } else if (section === 'arrivalNotice') {
+      this.updateDerivedDates(index);
+      payload.append('arrivalOn', toDate(group.get('arrivalOn')?.value));
+      payload.append('shipmentFreeRetentionDate', toDate(group.get('shipmentFreeRetentionDate')?.value));
+      payload.append('portRetentionWithPenaltyDate', toDate(group.get('portRetentionWithPenaltyDate')?.value));
+      payload.append('maximumRetentionDate', toDate(group.get('maximumRetentionDate')?.value));
+      payload.append('arrivalNoticeDate', toDate(group.get('arrivalNoticeDate')?.value));
+      payload.append('arrivalNoticeFreeRetentionDays', String(group.get('arrivalNoticeFreeRetentionDays')?.value ?? ''));
+      const file = this.getFile(index, 'arrivalNotice');
+      if (file) payload.append('arrivalNoticeDocument', file, file.name);
+    } else {
+      const sectionMap = {
+        advanceRequest: { date: 'advanceRequestDate', remarks: null as string | null, file: 'advanceRequestDocument' },
+        doReleased: { date: 'doReleasedDate', remarks: 'doReleasedRemarks', file: 'doReleasedDocument' },
+        dpApproval: { date: 'dpApprovalDate', remarks: 'dpApprovalRemarks', file: 'dpApprovalDocument' },
+        customsClearance: { date: 'customsClearanceDate', remarks: 'customsClearanceRemarks', file: 'customsClearanceDocument' },
+        municipality: { date: 'municipalityDate', remarks: 'municipalityRemarks', file: 'municipalityDocument' },
+      } as const;
+      const config = sectionMap[section as keyof typeof sectionMap];
+      if (!config) return;
+      payload.append(config.date, toDate(group.get(config.date)?.value));
+      if (config.remarks) payload.append(config.remarks, group.get(config.remarks)?.value || '');
+      if (section === 'customsClearance') {
+        payload.append('tokenReceivedDate', toDate(group.get('tokenReceivedDate')?.value));
+      }
+      const file = this.getFile(index, section as any);
+      if (file) payload.append(config.file, file, file.name);
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      this.shipmentService.submitLogistics(containerId, payload).subscribe({
+        next: () => {
+          this.lockedSections.update((current) => ({ ...current, [this.sectionKey(index, section)]: true }));
+          this.applySectionLocks(index);
+          this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+          resolve();
+        },
+        error: reject
+      });
+    });
+  }
 
   readonly extractionMessages = [
     'Uploading Arrival Notice safely',
@@ -127,6 +307,7 @@ export class ShipmentArrivalComponent {
   private notificationService = inject(NotificationService);
   private confirmDialog = inject(ConfirmDialogService);
   private transportationCompanyService = inject(TransportationCompanyService);
+  private authService = inject(AuthService);
 
   /** Options for the Transport Company Name dropdown */
   readonly transportCompanyOptions = signal<Array<{ label: string; value: string }>>([]);
@@ -183,6 +364,12 @@ export class ShipmentArrivalComponent {
         this.applySectionLocks(index);
         this.setTransportationDefaults(index);
       });
+    });
+
+    effect(() => {
+      const shipmentId = this.shipmentData()?.shipment?._id;
+      if (!shipmentId || !this.formArray) return;
+      this.restoreUiState();
     });
   }
 
@@ -243,6 +430,14 @@ export class ShipmentArrivalComponent {
     return this.submittedIndices().includes(index);
   }
 
+  private canOverrideSubmittedLocks(): boolean {
+    return ['Admin', 'Manager'].includes(this.authService.getCurrentUser()?.role || '');
+  }
+
+  isRowEditLocked(index: number): boolean {
+    return this.isRowSubmitted(index) && !this.canOverrideSubmittedLocks();
+  }
+
   isPrecedingSubmitted(index: number): boolean {
     return this.precedingIndices().includes(index);
   }
@@ -290,7 +485,7 @@ export class ShipmentArrivalComponent {
   }
 
   clickFileInput(index: number, kind: Step5DocKind): void {
-    if (this.isRowSubmitted(index)) return;
+    if (this.isRowEditLocked(index)) return;
     this.pendingFileRow = index;
     this.pendingDocKind = kind;
 
@@ -519,7 +714,7 @@ export class ShipmentArrivalComponent {
   }
 
   isLogisticsSectionLocked(index: number, section: 'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'): boolean {
-    return this.isRowSubmitted(index) || !!this.lockedSections()[this.sectionKey(index, section)];
+    return this.isRowEditLocked(index) || !!this.lockedSections()[this.sectionKey(index, section)];
   }
 
   isPortCustomsLocked(index: number): boolean {
@@ -534,7 +729,7 @@ export class ShipmentArrivalComponent {
     index: number,
     section: 'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'
   ): void {
-    if (this.isRowSubmitted(index)) return;
+    if (this.isRowEditLocked(index)) return;
     this.lockedSections.update((current) => ({
       ...current,
       [this.sectionKey(index, section)]: false,
@@ -547,6 +742,7 @@ export class ShipmentArrivalComponent {
     const containerId = group?.get('containerId')?.value;
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!group || !containerId || !shipmentId || this.isLogisticsSectionLocked(index, section)) return;
+    this.ensureAccordionOpen(index);
 
     const sectionLabel = section === 'transportation'
       ? 'Transportation Arranged'
@@ -666,11 +862,18 @@ export class ShipmentArrivalComponent {
       Number(actualData?.freeDetentionDays ?? 0) ||
       0;
     const maxDays = Number(actualData?.maximumDetentionDays ?? 0) || 0;
+
+    // POINT 12: Port Free Retention Date = arrival + free days (from document)
     const freeRetentionDate = this.addDays(arrivalOn, freeDays);
     group.get('shipmentFreeRetentionDate')?.patchValue(freeRetentionDate, { emitEvent: false });
-    const maximumRetentionDate = maxDays > 0 ? this.addDays(arrivalOn, maxDays) : null;
-    group.get('maximumRetentionDate')?.patchValue(maximumRetentionDate, { emitEvent: false });
-    group.get('portRetentionWithPenaltyDate')?.patchValue(freeRetentionDate, { emitEvent: false });
+
+    // POINT 12: Port Free Retention Date (maximumRetentionDate field) = arrival + 10 days (always fixed)
+    const portFreeRetentionDate = this.addDays(arrivalOn, 10);
+    group.get('maximumRetentionDate')?.patchValue(portFreeRetentionDate, { emitEvent: false });
+
+    // POINT 12: Port Demurrage Start Date = arrival + 10 days + 1 day = day 11
+    const portDemurrageStartDate = this.addDays(arrivalOn, 11);
+    group.get('portRetentionWithPenaltyDate')?.patchValue(portDemurrageStartDate, { emitEvent: false });
   }
 
   private updateDelayHours(index: number): void {
@@ -700,13 +903,21 @@ export class ShipmentArrivalComponent {
         this.stopExtractionExperience();
         const group = this.formArray.at(index);
         if (!group) return;
+
+        // POINT 12: Arrival Notice Date = print_date on the document (not arrival_on)
+        // print_date is the date the document was printed/issued
+        const printDate = res.print_date || res.printed_date || res.issue_date;
+        if (printDate) {
+          const parsedPrintDate = this.parseApiDate(printDate);
+          group.get('arrivalNoticeDate')?.setValue(parsedPrintDate);
+        }
+
+        // arrivalOn = actual vessel arrival date (separate from print date)
         if (res.arrival_on) {
           const parsedArrivalOn = this.parseApiDate(res.arrival_on);
           group.get('arrivalOn')?.setValue(parsedArrivalOn);
-          if (!group.get('arrivalNoticeDate')?.value) {
-            group.get('arrivalNoticeDate')?.setValue(parsedArrivalOn);
-          }
         }
+
         if (res.free_retension_days != null) {
           group.get('arrivalNoticeFreeRetentionDays')?.setValue(Number(res.free_retension_days) || 0);
         }
@@ -823,7 +1034,7 @@ export class ShipmentArrivalComponent {
         if (!control) return;
         if (this.isLogisticsSectionLocked(index, section as any)) {
           control.disable({ emitEvent: false });
-        } else if (!this.isRowSubmitted(index)) {
+        } else if (!this.isRowEditLocked(index)) {
           control.enable({ emitEvent: false });
         }
       });
@@ -833,7 +1044,7 @@ export class ShipmentArrivalComponent {
     transportation?.controls.forEach((row) => {
       if (this.isLogisticsSectionLocked(index, 'transportation')) {
         row.disable({ emitEvent: false });
-      } else if (!this.isRowSubmitted(index)) {
+      } else if (!this.isRowEditLocked(index)) {
         row.enable({ emitEvent: false });
         row.get('delayHours')?.disable({ emitEvent: false });
       }

@@ -6,6 +6,7 @@ import { Store } from '@ngrx/store';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NotificationService } from '../../../../../../core/services/notification.service';
 import { ConfirmDialogService } from '../../../../../../core/services/confirm-dialog.service';
+import { RbacService } from '../../../../../../core/services/rbac.service';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { DatePickerModule } from 'primeng/datepicker';
@@ -111,11 +112,36 @@ export class ShipmentDocumentationComponent {
   /** Set right before programmatic .click() so (change) knows which row. */
   private pendingFileRow: number | null = null;
   private pendingFileKind: 'inwardAdvice' | 'murabahaSubmitted' | 'documentsReleased' | null = null;
+  private restoredUiStateKey: string | null = null;
 
   private store = inject(Store);
   private confirmDialog = inject(ConfirmDialogService);
   private notificationService = inject(NotificationService);
   private sanitizer = inject(DomSanitizer);
+  private rbacService = inject(RbacService);
+
+  // POINT 9: Milestone permission keys
+  // M1 (courier) and M2 (receiving) → Purchase team
+  // M3–M6 (inward, murabaha_process, murabaha_submit, release) → FAS team
+  private readonly PURCHASE_MILESTONES = ['courier', 'receiving'];
+  private readonly FAS_MILESTONES = ['inward', 'murabaha_process', 'murabaha_submit', 'release'];
+
+  /** Returns true if the current user can edit the given milestone */
+  canEditMilestone(milestone: string): boolean {
+    // Admin and Manager always have full access
+    if (this.rbacService.hasPermission('shipment.tab.document_tracker.edit')) {
+      return true;
+    }
+    // Purchase milestones (M1, M2)
+    if (this.PURCHASE_MILESTONES.includes(milestone)) {
+      return this.rbacService.hasPermission('shipment.milestone.purchase.edit');
+    }
+    // FAS milestones (M3–M6)
+    if (this.FAS_MILESTONES.includes(milestone)) {
+      return this.rbacService.hasPermission('shipment.milestone.fas.edit');
+    }
+    return false;
+  }
 
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
 
@@ -167,6 +193,112 @@ export class ShipmentDocumentationComponent {
   // Per-row and per-milestone edit states
   readonly editingMilestones = signal<Record<number, Record<string, boolean>>>({});
   readonly savingMilestone = signal<{row: number, milestone: string} | null>(null);
+
+  // POINT 10: Bulk save modal state
+  readonly bulkSaveModalVisible = signal(false);
+  readonly bulkSaveRowIndex = signal<number | null>(null);
+  readonly bulkSaving = signal(false);
+
+  openBulkSaveModal(index: number): void {
+    this.bulkSaveRowIndex.set(index);
+    this.bulkSaveModalVisible.set(true);
+  }
+
+  closeBulkSaveModal(): void {
+    this.bulkSaveModalVisible.set(false);
+    this.bulkSaveRowIndex.set(null);
+  }
+
+  async executeBulkSave(index: number): Promise<void> {
+    const milestones = ['courier', 'receiving', 'inward', 'murabaha_process', 'murabaha_submit', 'release'];
+    const group = this.formArray.at(index) as FormGroup;
+    if (!group) return;
+
+    const editableMilestones = milestones.filter(m =>
+      this.isMilestoneVisible(index, m, group) &&
+      this.canEditMilestone(m) &&
+      !this.isMilestoneSaved(index, m)
+    );
+
+    if (editableMilestones.length === 0) {
+      this.notificationService.info('Nothing to save', 'All visible milestones are already saved.');
+      this.closeBulkSaveModal();
+      return;
+    }
+
+    this.bulkSaving.set(true);
+    let savedCount = 0;
+
+    for (const milestone of editableMilestones) {
+      if (this.isMilestoneSectionValid(index, milestone)) {
+        await this.saveMilestoneQuiet(index, milestone);
+        savedCount++;
+      }
+    }
+
+    this.bulkSaving.set(false);
+    this.closeBulkSaveModal();
+
+    if (savedCount > 0) {
+      this.notificationService.success('Bulk Save Complete', `${savedCount} milestone(s) saved successfully.`);
+    }
+  }
+
+  /** Save a milestone without confirmation dialog (used in bulk save) */
+  private async saveMilestoneQuiet(index: number, milestone: string): Promise<void> {
+    const row = this.formArray.at(index);
+    const formValue = row.getRawValue();
+    const containerId = formValue['containerId'];
+    if (!containerId) return;
+
+    this.savingMilestone.set({ row: index, milestone });
+    this.ensureAccordionOpen(`doc-${index}`);
+
+    const toDate = (val: any) =>
+      val ? (val instanceof Date ? val.toISOString().split('T')[0] : new Date(val).toISOString().split('T')[0]) : '';
+
+    const payload = new FormData();
+    payload.append('BLNo', formValue['BLNo'] || '');
+
+    switch (milestone) {
+      case 'courier':
+        payload.append('courierTrackNo', formValue['courierTrackNo'] || '');
+        payload.append('courierServiceProvider', formValue['courierServiceProvider'] || '');
+        payload.append('DHL', formValue['courierTrackNo'] || '');
+        payload.append('docArrivalNotes', formValue['docArrivalNotes'] || '');
+        break;
+      case 'receiving':
+        payload.append('receiver', formValue['receiver'] || '');
+        payload.append('bankName', formValue['bankName'] || '');
+        payload.append('expectedDocDate', toDate(formValue['expectedDocDate']));
+        break;
+      case 'inward':
+        payload.append('inwardCollectionAdviceDate', toDate(formValue['inwardCollectionAdviceDate']));
+        const inf = this.getFile(index, 'inwardAdvice');
+        if (inf) payload.append('inwardCollectionAdviceDocument', inf, inf.name);
+        break;
+      case 'murabaha_process':
+        payload.append('murabahaContractReleasedDate', toDate(formValue['murabahaContractReleasedDate']));
+        payload.append('murabahaContractApprovedDate', toDate(formValue['murabahaContractApprovedDate']));
+        break;
+      case 'murabaha_submit':
+        payload.append('murabahaContractSubmittedDate', toDate(formValue['murabahaContractSubmittedDate']));
+        const msf = this.getFile(index, 'murabahaSubmitted');
+        if (msf) payload.append('murabahaContractSubmittedDocument', msf, msf.name);
+        break;
+      case 'release':
+        payload.append('documentsReleasedDate', toDate(formValue['documentsReleasedDate']));
+        const drf = this.getFile(index, 'documentsReleased');
+        if (drf) payload.append('documentsReleasedDocument', drf, drf.name);
+        break;
+    }
+
+    return new Promise<void>((resolve) => {
+      this.store.dispatch(ShipmentActions.submitDocumentation({ containerId, index, payload }));
+      // Brief delay to allow store dispatch to process
+      setTimeout(resolve, 300);
+    });
+  }
 
   /** Checks if a specific milestone has data saved from the server (Source of Truth). */
   isMilestoneSaved(index: number, milestone: string): boolean {
@@ -263,6 +395,7 @@ export class ShipmentDocumentationComponent {
         [index]: { ...row, [milestone]: editing }
       };
     });
+    this.persistUiState();
   }
 
   onFilesSelected(event: Event, containerIndex: number, kind: 'inwardAdvice' | 'murabahaSubmitted' | 'documentsReleased'): void {
@@ -382,16 +515,75 @@ export class ShipmentDocumentationComponent {
     return num;
   }
 
+  private normalizeAccordionValues(values: string | string[] | null | undefined): string[] {
+    if (Array.isArray(values)) return values.filter(Boolean);
+    if (typeof values === 'string' && values.trim()) return [values];
+    return [];
+  }
+
+  private getUiStateStorageKey(): string | null {
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    return shipmentId ? `shipment-documentation-ui:${shipmentId}` : null;
+  }
+
+  private persistUiState(): void {
+    if (typeof window === 'undefined') return;
+    const key = this.getUiStateStorageKey();
+    if (!key) return;
+
+    const state = {
+      openAccordionPanels: this.normalizeAccordionValues(this.openAccordionPanels()),
+      editingMilestones: this.editingMilestones(),
+    };
+
+    window.sessionStorage.setItem(key, JSON.stringify(state));
+  }
+
+  private restoreUiState(): void {
+    if (typeof window === 'undefined') return;
+    const key = this.getUiStateStorageKey();
+    if (!key || this.restoredUiStateKey === key) return;
+
+    this.restoredUiStateKey = key;
+    const rawState = window.sessionStorage.getItem(key);
+    if (!rawState) return;
+
+    try {
+      const parsed = JSON.parse(rawState) as {
+        openAccordionPanels?: string[] | null;
+        editingMilestones?: Record<number, Record<string, boolean>> | null;
+      };
+
+      this.openAccordionPanels.set(this.normalizeAccordionValues(parsed.openAccordionPanels));
+      this.editingMilestones.set(parsed.editingMilestones ?? {});
+    } catch {
+      window.sessionStorage.removeItem(key);
+    }
+  }
+
   /** Called when the accordion active value changes — keeps panels open after saves */
-  onAccordionChange(values: string[]): void {
-    this.openAccordionPanels.set(values);
+  onAccordionChange(values: string | string[] | null | undefined): void {
+    const normalized = this.normalizeAccordionValues(values);
+
+    // Prime can briefly emit an empty value while the form reloads after save.
+    // Do not wipe the remembered open panels during that transient refresh.
+    if (
+      normalized.length === 0 &&
+      (this.savingMilestone() !== null || this.submittingRowIndex() !== null)
+    ) {
+      return;
+    }
+
+    this.openAccordionPanels.set(normalized);
+    this.persistUiState();
   }
 
   /** Open a specific accordion panel (called after milestone save to keep it open) */
   ensureAccordionOpen(panelValue: string): void {
-    const current = this.openAccordionPanels();
+    const current = this.normalizeAccordionValues(this.openAccordionPanels());
     if (!current.includes(panelValue)) {
       this.openAccordionPanels.set([...current, panelValue]);
+      this.persistUiState();
     }
   }
 
@@ -409,6 +601,12 @@ export class ShipmentDocumentationComponent {
           if (!group.get('receiver')?.value) group.get('receiver')?.patchValue('Bank', { emitEvent: false });
         }
       });
+    });
+
+    effect(() => {
+      const shipmentId = this.shipmentData()?.shipment?._id;
+      if (!shipmentId || !this.formArray) return;
+      this.restoreUiState();
     });
 
     effect(() => {

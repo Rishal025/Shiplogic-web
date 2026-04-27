@@ -329,14 +329,6 @@
       <div class="sl-card-body">
         <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
           <div class="flex flex-col gap-1">
-            <span class="sl-label text-[10px] uppercase tracking-wider text-slate-500">Buying Unit</span>
-            <span class="text-sm font-semibold text-slate-900">{{ shipmentData()?.shipment?.buyunit || '–' }}</span>
-          </div>
-          <div class="flex flex-col gap-1">
-            <span class="sl-label text-[10px] uppercase tracking-wider text-blue-500">FC per Unit</span>
-            <span class="text-lg font-bold text-slate-900">{{ (shipmentData()?.shipment?.fcPerUnit ?? 0) | currency: 'USD' }}</span>
-          </div>
-          <div class="flex flex-col gap-1">
             <span class="sl-label text-[10px] uppercase tracking-wider text-blue-500">Total USD</span>
             <span class="text-xl font-black text-slate-900 tracking-tight">{{ (shipmentData()?.shipment?.payment ?? 0) | currency: 'USD' }}</span>
             <span class="text-[10px] text-slate-400">Terms: {{ shipmentData()?.shipment?.paymentTerms || '–' }}</span>

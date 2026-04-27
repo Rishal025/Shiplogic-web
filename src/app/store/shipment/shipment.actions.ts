@@ -22,7 +22,7 @@ export const setCurrentStep = createAction(
 );
 export const setActiveSplitTab = createAction(
   '[Shipment Form] Set Split Tab',
-  props<{ tab: 'planned' | 'actual' | 'history' }>()
+  props<{ tab: 'planned' | 'actual' | 'history' | 'report' }>()
 );
 
 // --- Populate State from Loaded Data ---
