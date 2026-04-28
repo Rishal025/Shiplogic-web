@@ -35,6 +35,8 @@ type Step5DocKind =
   | 'customsClearance'
   | 'municipality';
 
+type LogisticsSectionKey = Step5DocKind | 'transportation';
+
 const STEP5_DOC_CONFIG: {
   kind: Step5DocKind;
   label: string;
@@ -71,6 +73,26 @@ export class ShipmentArrivalComponent {
 
   readonly step5DocConfig = STEP5_DOC_CONFIG;
   readonly secondaryStep5DocConfig = STEP5_DOC_CONFIG.filter((doc) => doc.kind !== 'arrivalNotice');
+  readonly visibleSecondaryStep5DocConfig = computed(() =>
+    this.secondaryStep5DocConfig.filter((doc) => this.canViewLogisticsSection(doc.kind))
+  );
+  readonly visibleBulkSections = computed<LogisticsSectionKey[]>(() =>
+    ([
+      'arrivalNotice',
+      'advanceRequest',
+      'doReleased',
+      'dpApproval',
+      'customsClearance',
+      'municipality',
+      'transportation',
+    ] as LogisticsSectionKey[]).filter((section) => this.canViewLogisticsSection(section))
+  );
+
+  hasPendingEditableBulkSections(index: number): boolean {
+    return this.visibleBulkSections().some(
+      (section) => this.canEditLogisticsSection(section) && !this.isLogisticsSectionLocked(index, section)
+    );
+  }
 
   @ViewChild('arrivalNoticeInput') arrivalNoticeInputRef?: ElementRef<HTMLInputElement>;
   @ViewChild('advanceRequestInput') advanceRequestInputRef?: ElementRef<HTMLInputElement>;
@@ -172,11 +194,9 @@ export class ShipmentArrivalComponent {
   }
 
   async executeBulkSave(index: number): Promise<void> {
-    const sections: Array<'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'> = [
-      'arrivalNotice', 'advanceRequest', 'doReleased', 'dpApproval', 'customsClearance', 'municipality', 'transportation'
-    ];
-
-    const pendingSections = sections.filter(s => !this.isLogisticsSectionLocked(index, s));
+    const pendingSections = this.visibleBulkSections().filter(
+      (section) => this.canEditLogisticsSection(section) && !this.isLogisticsSectionLocked(index, section)
+    );
 
     if (pendingSections.length === 0) {
       this.messageService.add({ severity: 'info', summary: 'Nothing to save', detail: 'All sections are already saved.' });
@@ -310,6 +330,15 @@ export class ShipmentArrivalComponent {
   private transportationCompanyService = inject(TransportationCompanyService);
   private authService = inject(AuthService);
   private rbacService = inject(RbacService);
+  private readonly logisticsPermissionMap: Record<LogisticsSectionKey, { view: string; edit: string }> = {
+    arrivalNotice: { view: 'shipment.tab.port_customs.milestone_1.view', edit: 'shipment.tab.port_customs.milestone_1.edit' },
+    advanceRequest: { view: 'shipment.tab.port_customs.milestone_2.view', edit: 'shipment.tab.port_customs.milestone_2.edit' },
+    doReleased: { view: 'shipment.tab.port_customs.milestone_3.view', edit: 'shipment.tab.port_customs.milestone_3.edit' },
+    dpApproval: { view: 'shipment.tab.port_customs.milestone_4.view', edit: 'shipment.tab.port_customs.milestone_4.edit' },
+    customsClearance: { view: 'shipment.tab.port_customs.milestone_5.view', edit: 'shipment.tab.port_customs.milestone_5.edit' },
+    municipality: { view: 'shipment.tab.port_customs.milestone_6.view', edit: 'shipment.tab.port_customs.milestone_6.edit' },
+    transportation: { view: 'shipment.tab.port_customs.transportation.view', edit: 'shipment.tab.port_customs.transportation.edit' },
+  };
 
   /** Options for the Transport Company Name dropdown */
   readonly transportCompanyOptions = signal<Array<{ label: string; value: string }>>([]);
@@ -438,15 +467,59 @@ export class ShipmentArrivalComponent {
   }
 
   private canOverrideSubmittedLocks(): boolean {
-    const role = this.authService.getCurrentUser()?.role || '';
-    return (
-      ['Admin', 'Manager'].includes(role) ||
-      this.rbacService.hasPermission('shipment.tab.port_customs.edit')
-    );
+    return ['Admin', 'Manager'].includes(this.authService.getCurrentUser()?.role || '');
+  }
+
+  /**
+   * Returns true if the user has explicit view + edit permission for this section.
+   * This overrides the row-level submitted lock for that specific section.
+   */
+  private hasSectionPermission(section: LogisticsSectionKey): boolean {
+    const permission = this.logisticsPermissionMap[section];
+    return !!permission &&
+      this.rbacService.hasPermission(permission.view) &&
+      this.rbacService.hasPermission(permission.edit);
+  }
+
+  canViewLogisticsSection(section: LogisticsSectionKey): boolean {
+    if (this.canOverrideSubmittedLocks()) return true;
+    const permission = this.logisticsPermissionMap[section];
+    return permission ? this.rbacService.hasPermission(permission.view) : false;
+  }
+
+  canEditLogisticsSection(section: LogisticsSectionKey): boolean {
+    if (this.canOverrideSubmittedLocks()) return true;
+    return this.hasSectionPermission(section);
+  }
+
+  getLogisticsSectionLabel(section: LogisticsSectionKey): string {
+    return section === 'arrivalNotice'
+      ? 'Port & Customs Clearance'
+      : section === 'advanceRequest'
+        ? 'Advance Received'
+        : section === 'doReleased'
+          ? 'DO Released'
+          : section === 'dpApproval'
+            ? 'DP Clearance'
+            : section === 'customsClearance'
+              ? 'Customs Clearance'
+              : section === 'municipality'
+                ? 'Municipality Check'
+                : 'Transportation Arranged';
   }
 
   isRowEditLocked(index: number): boolean {
     return this.isRowSubmitted(index) && !this.canOverrideSubmittedLocks();
+  }
+
+  /**
+   * Returns true if the edit button/action for a specific section should be disabled.
+   * If the user has explicit view+edit permission for the section, the row-level
+   * submitted lock is bypassed for that section.
+   */
+  isSectionEditLocked(index: number, section: LogisticsSectionKey): boolean {
+    if (this.hasSectionPermission(section)) return false;
+    return this.isRowEditLocked(index);
   }
 
   isPrecedingSubmitted(index: number): boolean {
@@ -725,7 +798,12 @@ export class ShipmentArrivalComponent {
   }
 
   isLogisticsSectionLocked(index: number, section: 'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'): boolean {
-    return this.isRowEditLocked(index) || !!this.lockedSections()[this.sectionKey(index, section)];
+    // If the user has explicit view+edit permission for this section, the row-level
+    // submitted lock does not apply — only the section's own save-lock matters.
+    const rowLocked = this.hasSectionPermission(section)
+      ? false
+      : this.isRowEditLocked(index);
+    return rowLocked || !this.canEditLogisticsSection(section) || !!this.lockedSections()[this.sectionKey(index, section)];
   }
 
   isPortCustomsLocked(index: number): boolean {
@@ -740,7 +818,8 @@ export class ShipmentArrivalComponent {
     index: number,
     section: 'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'
   ): void {
-    if (this.isRowEditLocked(index)) return;
+    const rowLocked = this.hasSectionPermission(section) ? false : this.isRowEditLocked(index);
+    if (rowLocked || !this.canEditLogisticsSection(section)) return;
     this.lockedSections.update((current) => ({
       ...current,
       [this.sectionKey(index, section)]: false,
@@ -752,7 +831,7 @@ export class ShipmentArrivalComponent {
     const group = this.formArray.at(index);
     const containerId = group?.get('containerId')?.value;
     const shipmentId = this.shipmentData()?.shipment?._id;
-    if (!group || !containerId || !shipmentId || this.isLogisticsSectionLocked(index, section)) return;
+    if (!group || !containerId || !shipmentId || !this.canEditLogisticsSection(section) || this.isLogisticsSectionLocked(index, section)) return;
     this.ensureAccordionOpen(index);
 
     const sectionLabel = section === 'transportation'
@@ -1043,19 +1122,25 @@ export class ShipmentArrivalComponent {
       controls.forEach((controlName) => {
         const control = group.get(controlName);
         if (!control) return;
-        if (this.isLogisticsSectionLocked(index, section as any)) {
+        const sectionRowLocked = this.hasSectionPermission(section as LogisticsSectionKey)
+          ? false
+          : this.isRowEditLocked(index);
+        if (!this.canEditLogisticsSection(section as LogisticsSectionKey) || this.isLogisticsSectionLocked(index, section as any)) {
           control.disable({ emitEvent: false });
-        } else if (!this.isRowEditLocked(index)) {
+        } else if (!sectionRowLocked) {
           control.enable({ emitEvent: false });
         }
       });
     });
 
     const transportation = group.get('transportationBooked') as FormArray | null;
+    const transportRowLocked = this.hasSectionPermission('transportation')
+      ? false
+      : this.isRowEditLocked(index);
     transportation?.controls.forEach((row) => {
-      if (this.isLogisticsSectionLocked(index, 'transportation')) {
+      if (!this.canEditLogisticsSection('transportation') || this.isLogisticsSectionLocked(index, 'transportation')) {
         row.disable({ emitEvent: false });
-      } else if (!this.isRowEditLocked(index)) {
+      } else if (!transportRowLocked) {
         row.enable({ emitEvent: false });
         row.get('delayHours')?.disable({ emitEvent: false });
       }

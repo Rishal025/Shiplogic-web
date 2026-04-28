@@ -64,7 +64,7 @@
               </span>
             </div>
             <!-- POINT 11: Bulk Save button for Port & Customs -->
-            @if (!isRowSubmitted(i)) {
+            @if (!isRowSubmitted(i) && hasPendingEditableBulkSections(i)) {
               <button
                 type="button"
                 (click)="$event.stopPropagation(); openBulkSaveModal(i)"
@@ -80,6 +80,7 @@
         <p-accordion-content styleClass="bg-white">
           <div [formGroup]="$any(group)" class="arrival-table-shell px-4 sm:px-6 pb-8 pt-4 flex flex-col gap-0 overflow-x-hidden w-full min-w-0">
             <div class="relative flex flex-col gap-8 ml-6 before:content-[''] before:absolute before:left-[-25px] before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-100 before:rounded-full">
+              @if (canViewLogisticsSection('arrivalNotice')) {
               <div class="relative group">
                 <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
 
@@ -94,20 +95,23 @@
                     <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
                       <i class="pi pi-lock text-[10px]"></i> Saved
                     </span>
+                    @if (canEditLogisticsSection('arrivalNotice')) {
                     <button
                       type="button"
                       (click)="unlockLogisticsSection(i, 'arrivalNotice')"
-                      [disabled]="isRowEditLocked(i)"
+                      [disabled]="isSectionEditLocked(i, 'arrivalNotice')"
                       class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50"
                       title="Edit section"
                     >
                       <i class="pi pi-pencil text-[11px]"></i>
                     </button>
+                    }
                   } @else {
+                    @if (canEditLogisticsSection('arrivalNotice')) {
                     <button
                       type="button"
                       (click)="saveLogisticsSection(i, 'arrivalNotice')"
-                      [disabled]="isSectionSaving(i, 'arrivalNotice') || isRowEditLocked(i)"
+                      [disabled]="isSectionSaving(i, 'arrivalNotice') || isSectionEditLocked(i, 'arrivalNotice')"
                       class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
                     >
                       @if (isSectionSaving(i, 'arrivalNotice')) {
@@ -118,6 +122,7 @@
                         Save Section
                       }
                     </button>
+                    }
                   }
                 </div>
               </div>
@@ -129,10 +134,11 @@
                       <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                         <p-datepicker formControlName="arrivalNoticeDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
                         <div class="flex items-center gap-2 sm:shrink-0">
+                          @if (canEditLogisticsSection('arrivalNotice')) {
                           <button
                             type="button"
                             (click)="clickFileInput(i, 'arrivalNotice')"
-                            [disabled]="isRowEditLocked(i) || isLogisticsSectionLocked(i, 'arrivalNotice') || extractingArrivalNoticeRowIndex() === i"
+                            [disabled]="isSectionEditLocked(i, 'arrivalNotice') || isLogisticsSectionLocked(i, 'arrivalNotice') || extractingArrivalNoticeRowIndex() === i"
                             class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0 disabled:opacity-50"
                           >
                             @if (extractingArrivalNoticeRowIndex() === i) {
@@ -141,6 +147,7 @@
                               <i class="pi pi-upload"></i>
                             }
                           </button>
+                          }
                           @if (getFile(i, 'arrivalNotice')) {
                             <button
                               type="button"
@@ -149,14 +156,16 @@
                             >
                               <i class="pi pi-eye"></i>
                             </button>
+                            @if (canEditLogisticsSection('arrivalNotice')) {
                             <button
                               type="button"
                               (click)="clearFile(i, 'arrivalNotice')"
-                              [disabled]="isRowEditLocked(i)"
+                              [disabled]="isSectionEditLocked(i, 'arrivalNotice')"
                               class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 shrink-0 disabled:opacity-50"
                             >
                               <i class="pi pi-trash"></i>
                             </button>
+                            }
                           } @else if (getSavedFileUrl(group, 'arrivalNotice')) {
                             <button
                               type="button"
@@ -199,7 +208,8 @@
               </div>
 	            </div>
 	          </div>
-	            @for (doc of secondaryStep5DocConfig; track doc.kind; let d = $index) {
+              }
+	            @for (doc of visibleSecondaryStep5DocConfig(); track doc.kind; let d = $index) {
 	              <div class="relative group">
 	                <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
 
@@ -214,20 +224,23 @@
 	                        <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
 	                          <i class="pi pi-lock text-[10px]"></i> Saved
 	                        </span>
+                          @if (canEditLogisticsSection(doc.kind)) {
 	                        <button
 	                          type="button"
 	                          (click)="unlockLogisticsSection(i, doc.kind)"
-	                          [disabled]="isRowEditLocked(i)"
+	                          [disabled]="isSectionEditLocked(i, doc.kind)"
 	                          class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50"
 	                          title="Edit section"
 	                        >
 	                          <i class="pi pi-pencil text-[11px]"></i>
 	                        </button>
+                          }
 	                      } @else {
+                          @if (canEditLogisticsSection(doc.kind)) {
 	                        <button
 	                          type="button"
 	                          (click)="saveLogisticsSection(i, doc.kind)"
-	                          [disabled]="isSectionSaving(i, doc.kind) || isRowEditLocked(i)"
+	                          [disabled]="isSectionSaving(i, doc.kind) || isSectionEditLocked(i, doc.kind)"
 	                          class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
 	                        >
 	                          @if (isSectionSaving(i, doc.kind)) {
@@ -238,6 +251,7 @@
 	                            Save
 	                          }
 	                        </button>
+                          }
 	                      }
 	                    </div>
 	                  </div>
@@ -245,14 +259,16 @@
 	                  <div class="flex flex-col sm:flex-row sm:items-center gap-2">
 	                    <p-datepicker [formControlName]="doc.dateControl" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [readonlyInput]="true" [showIcon]="true" />
 	                    <div class="flex items-center gap-2 sm:shrink-0">
+                        @if (canEditLogisticsSection(doc.kind)) {
 	                      <button
 	                        type="button"
 	                        (click)="clickFileInput(i, doc.kind)"
-	                        [disabled]="isRowEditLocked(i) || isLogisticsSectionLocked(i, doc.kind)"
+	                        [disabled]="isSectionEditLocked(i, doc.kind) || isLogisticsSectionLocked(i, doc.kind)"
 	                        class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0 disabled:opacity-50"
 	                      >
 	                        <i class="pi pi-upload"></i>
 	                      </button>
+                        }
 	                      @if (getFile(i, doc.kind)) {
 	                        <button
 	                          type="button"
@@ -261,14 +277,16 @@
 	                        >
 	                          <i class="pi pi-eye"></i>
 	                        </button>
+                          @if (canEditLogisticsSection(doc.kind)) {
 	                        <button
 	                          type="button"
 	                          (click)="clearFile(i, doc.kind)"
-	                          [disabled]="isRowEditLocked(i)"
+	                          [disabled]="isSectionEditLocked(i, doc.kind)"
 	                          class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 shrink-0 disabled:opacity-50"
 	                        >
 	                          <i class="pi pi-trash"></i>
 	                        </button>
+                          }
 	                      } @else if (getSavedFileUrl(group, doc.kind)) {
 	                        <button
 	                          type="button"
@@ -303,6 +321,7 @@
 	              </div>
 	            }
 
+              @if (canViewLogisticsSection('transportation')) {
 	            <div class="relative group">
 	              <div class="absolute left-[-29px] top-4 w-2 h-2 rounded-full border-2 border-slate-300 bg-white group-hover:border-blue-500 transition-colors z-10"></div>
 
@@ -319,20 +338,23 @@
 	                      <span class="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full shrink-0">
 	                        <i class="pi pi-lock text-[10px]"></i> Saved
 	                      </span>
+                        @if (canEditLogisticsSection('transportation')) {
 	                      <button
 	                        type="button"
 	                        (click)="unlockLogisticsSection(i, 'transportation')"
-	                        [disabled]="isRowEditLocked(i)"
+	                        [disabled]="isSectionEditLocked(i, 'transportation')"
 	                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50"
 	                        title="Edit section"
 	                      >
 	                        <i class="pi pi-pencil text-[11px]"></i>
 	                      </button>
+                        }
 	                    } @else {
+                        @if (canEditLogisticsSection('transportation')) {
 	                      <button
 	                        type="button"
 	                        (click)="saveLogisticsSection(i, 'transportation')"
-	                        [disabled]="isSectionSaving(i, 'transportation') || isRowEditLocked(i)"
+	                        [disabled]="isSectionSaving(i, 'transportation') || isSectionEditLocked(i, 'transportation')"
 	                        class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
 	                      >
 	                        @if (isSectionSaving(i, 'transportation')) {
@@ -343,6 +365,7 @@
 	                          Save Section
 	                        }
 	                      </button>
+                        }
 	                    }
 	                  </div>
 	                </div>
@@ -457,6 +480,7 @@
 	                }
 	              </div>
 	            </div>
+              }
 	          </div>
 	        </div>
         </p-accordion-content>
@@ -530,7 +554,7 @@
 
       <!-- Section rows preview -->
       <div class="flex flex-col gap-2">
-        @for (section of ['arrivalNotice', 'advanceRequest', 'doReleased', 'dpApproval', 'customsClearance', 'municipality', 'transportation']; track section) {
+        @for (section of visibleBulkSections(); track section) {
           <div class="flex items-center justify-between rounded-xl border px-4 py-3"
             [class.border-emerald-200]="isLogisticsSectionLocked(idx, $any(section))"
             [class.bg-emerald-50]="isLogisticsSectionLocked(idx, $any(section))"
@@ -543,13 +567,7 @@
                 [class.pi-circle]="!isLogisticsSectionLocked(idx, $any(section))"
                 [class.text-slate-300]="!isLogisticsSectionLocked(idx, $any(section))"></i>
               <span class="text-xs font-semibold text-slate-700">
-                {{ section === 'arrivalNotice' ? 'Port & Customs Clearance' :
-                   section === 'advanceRequest' ? 'Advance Received' :
-                   section === 'doReleased' ? 'DO Released' :
-                   section === 'dpApproval' ? 'DP Clearance' :
-                   section === 'customsClearance' ? 'Customs Clearance' :
-                   section === 'municipality' ? 'Municipality Check' :
-                   'Transportation Arranged' }}
+                {{ getLogisticsSectionLabel($any(section)) }}
               </span>
             </div>
             <span class="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full"

@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
+import { MessageService } from 'primeng/api';
 import { AccessControlService } from '../../../../core/services/access-control.service';
 import { AccessPermission, AccessPermissionGroup, AccessRole, AccessUser } from '../../../../core/models/access-control.model';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -24,12 +25,15 @@ interface PermissionMatrixRow {
   actionPermissions: AccessPermission[];
   /** Child rows — used for tabs that have sub-tabs (Storage, Payment & Costing) */
   children?: PermissionMatrixRow[];
+  /** Optional description for the row */
+  description?: string;
 }
 
 /** Describes how to build a matrix row from the flat permission list */
 interface RowDefinition {
   key: string;
   label: string;
+  description?: string;
   /** Match permissions by tab value; if omitted, match by screen */
   tabKey?: string;
   /** Match permissions by screen value (used when tabKey is absent) */
@@ -55,6 +59,7 @@ interface RowDefinition {
 export class AccessControlComponent {
   private accessControlService = inject(AccessControlService);
   private authService = inject(AuthService);
+  private messageService = inject(MessageService);
 
   readonly activeTab = signal<AccessTabKey>('roles');
   readonly rolesLoading = signal(false);
@@ -166,6 +171,92 @@ export class AccessControlComponent {
       key: 'port_customs',
       label: 'Port & Customs',
       tabKey: 'port_customs',
+      hiddenPermissionKeys: [
+        'shipment.tab.port_customs.milestone_1.view',
+        'shipment.tab.port_customs.milestone_1.edit',
+        'shipment.tab.port_customs.milestone_2.view',
+        'shipment.tab.port_customs.milestone_2.edit',
+        'shipment.tab.port_customs.milestone_3.view',
+        'shipment.tab.port_customs.milestone_3.edit',
+        'shipment.tab.port_customs.milestone_4.view',
+        'shipment.tab.port_customs.milestone_4.edit',
+        'shipment.tab.port_customs.milestone_5.view',
+        'shipment.tab.port_customs.milestone_5.edit',
+        'shipment.tab.port_customs.milestone_6.view',
+        'shipment.tab.port_customs.milestone_6.edit',
+      ],
+      children: [
+        {
+          key: 'port_customs_milestone_1',
+          label: 'Milestone 1',
+          description: 'Port & Customs Clearance: arrival notice date, arrival on, shipment free retention date, port free retention date, and port demurrage start date.',
+          tabKey: 'port_customs',
+          viewPermissionKey: 'shipment.tab.port_customs.milestone_1.view',
+          editPermissionKey: 'shipment.tab.port_customs.milestone_1.edit',
+          viewActionKey: 'milestone_1_view',
+          editActionKey: 'milestone_1_edit',
+        },
+        {
+          key: 'port_customs_milestone_2',
+          label: 'Milestone 2',
+          description: 'Advance Received: controls the advance request date and attached document preview/upload area.',
+          tabKey: 'port_customs',
+          viewPermissionKey: 'shipment.tab.port_customs.milestone_2.view',
+          editPermissionKey: 'shipment.tab.port_customs.milestone_2.edit',
+          viewActionKey: 'milestone_2_view',
+          editActionKey: 'milestone_2_edit',
+        },
+        {
+          key: 'port_customs_milestone_3',
+          label: 'Milestone 3',
+          description: 'DO Released Date: manages DO released date, remarks, and its document actions.',
+          tabKey: 'port_customs',
+          viewPermissionKey: 'shipment.tab.port_customs.milestone_3.view',
+          editPermissionKey: 'shipment.tab.port_customs.milestone_3.edit',
+          viewActionKey: 'milestone_3_view',
+          editActionKey: 'milestone_3_edit',
+        },
+        {
+          key: 'port_customs_milestone_4',
+          label: 'Milestone 4',
+          description: 'DP Clearance Date: manages DP approval / clearance date, remarks, and document actions.',
+          tabKey: 'port_customs',
+          viewPermissionKey: 'shipment.tab.port_customs.milestone_4.view',
+          editPermissionKey: 'shipment.tab.port_customs.milestone_4.edit',
+          viewActionKey: 'milestone_4_view',
+          editActionKey: 'milestone_4_edit',
+        },
+        {
+          key: 'port_customs_milestone_5',
+          label: 'Milestone 5',
+          description: 'Customs Clearance Date: manages customs clearance date, token received date, remarks, and document actions.',
+          tabKey: 'port_customs',
+          viewPermissionKey: 'shipment.tab.port_customs.milestone_5.view',
+          editPermissionKey: 'shipment.tab.port_customs.milestone_5.edit',
+          viewActionKey: 'milestone_5_view',
+          editActionKey: 'milestone_5_edit',
+        },
+        {
+          key: 'port_customs_milestone_6',
+          label: 'Milestone 6',
+          description: 'Municipality Check Date: manages municipality date, remarks, and document actions.',
+          tabKey: 'port_customs',
+          viewPermissionKey: 'shipment.tab.port_customs.milestone_6.view',
+          editPermissionKey: 'shipment.tab.port_customs.milestone_6.edit',
+          viewActionKey: 'milestone_6_view',
+          editActionKey: 'milestone_6_edit',
+        },
+        {
+          key: 'port_customs_transportation',
+          label: 'Transportation Arranged',
+          description: 'Transportation arranged section with container-wise transport company, arranged date/time, transportation date/time, and save/edit actions.',
+          tabKey: 'port_customs',
+          viewPermissionKey: 'shipment.tab.port_customs.transportation.view',
+          editPermissionKey: 'shipment.tab.port_customs.transportation.edit',
+          viewActionKey: 'transportation_view',
+          editActionKey: 'transportation_edit',
+        },
+      ],
     },
     {
       key: 'storage',
@@ -241,6 +332,7 @@ export class AccessControlComponent {
     return {
       key: def.key,
       label: def.label,
+      description: def.description,
       viewPermission,
       editPermission,
       fieldPermissions,
@@ -430,7 +522,7 @@ export class AccessControlComponent {
       .subscribe({
         next: ({ message, permissionGroups }) => {
           this.permissionGroups.set(permissionGroups);
-          this.success.set(message);
+          this.messageService.add({ severity: 'success', summary: 'Saved', detail: message });
         },
         error: (err) => {
           this.error.set(err.error?.message || 'Unable to save permissions.');

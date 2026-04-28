@@ -15,9 +15,6 @@
     @if (error()) {
       <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-700">{{ error() }}</div>
     }
-    @if (success()) {
-      <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-700">{{ success() }}</div>
-    }
 
     @if (activeTab() === 'roles') {
       <section class="grid grid-cols-1 gap-5 xl:grid-cols-[1.2fr_0.8fr]">
@@ -250,6 +247,7 @@
                                     <thead>
                                       <tr class="border-b border-slate-100 bg-slate-50">
                                         <th class="px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Sub-Tab</th>
+                                        <th class="px-4 py-2.5 text-left text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Description</th>
                                         <th class="px-4 py-2.5 text-center text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 w-24">View</th>
                                         <th class="px-4 py-2.5 text-center text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 w-24">Edit</th>
                                       </tr>
@@ -258,6 +256,7 @@
                                       @for (child of row.children; track child.key) {
                                         <tr class="border-b border-slate-100 last:border-b-0">
                                           <td class="px-4 py-3 text-sm font-semibold text-slate-700">{{ child.label }}</td>
+                                          <td class="px-4 py-3 text-sm text-slate-500">{{ child.description || '—' }}</td>
                                           <td class="px-4 py-3 text-center">
                                             @if (child.viewPermission) {
                                               <input
