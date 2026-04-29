@@ -1603,7 +1603,7 @@ export class ShipmentFormComponent implements OnDestroy {
   }
 
   private shouldEnforceTabPermissions(): boolean {
-    if (['Admin', 'Manager'].includes(this.authService.getCurrentUser()?.role || '')) {
+    if (this.authService.isAdminLevelRole()) {
       return false;
     }
     return !!this.effectivePermissions();
@@ -1613,7 +1613,17 @@ export class ShipmentFormComponent implements OnDestroy {
     if (!this.shouldEnforceTabPermissions()) {
       return true;
     }
-    return this.rbacService.hasPermission('shipment.screen.shipment_tracker.view');
+    // Explicit screen-level permission grants access.
+    if (this.rbacService.hasPermission('shipment.screen.shipment_tracker.view')) {
+      return true;
+    }
+    // Implicit access: if the user has view permission for at least one tracker
+    // tab, they should be able to open the tracker (the tab they can't see will
+    // simply be hidden in the stepper). This covers custom roles like Quality or
+    // Warehouse that are assigned tab permissions without the parent screen key.
+    return this.trackerStepConfigs().some((step) =>
+      this.rbacService.hasPermission(step.viewPermissionKey)
+    );
   }
 
   private canViewStep(step: TrackerStepConfig): boolean {

@@ -83,8 +83,7 @@ export class AccessControlComponent {
   readonly userForm = signal({ email: '', name: '', role: '', isActive: true });
 
   readonly canManageAccess = computed(() => {
-    const role = this.authService.getCurrentUser()?.role;
-    return role === 'Admin' || role === 'Manager';
+    return this.authService.isAdminLevelRole();
   });
 
   readonly selectedRole = computed(() =>

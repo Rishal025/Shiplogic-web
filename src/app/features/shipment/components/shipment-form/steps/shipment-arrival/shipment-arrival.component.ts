@@ -467,7 +467,7 @@ export class ShipmentArrivalComponent {
   }
 
   private canOverrideSubmittedLocks(): boolean {
-    return ['Admin', 'Manager'].includes(this.authService.getCurrentUser()?.role || '');
+    return this.authService.isAdminLevelRole();
   }
 
   /**

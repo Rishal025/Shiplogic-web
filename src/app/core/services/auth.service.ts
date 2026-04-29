@@ -122,6 +122,18 @@ export class AuthService {
     return this.currentUserSubject.value;
   }
 
+  /**
+   * Returns true if the current user's role is considered admin-level
+   * (full access, bypasses RBAC tab/section checks).
+   *
+   * Mirrors the ADMIN_ROLE_KEYS set in the backend's roleRegistry.js.
+   * Add a role key here when it should have the same elevated access as Admin.
+   */
+  isAdminLevelRole(): boolean {
+    const role = this.getCurrentUser()?.role || '';
+    return ['Admin', 'Manager', 'Management'].includes(role);
+  }
+
   updateStoredUser(user: User): void {
     this.setUser(user);
     this.currentUserSubject.next(user);
