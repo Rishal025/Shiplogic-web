@@ -50,8 +50,13 @@ export class AccessControlService {
     return this.http.get<EffectivePermissionsResponse>(`${this.apiUrl}/effective-permissions`);
   }
 
-  getUsers(): Observable<{ users: AccessUser[]; roles: AccessRole[] }> {
-    return this.http.get<{ users: AccessUser[]; roles: AccessRole[] }>(`${this.apiUrl}/users`);
+  getUsers(page = 1, limit = 20, search = ''): Observable<{ users: AccessUser[]; roles: AccessRole[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> {
+    const params: Record<string, string> = {
+      page: String(page),
+      limit: String(limit),
+    };
+    if (search.trim()) params['search'] = search.trim();
+    return this.http.get<{ users: AccessUser[]; roles: AccessRole[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(`${this.apiUrl}/users`, { params });
   }
 
   updateUser(userId: string, payload: Partial<AccessUser>): Observable<{ message: string; user: AccessUser }> {

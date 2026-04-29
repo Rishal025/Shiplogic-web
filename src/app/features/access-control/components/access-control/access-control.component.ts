@@ -74,6 +74,12 @@ export class AccessControlComponent {
   readonly permissionGroups = signal<AccessPermissionGroup[]>([]);
   readonly users = signal<AccessUser[]>([]);
   readonly selectedUserId = signal<string | null>(null);
+  readonly userSearch = signal<string>('');
+  readonly userPage = signal<number>(1);
+  readonly userTotalPages = signal<number>(1);
+  readonly userTotal = signal<number>(0);
+  readonly userPageSize = 20;
+  private _searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Tracks which matrix rows are expanded (by row key) */
   readonly expandedRowKeys = signal<Set<string>>(new Set());
@@ -89,6 +95,8 @@ export class AccessControlComponent {
   readonly selectedRole = computed(() =>
     this.roles().find((r) => r._id === this.selectedRoleId()) ?? null
   );
+
+  readonly filteredUsers = computed(() => this.users());
 
   readonly selectedPermissionKeys = computed(() =>
     this.permissionGroups()
@@ -531,27 +539,45 @@ export class AccessControlComponent {
 
   // ─── Users ────────────────────────────────────────────────────────────────
 
-  loadUsers(): void {
+  loadUsers(page = this.userPage(), search = this.userSearch()): void {
     this.usersLoading.set(true);
     this.error.set(null);
     this.accessControlService
-      .getUsers()
+      .getUsers(page, this.userPageSize, search)
       .pipe(finalize(() => this.usersLoading.set(false)))
       .subscribe({
-        next: ({ users, roles }) => {
+        next: ({ users, roles, pagination }) => {
           this.users.set(users);
+          this.userPage.set(pagination.page);
+          this.userTotal.set(pagination.total);
+          this.userTotalPages.set(pagination.totalPages);
           if (!this.roles().length && roles.length) this.roles.set(roles);
           if (!this.userForm().role && roles.length) this.resetUserForm(roles[0].key);
-          const currentSelected = this.selectedUserId();
-          const fallback = users[0]?._id ?? null;
-          const nextId = users.some((u) => u._id === currentSelected) ? currentSelected : fallback;
-          this.selectedUserId.set(nextId);
-          if (nextId) this.selectUser(nextId);
+          // Auto-select first user on initial load only (no search active)
+          if (!search && page === 1 && !this.selectedUserId() && users.length) {
+            this.selectUser(users[0]._id);
+          }
         },
         error: (err) => {
           this.error.set(err.error?.message || 'Unable to load users right now.');
         },
       });
+  }
+
+  onUserSearchChange(value: string): void {
+    this.userSearch.set(value);
+    // Debounce: wait 350ms after the user stops typing before hitting the API
+    if (this._searchDebounceTimer) clearTimeout(this._searchDebounceTimer);
+    this._searchDebounceTimer = setTimeout(() => {
+      this.userPage.set(1);
+      this.loadUsers(1, value);
+    }, 350);
+  }
+
+  goToUserPage(page: number): void {
+    if (page < 1 || page > this.userTotalPages()) return;
+    this.userPage.set(page);
+    this.loadUsers(page, this.userSearch());
   }
 
   selectUser(userId: string): void {
@@ -588,6 +614,7 @@ export class AccessControlComponent {
           this.users.update((users) => users.map((u) => (u._id === user._id ? user : u)));
           this.selectUser(user._id);
           this.success.set(message);
+          this.messageService.add({ severity: 'success', summary: 'Saved', detail: message });
         },
         error: (err) => {
           this.error.set(err.error?.message || 'Unable to update user.');
@@ -610,10 +637,13 @@ export class AccessControlComponent {
       .pipe(finalize(() => this.saveLoading.set(false)))
       .subscribe({
         next: ({ message, user }) => {
-          this.users.update((users) => [user, ...users]);
           this.startCreateUser();
           this.selectUser(user._id);
           this.success.set(message);
+          this.messageService.add({ severity: 'success', summary: 'Created', detail: message });
+          // Reload page 1 so the new user appears at the top
+          this.userPage.set(1);
+          this.loadUsers(1, this.userSearch());
         },
         error: (err) => {
           this.error.set(err.error?.message || 'Unable to create user.');
