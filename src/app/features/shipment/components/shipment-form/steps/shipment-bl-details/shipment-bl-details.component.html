@@ -194,6 +194,7 @@
                 </button>
                 <!-- POINT 7: Payment Allocation and Payment Costing moved from Step 8 -->
                 @if (paymentFormArray) {
+                  @if (canViewPaymentAllocation()) {
                   <button
                     type="button"
                     (click)="setActiveTab(i, 'payment_allocation')"
@@ -205,6 +206,8 @@
                   >
                     Payment Allocation
                   </button>
+                  }
+                  @if (canViewPaymentCosting()) {
                   <button
                     type="button"
                     (click)="setActiveTab(i, 'payment_costing')"
@@ -216,6 +219,7 @@
                   >
                     Payment Costing
                   </button>
+                  }
                 }
               </div>
 

@@ -9,6 +9,7 @@ import { ShipmentService } from '../../../../../../core/services/shipment.servic
 import { WarehouseService } from '../../../../../../core/services/warehouse.service';
 import { ConfirmDialogService } from '../../../../../../core/services/confirm-dialog.service';
 import { AuthService } from '../../../../../../core/services/auth.service';
+import { RbacService } from '../../../../../../core/services/rbac.service';
 import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
 import { AccordionModule } from 'primeng/accordion';
 import { DatePickerModule } from 'primeng/datepicker';
@@ -97,6 +98,7 @@ export class ShipmentBlDetailsComponent {
   private notificationService = inject(NotificationService);
   private confirmDialog = inject(ConfirmDialogService);
   private authService = inject(AuthService);
+  private rbacService = inject(RbacService);
 
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
   readonly isPlannedLocked = toSignal(this.store.select(selectIsPlannedLocked), { initialValue: false });
@@ -222,6 +224,18 @@ export class ShipmentBlDetailsComponent {
 
   getActiveTab(index: number): 'cost' | 'storage' | 'packaging' | 'payment_allocation' | 'payment_costing' {
     return this.activeTabs()[index] ?? 'cost';
+  }
+
+  /** Returns true if the current user can see the Payment Allocation tab */
+  canViewPaymentAllocation(): boolean {
+    if (this.authService.isAdminLevelRole()) return true;
+    return this.rbacService.hasPermission('shipment.tab.payment_costing.payment_allocation.view');
+  }
+
+  /** Returns true if the current user can see the Payment Costing tab */
+  canViewPaymentCosting(): boolean {
+    if (this.authService.isAdminLevelRole()) return true;
+    return this.rbacService.hasPermission('shipment.tab.payment_costing.costing_table.view');
   }
 
   getCostSheetRows(group: AbstractControl): FormArray {
