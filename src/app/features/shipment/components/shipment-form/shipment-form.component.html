@@ -213,6 +213,7 @@
             <div class="sl-card overflow-hidden" [class.rbac-readonly-shell]="isStepReadOnly(4)">
               <app-shipment-arrival
                 [formArray]="arrivalTimeSplits"
+                [visibleShipmentIndices]="getStep4VisibleShipmentIndices()"
               ></app-shipment-arrival>
             </div>
           } @else {
@@ -244,10 +245,11 @@
             </span>
           </div>
 
-          @if (submittedStep4Indices().length > 0) {
+          @if (hasAnyStep4CompletedRow()) {
             <div class="sl-card overflow-hidden" [class.rbac-readonly-shell]="isStepReadOnly(5)">
               <app-shipment-storage
                 [formArray]="storageSplits"
+                [visibleShipmentIndices]="getStep5VisibleShipmentIndices()"
               ></app-shipment-storage>
             </div>
           } @else {
@@ -278,10 +280,11 @@
             </span>
           </div>
 
-          @if (isStep5Completed()) {
+          @if (hasAnyStep5CompletedRow()) {
             <div class="sl-card overflow-visible" [class.rbac-readonly-shell]="isStepReadOnly(6)">
               <app-shipment-quality
                 [formArray]="grnSplits"
+                [visibleShipmentIndices]="getStep6VisibleShipmentIndices()"
               ></app-shipment-quality>
             </div>
           } @else {

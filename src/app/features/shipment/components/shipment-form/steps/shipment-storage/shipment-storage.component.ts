@@ -37,6 +37,7 @@ import { StorageAllocationApprovalState, StorageArrivalApprovalState } from '../
 })
 export class ShipmentStorageComponent {
   @Input({ required: true }) formArray!: FormArray;
+  @Input() visibleShipmentIndices: number[] = [];
 
   @ViewChild('storageRowFileInput') storageRowFileInputRef?: ElementRef<HTMLInputElement>;
   @ViewChild('storageGlobalFileInput') storageGlobalFileInputRef?: ElementRef<HTMLInputElement>;
@@ -135,6 +136,14 @@ export class ShipmentStorageComponent {
   private pendingRowUpload: { shipmentIndex: number; containerIndex: number } | null = null;
 
   readonly warehouseOptions = signal<Array<{ label: string; value: string }>>([]);
+
+  hasVisibleShipments(): boolean {
+    return this.visibleShipmentIndices.length > 0;
+  }
+
+  shouldShowShipment(index: number): boolean {
+    return this.visibleShipmentIndices.includes(index);
+  }
 
   /** Returns the nested containers FormArray for a given shipment group */
   getContainersArray(group: AbstractControl): AbstractControl[] {

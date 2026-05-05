@@ -38,6 +38,7 @@ type QualityDocKind = 'inhouse' | 'strategic' | 'thirdParty' | 'attachment' | 'r
 })
 export class ShipmentQualityComponent {
   @Input({ required: true }) formArray!: FormArray;
+  @Input() visibleShipmentIndices: number[] = [];
 
   @ViewChild('qualityDocInput') qualityDocInputRef?: ElementRef<HTMLInputElement>;
 
@@ -61,6 +62,14 @@ export class ShipmentQualityComponent {
 
   readonly uploadedFiles = signal<Record<string, File | null>>({});
   readonly savingRowIndex = signal<number | null>(null);
+
+  hasVisibleShipments(): boolean {
+    return this.visibleShipmentIndices.length > 0;
+  }
+
+  shouldShowShipment(index: number): boolean {
+    return this.visibleShipmentIndices.includes(index);
+  }
 
   showPreviewModal = signal(false);
   previewUrl = signal<string | null>(null);

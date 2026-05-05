@@ -248,13 +248,13 @@ export class ShipmentFormComponent implements OnDestroy {
     // Always allow navigating up to Port & Customs (index 4).
     let max = 4;
     // Storage unlocks as soon as at least one shipment has completed Port & Customs
-    if (this.submittedStep4Indices().length > 0) {
+    if (this.hasAnyStep4CompletedRow()) {
       max = 5;
     }
-    if (this.isStep4Completed() && this.isStep5Completed()) {
+    if (this.hasAnyStep4CompletedRow() && this.hasAnyStep5CompletedRow()) {
       max = 6;
     }
-    if (this.isStep4Completed() && this.isStep5Completed() && this.isStep6Completed()) {
+    if (this.hasAnyStep4CompletedRow() && this.hasAnyStep5CompletedRow() && this.isStep6Completed()) {
       max = 7;
     }
     return max;
@@ -406,6 +406,47 @@ export class ShipmentFormComponent implements OnDestroy {
     return total > 0 && this.allSubmitted(total, this.submittedStep5Indices());
   }
 
+  hasAnyStep4CompletedRow(): boolean {
+    const totalRows = this.shipmentData()?.actual?.length ?? this.arrivalTimeSplits.length;
+    if (!totalRows) return false;
+
+    for (let index = 0; index < totalRows; index++) {
+      if (this.isStep4RowComplete(index)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  hasAnyStep5CompletedRow(): boolean {
+    const totalRows = this.shipmentData()?.actual?.length ?? this.storageSplits.length;
+    if (!totalRows) return false;
+
+    for (let index = 0; index < totalRows; index++) {
+      if (this.isStep5RowComplete(index)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  getStep4VisibleShipmentIndices(): number[] {
+    const totalRows = this.documentationSplits.length || this.shipmentData()?.actual?.length || 0;
+    return Array.from({ length: totalRows }, (_, index) => index).filter((index) => this.isDocumentationRowComplete(this.documentationSplits.at(index) || this.shipmentData()?.actual?.[index]));
+  }
+
+  getStep5VisibleShipmentIndices(): number[] {
+    const totalRows = this.arrivalTimeSplits.length || this.shipmentData()?.actual?.length || 0;
+    return Array.from({ length: totalRows }, (_, index) => index).filter((index) => this.isStep4RowComplete(index));
+  }
+
+  getStep6VisibleShipmentIndices(): number[] {
+    const totalRows = this.storageSplits.length || this.shipmentData()?.actual?.length || 0;
+    return Array.from({ length: totalRows }, (_, index) => index).filter((index) => this.isStep5RowComplete(index));
+  }
+
   isStep6Completed(): boolean {
     const total = this.submittedActualIndices().length;
     return total > 0 && this.allSubmitted(total, this.submittedStep6Indices());
@@ -424,11 +465,11 @@ export class ShipmentFormComponent implements OnDestroy {
       return 3;
     }
     // Step 6+ (Storage and beyond) requires Port & Customs (index 4) completion
-    if (targetStepIndex >= 5 && !this.isStep4Completed()) {
+    if (targetStepIndex >= 5 && !this.hasAnyStep4CompletedRow()) {
       return 4;
     }
     // Step 7+ (Quality and beyond) requires Storage (index 5) completion
-    if (targetStepIndex >= 6 && !this.isStep5Completed()) {
+    if (targetStepIndex >= 6 && !this.hasAnyStep5CompletedRow()) {
       return 5;
     }
     // Step 8 (Payment) requires Quality (index 6) completion
@@ -436,6 +477,33 @@ export class ShipmentFormComponent implements OnDestroy {
       return 6;
     }
     return null;
+  }
+
+  private isStep4RowComplete(index: number): boolean {
+    if (this.submittedStep4Indices().includes(index)) {
+      return true;
+    }
+
+    const actualRow = this.shipmentData()?.actual?.[index];
+    const lockedSections = new Set(actualRow?.lockedLogisticsSections || []);
+    return [
+      'arrivalNotice',
+      'advanceRequest',
+      'doReleased',
+      'dpApproval',
+      'customsClearance',
+      'municipality',
+      'transportation',
+    ].every((section) => lockedSections.has(section));
+  }
+
+  private isStep5RowComplete(index: number): boolean {
+    if (this.submittedStep5Indices().includes(index)) {
+      return true;
+    }
+
+    const status = this.shipmentData()?.actual?.[index]?.storageArrivalApproval?.status;
+    return status === 'pending_warehouse_manager' || status === 'approved';
   }
 
   hasPreviousAccessibleStep(): boolean {

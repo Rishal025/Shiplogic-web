@@ -70,6 +70,7 @@ const STEP5_DOC_CONFIG: {
 })
 export class ShipmentArrivalComponent {
   @Input({ required: true }) formArray!: FormArray;
+  @Input() visibleShipmentIndices: number[] = [];
 
   readonly step5DocConfig = STEP5_DOC_CONFIG;
   readonly secondaryStep5DocConfig = STEP5_DOC_CONFIG.filter((doc) => doc.kind !== 'arrivalNotice');
@@ -118,6 +119,14 @@ export class ShipmentArrivalComponent {
   readonly extractingArrivalNoticeRowIndex = signal<number | null>(null);
   readonly sectionSavingKey = signal<string | null>(null);
   readonly lockedSections = signal<Record<string, boolean>>({});
+
+  hasVisibleShipments(): boolean {
+    return this.visibleShipmentIndices.length > 0;
+  }
+
+  shouldShowShipment(index: number): boolean {
+    return this.visibleShipmentIndices.includes(index);
+  }
   readonly lockedPortCustomsSections = signal<Record<number, boolean>>({});
   readonly lockedTransportationSections = signal<Record<number, boolean>>({});
   readonly openAccordionPanels = signal<string[]>([]);

@@ -33,7 +33,7 @@
   </div>
 }
 
-@if (formArray.controls.length === 0) {
+@if (formArray.controls.length === 0 || !hasVisibleShipments()) {
   <div class="p-16 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
     <div class="flex flex-col items-center justify-center gap-3">
       <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
@@ -52,6 +52,7 @@
     (valueChange)="onAccordionChange($any($event))"
     styleClass="flex flex-col gap-3">
     @for (group of formArray.controls; track $index; let i = $index) {
+      @if (shouldShowShipment(i)) {
       <p-accordion-panel [value]="'arr-' + i" styleClass="border border-slate-200 rounded-xl shadow-sm">
         <p-accordion-header styleClass="bg-white hover:bg-slate-50 px-4 py-3">
           <div class="flex items-center justify-between w-full pr-2 gap-3">
@@ -485,6 +486,7 @@
 	        </div>
         </p-accordion-content>
       </p-accordion-panel>
+      }
     }
   </p-accordion>
 }
