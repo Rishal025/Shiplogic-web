@@ -30,8 +30,13 @@ export const httpErrorInterceptor: HttpInterceptorFn = (req, next) => {
           store.dispatch(AuthActions.logout());
         } else if (error.status === 403) {
           errorMessage = 'You do not have permission to perform this action.';
-          // Redirect to forbidden page
-          router.navigate(['/forbidden']);
+          // Only redirect to forbidden for navigation-level requests (not background API calls).
+          // Background calls (e.g. loading dropdowns) should fail silently rather than
+          // kicking the user off the page they are legitimately allowed to view.
+          const isNavigationRequest = req.headers.has('X-Navigation-Request');
+          if (isNavigationRequest) {
+            router.navigate(['/forbidden']);
+          }
         } else if (error.status === 404) {
           errorMessage = 'The requested resource was not found.';
         } else if (error.status === 500) {

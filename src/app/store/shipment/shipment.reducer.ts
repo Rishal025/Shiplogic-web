@@ -51,11 +51,11 @@ export const shipmentReducer = createReducer<ShipmentState>(
     ...state,
     submittingPlanned: true,
   })),
-  on(ShipmentActions.submitPlannedSuccess, (state) => ({
+  on(ShipmentActions.submitPlannedSuccess, (state, { keepTab }) => ({
     ...state,
     submittingPlanned: false,
     isPlannedLocked: true,
-    activeSplitTab: 'actual' as const,
+    activeSplitTab: keepTab ? state.activeSplitTab : ('actual' as const),
   })),
   on(ShipmentActions.submitPlannedFailure, (state) => ({
     ...state,

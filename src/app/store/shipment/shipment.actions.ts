@@ -22,7 +22,7 @@ export const setCurrentStep = createAction(
 );
 export const setActiveSplitTab = createAction(
   '[Shipment Form] Set Split Tab',
-  props<{ tab: 'planned' | 'actual' }>()
+  props<{ tab: 'planned' | 'actual' | 'history' | 'report' }>()
 );
 
 // --- Populate State from Loaded Data ---
@@ -43,9 +43,12 @@ export const populateFormState = createAction(
 // --- Submit Planned ---
 export const submitPlannedContainers = createAction(
   '[Shipment Form] Submit Planned',
-  props<{ shipmentId: string; containers: any[]; plannedQtyMT: number }>()
+  props<{ shipmentId: string; containers: any[]; plannedQtyMT: number; noOfShipments?: number; keepTab?: boolean }>()
 );
-export const submitPlannedSuccess = createAction('[Shipment Form] Submit Planned Success');
+export const submitPlannedSuccess = createAction(
+  '[Shipment Form] Submit Planned Success',
+  props<{ keepTab?: boolean }>()
+);
 export const submitPlannedFailure = createAction(
   '[Shipment Form] Submit Planned Failure',
   props<{ error: string }>()

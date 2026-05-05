@@ -1,4 +1,7 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://api.shipmenttracker.rhutility.com:5000/api/v1'
+  apiUrl: 'http://localhost:8080/api/v1',
+  socketUrl: 'http://localhost:8080'
 };
+
+export type AppEnvironment = typeof environment;

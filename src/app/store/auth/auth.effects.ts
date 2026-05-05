@@ -40,7 +40,7 @@ export class AuthEffects {
             'Login Successful',
             `Welcome back, ${response.user.name}!`
           );
-          this.router.navigate(['/dashboard']);
+          this.router.navigate([response.user.mustChangePassword ? '/auth/change-password' : '/dashboard']);
         })
       ),
     { dispatch: false }

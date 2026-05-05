@@ -34,11 +34,42 @@ export class ShipmentEffects {
             planned.forEach((container, index) => {
               const actualData = actual.find((a) => a.containerId === container.containerId);
               if (actualData?.BLNo) submittedActualIndices.push(index);
-              if (actualData?.DHL) submittedStep3Indices.push(index);
-              if (actualData?.shipmentArrivedOn) submittedStep4Indices.push(index);
-              if (actualData?.paid_amount) submittedStep5Indices.push(index);
-              if (actualData?.clearance?.clearedOn) submittedStep6Indices.push(index);
-              if (actualData?.grn?.grnNo) submittedStep7Indices.push(index);
+              if (
+                actualData?.receiver ||
+                actualData?.expectedDocDate ||
+                actualData?.courierTrackNo ||
+                actualData?.inwardCollectionAdviceDocumentUrl ||
+                actualData?.murabahaContractSubmittedDocumentUrl ||
+                actualData?.documentsReleasedDocumentUrl
+              ) submittedStep3Indices.push(index);
+              
+              // Step 4 (Port & Customs) — mark as started when at least one logistics
+              // section has been saved (locked). Previously required ALL 7 sections.
+              const lockedSections = actualData?.lockedLogisticsSections || [];
+              const hasAnyLogisticsData =
+                lockedSections.length > 0 ||
+                actualData?.arrivalOn ||
+                actualData?.arrivalNoticeDate ||
+                actualData?.arrivalNoticeDocumentUrl ||
+                actualData?.advanceRequestDate ||
+                actualData?.doReleasedDate ||
+                actualData?.dpApprovalDate ||
+                actualData?.customsClearanceDate ||
+                actualData?.municipalityDate ||
+                (actualData?.transportationBooked?.length ?? 0) > 0;
+              if (hasAnyLogisticsData) submittedStep4Indices.push(index);
+              
+              if ((actualData?.storageSplits?.length ?? 0) > 0) submittedStep5Indices.push(index);
+              if ((actualData?.qualityRows?.length ?? 0) > 0 || (actualData?.qualityReports?.length ?? 0) > 0) {
+                submittedStep6Indices.push(index);
+              }
+              if (
+                (actualData?.paymentAllocations?.length ?? 0) > 0 ||
+                (actualData?.paymentCostings?.length ?? 0) > 0 ||
+                actualData?.paymentCostingDocumentUrl
+              ) {
+                submittedStep7Indices.push(index);
+              }
             });
 
             return [
@@ -67,7 +98,7 @@ export class ShipmentEffects {
   submitPlannedContainers$ = createEffect(() =>
     this.actions$.pipe(
       ofType(ShipmentActions.submitPlannedContainers),
-      switchMap(({ shipmentId, containers, plannedQtyMT }) => {
+      switchMap(({ shipmentId, containers, plannedQtyMT, noOfShipments, keepTab }) => {
         const total = containers.reduce((sum, c) => sum + (Number(c.qtyMT) || 0), 0);
         if (total > plannedQtyMT) {
           this.notificationService.error(
@@ -78,12 +109,18 @@ export class ShipmentEffects {
         }
 
         return this.shipmentService
-          .createPlannedContainers({ shipmentId, plannedContainers: containers })
-          .pipe(
-            mergeMap(() => {
-              this.notificationService.success('Success', 'Planned containers submitted successfully');
-              return [
-                ShipmentActions.submitPlannedSuccess(),
+          .createPlannedContainers({ shipmentId, plannedContainers: containers, noOfShipments })
+            .pipe(
+              mergeMap((response: any) => {
+                this.notificationService.success(
+                  'Success',
+                  response?.message || 'Planned containers submitted successfully'
+                );
+                if (response?.inviteSent === false && response?.inviteStatusMessage) {
+                  this.notificationService.warn('Invite email', response.inviteStatusMessage);
+                }
+                return [
+                ShipmentActions.submitPlannedSuccess({ keepTab }),
                 ShipmentActions.loadShipmentDetail({ id: shipmentId }),
               ];
             }),

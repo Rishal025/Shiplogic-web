@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
+import { RbacService } from './rbac.service';
 
 export interface LoginCredentials {
   email: string;
@@ -13,6 +14,7 @@ export interface User {
   email: string;
   name: string;
   role: string;
+  mustChangePassword?: boolean;
 }
 
 export interface AuthResponse {
@@ -21,12 +23,18 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private rbacService = inject(RbacService);
 
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
@@ -40,6 +48,11 @@ export class AuthService {
     const user = this.getStoredUser();
     if (token && user) {
       this.currentUserSubject.next(user);
+      // Load permissions after a microtask so Angular's DI is fully settled
+      // before making HTTP calls (avoids race with interceptors).
+      Promise.resolve().then(() => {
+        this.rbacService.loadEffectivePermissions().subscribe();
+      });
     }
   }
 
@@ -52,14 +65,20 @@ export class AuthService {
         this.setUser(response.user);
         // Update current user subject
         this.currentUserSubject.next(response.user);
+        this.rbacService.loadEffectivePermissions().subscribe();
       })
     );
+  }
+
+  changePassword(payload: ChangePasswordPayload): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>('auth/change-password', payload);
   }
 
   logout(): void {
     this.removeToken();
     this.removeUser();
     this.currentUserSubject.next(null);
+    this.rbacService.clear();
     this.router.navigate(['/auth/login']);
   }
 
@@ -101,5 +120,22 @@ export class AuthService {
 
   getCurrentUser(): User | null {
     return this.currentUserSubject.value;
+  }
+
+  /**
+   * Returns true if the current user's role is considered admin-level
+   * (full access, bypasses RBAC tab/section checks).
+   *
+   * Mirrors the ADMIN_ROLE_KEYS set in the backend's roleRegistry.js.
+   * Add a role key here when it should have the same elevated access as Admin.
+   */
+  isAdminLevelRole(): boolean {
+    const role = this.getCurrentUser()?.role || '';
+    return ['Admin', 'Manager', 'Management'].includes(role);
+  }
+
+  updateStoredUser(user: User): void {
+    this.setUser(user);
+    this.currentUserSubject.next(user);
   }
 }
