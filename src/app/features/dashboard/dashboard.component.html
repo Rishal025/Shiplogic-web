@@ -23,10 +23,12 @@
                     <i class="pi pi-table"></i>
                     <span>Open Shipments</span>
                 </a>
-                <a routerLink="/shipments/create" class="sl-cta primary">
-                    <i class="pi pi-plus-circle"></i>
-                    <span>Create Shipment</span>
-                </a>
+                @if (canCreateShipment()) {
+                    <a routerLink="/shipments/create" class="sl-cta primary">
+                        <i class="pi pi-plus-circle"></i>
+                        <span>Create Shipment</span>
+                    </a>
+                }
             </div>
         </header>
 

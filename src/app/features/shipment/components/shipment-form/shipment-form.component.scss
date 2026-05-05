@@ -33,7 +33,7 @@
 
             &::after {
                 content: 'View only';
-                @apply absolute right-4 top-4 z-20 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-700 shadow-sm;
+                @apply absolute right-4 -top-1 z-20 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-amber-700 shadow-sm;
             }
 
             button,
@@ -52,6 +52,23 @@
             }
 
             .rbac-allow-interaction {
+                pointer-events: auto !important;
+            }
+
+            .rbac-allow-interaction,
+            .rbac-allow-interaction * ,
+            .rbac-allow-interaction button,
+            .rbac-allow-interaction input,
+            .rbac-allow-interaction textarea,
+            .rbac-allow-interaction select,
+            .rbac-allow-interaction .p-button,
+            .rbac-allow-interaction .p-inputtext,
+            .rbac-allow-interaction .p-inputnumber,
+            .rbac-allow-interaction .p-dropdown,
+            .rbac-allow-interaction .p-datepicker,
+            .rbac-allow-interaction .p-calendar,
+            .rbac-allow-interaction .table-input,
+            .rbac-allow-interaction .table-input-text {
                 pointer-events: auto !important;
             }
 

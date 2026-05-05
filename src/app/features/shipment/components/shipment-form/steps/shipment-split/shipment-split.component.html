@@ -41,35 +41,43 @@
       <!-- Tabs and No of Shipments on same row when planned -->
       <div class="split-toolbar-primary flex flex-col lg:flex-row lg:items-center gap-4 min-w-0">
         <div class="flex w-full sm:w-auto p-1 bg-slate-800 rounded-xl gap-1 shrink-0" role="tablist" aria-label="Split Navigation">
-          <button
-            (click)="setTab('planned')"
-            role="tab"
-            [attr.aria-selected]="activeSplitTab() === 'planned'"
-            [class]="activeSplitTab() === 'planned' ? 'bg-blue-600 text-white' : 'text-slate-400'"
-            class="flex-1 sm:flex-none px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all"
-          >Scheduled</button>
-          <button
-            (click)="setTab('actual')"
-            role="tab"
-            [attr.aria-selected]="activeSplitTab() === 'actual'"
-            [disabled]="!isPlannedLocked()"
-            [class]="activeSplitTab() === 'actual' ? 'bg-emerald-600 text-white' : 'text-slate-400'"
-            class="flex-1 sm:flex-none px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >Actual</button>
-          <button
-            (click)="setTab('history')"
-            role="tab"
-            [attr.aria-selected]="activeSplitTab() === 'history'"
-            [class]="activeSplitTab() === 'history' ? 'bg-amber-500 text-slate-950' : 'text-slate-400'"
-            class="flex-1 sm:flex-none px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all"
-          >History</button>
-          <button
-            (click)="setTab('report')"
-            role="tab"
-            [attr.aria-selected]="activeSplitTab() === 'report'"
-            [class]="activeSplitTab() === 'report' ? 'bg-violet-600 text-white' : 'text-slate-400'"
-            class="flex-1 sm:flex-none px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all"
-          >Report</button>
+          @if (canViewSplitTab('planned')) {
+            <button
+              (click)="setTab('planned')"
+              role="tab"
+              [attr.aria-selected]="activeSplitTab() === 'planned'"
+              [class]="activeSplitTab() === 'planned' ? 'bg-blue-600 text-white' : 'text-slate-400'"
+              class="rbac-allow-interaction flex-1 sm:flex-none px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all"
+            >Scheduled</button>
+          }
+          @if (canViewSplitTab('actual')) {
+            <button
+              (click)="setTab('actual')"
+              role="tab"
+              [attr.aria-selected]="activeSplitTab() === 'actual'"
+              [disabled]="!canOpenSplitTab('actual')"
+              [class]="activeSplitTab() === 'actual' ? 'bg-emerald-600 text-white' : 'text-slate-400'"
+              class="rbac-allow-interaction flex-1 sm:flex-none px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >Actual</button>
+          }
+          @if (canViewSplitTab('history')) {
+            <button
+              (click)="setTab('history')"
+              role="tab"
+              [attr.aria-selected]="activeSplitTab() === 'history'"
+              [class]="activeSplitTab() === 'history' ? 'bg-amber-500 text-slate-950' : 'text-slate-400'"
+              class="rbac-allow-interaction flex-1 sm:flex-none px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all"
+            >History</button>
+          }
+          @if (canViewSplitTab('report')) {
+            <button
+              (click)="setTab('report')"
+              role="tab"
+              [attr.aria-selected]="activeSplitTab() === 'report'"
+              [class]="activeSplitTab() === 'report' ? 'bg-violet-600 text-white' : 'text-slate-400'"
+              class="rbac-allow-interaction flex-1 sm:flex-none px-6 py-2 rounded-lg text-[10px] font-black uppercase transition-all"
+            >Report</button>
+          }
         </div>
         @if (activeSplitTab() === 'planned') {
           <div class="split-toolbar-shipments flex flex-col sm:flex-row sm:items-center gap-3 border-t sm:border-t-0 sm:border-l border-slate-700 pt-4 sm:pt-0 sm:pl-4 min-w-0">

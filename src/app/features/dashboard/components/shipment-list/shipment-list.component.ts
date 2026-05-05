@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { SkeletonModule } from 'primeng/skeleton';
@@ -6,6 +6,7 @@ import { SkeletonModule } from 'primeng/skeleton';
 import { PrimaryButtonDirective } from '../../../../shared/directives/button.directive';
 import { ShipmentService } from '../../../../core/services/shipment.service';
 import { Shipment } from '../../../../core/models/shipment.model';
+import { RbacService } from '../../../../core/services/rbac.service';
 
 @Component({
     selector: 'app-shipment-list',
@@ -21,6 +22,7 @@ import { Shipment } from '../../../../core/models/shipment.model';
 })
 export class ShipmentListComponent implements OnInit {
     private shipmentService = inject(ShipmentService);
+    private rbacService = inject(RbacService);
     protected readonly Math = Math;
 
     // Use signals for better zoneless change detection
@@ -30,6 +32,9 @@ export class ShipmentListComponent implements OnInit {
     pageSize = signal(20);
     totalRecords = signal(0);
     totalPages = signal(0);
+    readonly canCreateShipment = computed(() =>
+        this.rbacService.hasPermission('shipment.screen.create_shipment.view')
+    );
 
     ngOnInit() {
         this.fetchShipments();

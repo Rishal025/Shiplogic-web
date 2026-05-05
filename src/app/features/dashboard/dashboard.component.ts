@@ -10,6 +10,7 @@ import {
   DashboardSummaryResponse,
 } from '../../core/models/shipment.model';
 import { DashboardService } from './services/dashboard.service';
+import { RbacService } from '../../core/services/rbac.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -20,11 +21,15 @@ import { DashboardService } from './services/dashboard.service';
 })
 export class DashboardComponent implements OnInit {
   private dashboardService = inject(DashboardService);
+  private rbacService = inject(RbacService);
 
   dashboard = signal<DashboardSummaryResponse | null>(null);
   loading = signal(true);
   error = signal<string | null>(null);
   orderStatusFilter = signal('All');
+  readonly canCreateShipment = computed(() =>
+    this.rbacService.hasPermission('shipment.screen.create_shipment.view')
+  );
 
   // New Chart Implementation Setup
   selectedChartType = signal('qtyMapping');

@@ -77,6 +77,11 @@ export interface BLDetailsPayload {
   }>;
 }
 
+export interface ShipmentContainerApprovalResponse {
+  message: string;
+  container: unknown;
+}
+
 // Step 3: Documentation (Document Tracker)
 export interface DocumentationPaymentPayload {
   BLNo: string;
@@ -333,6 +338,14 @@ export class ShipmentService {
 
   submitPaymentCostingDetails(containerId: string, payload: FormData): Observable<any> {
     return this.http.patch(`${this.apiUrl}/container/payment-costing/${containerId}`, payload);
+  }
+
+  approveClearingAdvance(containerId: string): Observable<ShipmentContainerApprovalResponse> {
+    return this.http.patch<ShipmentContainerApprovalResponse>(`${this.apiUrl}/container/bl-details/${containerId}/clearing-advance/approve`, {});
+  }
+
+  approvePaymentCosting(containerId: string): Observable<ShipmentContainerApprovalResponse> {
+    return this.http.patch<ShipmentContainerApprovalResponse>(`${this.apiUrl}/container/payment-costing/${containerId}/approve`, {});
   }
 
   /**

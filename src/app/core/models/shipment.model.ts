@@ -570,6 +570,24 @@ export interface WarehouseSchedule extends DeliverySchedule {
   grn?: string;
 }
 
+export interface ClearingAdvanceApprovalState {
+  status?: 'draft' | 'pending_fas' | 'pending_fas_manager' | 'approved';
+  submittedAt?: string | null;
+  submittedBy?: string | null;
+  fasApprovedAt?: string | null;
+  fasApprovedBy?: string | null;
+  fasManagerApprovedAt?: string | null;
+  fasManagerApprovedBy?: string | null;
+}
+
+export interface PaymentCostingApprovalState {
+  status?: 'draft' | 'pending_fas_manager' | 'approved';
+  submittedAt?: string | null;
+  submittedBy?: string | null;
+  fasManagerApprovedAt?: string | null;
+  fasManagerApprovedBy?: string | null;
+}
+
 // Steps 2-7: Actual Container Data
 export interface ActualContainer {
   containerId: string;
@@ -644,6 +662,7 @@ export interface ActualContainer {
     requestAmount?: number;
     paidAmount?: number;
   }[];
+  clearingAdvanceApproval?: ClearingAdvanceApprovalState;
   storageAllocations?: {
     sn?: number;
     containerSerialNo?: string;
@@ -843,6 +862,7 @@ export interface ActualContainer {
     refBillDocumentUrl?: string;
     refBillDocumentName?: string;
   }[];
+  paymentCostingApproval?: PaymentCostingApprovalState;
   packagingExpenses?: {
     sn?: number;
     item?: string;

@@ -322,6 +322,21 @@ export class ShipmentFormComponent implements OnDestroy {
       return false;
     }
 
+    if (stepIndex === 2) {
+      const hasAnyEditableBlSubview =
+        this.rbacService.hasPermission('shipment.tab.bl_details.edit') ||
+        this.rbacService.hasPermission('shipment.tab.bl_details.clearing_advance.edit') ||
+        this.rbacService.hasPermission('shipment.tab.bl_details.storage_allocations.edit') ||
+        this.rbacService.hasPermission('shipment.tab.bl_details.packaging_list.edit') ||
+        this.rbacService.hasPermission('shipment.tab.payment_costing.payment_allocation.edit') ||
+        this.rbacService.hasPermission('shipment.tab.payment_costing.costing_table.edit') ||
+        this.rbacService.hasPermission('shipment.tab.payment_costing.packaging_expenses.edit');
+
+      if (hasAnyEditableBlSubview) {
+        return false;
+      }
+    }
+
     return !this.rbacService.hasPermission(step.editPermissionKey);
   }
 

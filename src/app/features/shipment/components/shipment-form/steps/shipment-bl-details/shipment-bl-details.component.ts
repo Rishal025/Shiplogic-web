@@ -165,8 +165,12 @@ export class ShipmentBlDetailsComponent {
 
     effect(() => {
       this.formArray?.controls.forEach((_, index) => {
-        if (!this.activeTabs()[index]) {
-          this.activeTabs.update((current) => ({ ...current, [index]: 'cost' }));
+        const currentTab = this.activeTabs()[index];
+        const defaultTab = this.getDefaultVisibleTab();
+        if (!currentTab) {
+          this.activeTabs.update((current) => ({ ...current, [index]: defaultTab }));
+        } else if (!this.canViewBlTab(currentTab)) {
+          this.activeTabs.update((current) => ({ ...current, [index]: defaultTab }));
         }
         if (this.expandedCostSheet()[index] == null) {
           this.expandedCostSheet.update((current) => ({ ...current, [index]: false }));
@@ -188,10 +192,12 @@ export class ShipmentBlDetailsComponent {
   }
 
   enableCostSheetEdit(index: number): void {
+    if (!this.canEditClearingAdvance()) return;
     this.editingCostSheet.update((current) => ({ ...current, [index]: true }));
   }
 
   cancelCostSheetEdit(index: number): void {
+    if (!this.canEditClearingAdvance()) return;
     this.editingCostSheet.update((current) => ({ ...current, [index]: false }));
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (shipmentId) {
@@ -219,11 +225,55 @@ export class ShipmentBlDetailsComponent {
   }
 
   setActiveTab(index: number, tab: 'cost' | 'storage' | 'packaging' | 'payment_allocation' | 'payment_costing'): void {
+    if (!this.canViewBlTab(tab)) return;
     this.activeTabs.update((current) => ({ ...current, [index]: tab }));
   }
 
   getActiveTab(index: number): 'cost' | 'storage' | 'packaging' | 'payment_allocation' | 'payment_costing' {
-    return this.activeTabs()[index] ?? 'cost';
+    const tab = this.activeTabs()[index];
+    if (tab && this.canViewBlTab(tab)) return tab;
+    return this.getDefaultVisibleTab();
+  }
+
+  private getDefaultVisibleTab(): 'cost' | 'storage' | 'packaging' | 'payment_allocation' | 'payment_costing' {
+    const tabs: Array<'cost' | 'storage' | 'packaging' | 'payment_allocation' | 'payment_costing'> = [
+      'cost',
+      'storage',
+      'packaging',
+      'payment_allocation',
+      'payment_costing',
+    ];
+    return tabs.find((tab) => this.canViewBlTab(tab)) ?? 'cost';
+  }
+
+  canViewClearingAdvance(): boolean {
+    if (this.authService.isAdminLevelRole()) return true;
+    return this.rbacService.hasPermission('shipment.tab.bl_details.clearing_advance.view');
+  }
+
+  canEditClearingAdvance(): boolean {
+    if (this.authService.isAdminLevelRole()) return true;
+    return this.canViewClearingAdvance() && this.rbacService.hasPermission('shipment.tab.bl_details.clearing_advance.edit');
+  }
+
+  canViewStorageAllocations(): boolean {
+    if (this.authService.isAdminLevelRole()) return true;
+    return this.rbacService.hasPermission('shipment.tab.bl_details.storage_allocations.view');
+  }
+
+  canEditStorageAllocations(): boolean {
+    if (this.authService.isAdminLevelRole()) return true;
+    return this.canViewStorageAllocations() && this.rbacService.hasPermission('shipment.tab.bl_details.storage_allocations.edit');
+  }
+
+  canViewPackagingList(): boolean {
+    if (this.authService.isAdminLevelRole()) return true;
+    return this.rbacService.hasPermission('shipment.tab.bl_details.packaging_list.view');
+  }
+
+  canEditPackagingList(): boolean {
+    if (this.authService.isAdminLevelRole()) return true;
+    return this.canViewPackagingList() && this.rbacService.hasPermission('shipment.tab.bl_details.packaging_list.edit');
   }
 
   /** Returns true if the current user can see the Payment Allocation tab */
@@ -232,10 +282,150 @@ export class ShipmentBlDetailsComponent {
     return this.rbacService.hasPermission('shipment.tab.payment_costing.payment_allocation.view');
   }
 
+  canEditPaymentAllocation(): boolean {
+    if (this.authService.isAdminLevelRole()) return true;
+    return this.canViewPaymentAllocation() && this.rbacService.hasPermission('shipment.tab.payment_costing.payment_allocation.edit');
+  }
+
   /** Returns true if the current user can see the Payment Costing tab */
   canViewPaymentCosting(): boolean {
     if (this.authService.isAdminLevelRole()) return true;
     return this.rbacService.hasPermission('shipment.tab.payment_costing.costing_table.view');
+  }
+
+  canEditPaymentCosting(): boolean {
+    if (this.authService.isAdminLevelRole()) return true;
+    return this.canViewPaymentCosting() && this.rbacService.hasPermission('shipment.tab.payment_costing.costing_table.edit');
+  }
+
+  canEditBlDetails(): boolean {
+    if (this.authService.isAdminLevelRole()) return true;
+    return this.rbacService.hasPermission('shipment.tab.bl_details.edit');
+  }
+
+  canViewBlTab(tab: 'cost' | 'storage' | 'packaging' | 'payment_allocation' | 'payment_costing'): boolean {
+    switch (tab) {
+      case 'cost':
+        return this.canViewClearingAdvance();
+      case 'storage':
+        return this.canViewStorageAllocations();
+      case 'packaging':
+        return this.canViewPackagingList();
+      case 'payment_allocation':
+        return this.canViewPaymentAllocation();
+      case 'payment_costing':
+        return this.canViewPaymentCosting();
+    }
+  }
+
+  private getActualShipment(index: number): any {
+    return this.shipmentData()?.actual?.[index] || null;
+  }
+
+  private getEffectiveClearingAdvanceStatus(index: number): 'draft' | 'pending_fas' | 'pending_fas_manager' | 'approved' {
+    const actual = this.getActualShipment(index);
+    const rawStatus = actual?.clearingAdvanceApproval?.status || 'draft';
+    if (rawStatus !== 'draft') return rawStatus;
+    const rows = actual?.costSheetBookings || [];
+    const hasSavedData = Array.isArray(rows) && rows.some((entry: any) =>
+      Number(entry?.requestAmount || 0) > 0 || String(entry?.remarks || '').trim().length > 0
+    );
+    return hasSavedData ? 'pending_fas' : 'draft';
+  }
+
+  private getEffectivePaymentCostingStatus(index: number): 'draft' | 'pending_fas_manager' | 'approved' {
+    const actual = this.getActualShipment(index);
+    const rawStatus = actual?.paymentCostingApproval?.status || 'draft';
+    if (rawStatus !== 'draft') return rawStatus;
+    const rows = actual?.paymentCostings || [];
+    const hasSavedData = Array.isArray(rows) && rows.some((entry: any) =>
+      String(entry?.refBillNo || '').trim().length > 0 ||
+      String(entry?.refBillVendor || '').trim().length > 0 ||
+      !!entry?.refBillDate
+    );
+    return hasSavedData ? 'pending_fas_manager' : 'draft';
+  }
+
+  getClearingAdvanceApproval(index: number): any {
+    return this.getActualShipment(index)?.clearingAdvanceApproval || { status: 'draft' };
+  }
+
+  getPaymentCostingApproval(index: number): any {
+    return this.getActualShipment(index)?.paymentCostingApproval || { status: 'draft' };
+  }
+
+  getClearingAdvanceApprovalLabel(index: number): string {
+    const status = this.getEffectiveClearingAdvanceStatus(index);
+    switch (status) {
+      case 'pending_fas':
+        return 'Pending FAS Approval';
+      case 'pending_fas_manager':
+        return 'Pending FAS Manager Approval';
+      case 'approved':
+        return 'Approved';
+      default:
+        return 'Draft';
+    }
+  }
+
+  getPaymentCostingApprovalLabel(index: number): string {
+    const status = this.getEffectivePaymentCostingStatus(index);
+    switch (status) {
+      case 'pending_fas_manager':
+        return 'Pending FAS Manager Approval';
+      case 'approved':
+        return 'Approved';
+      default:
+        return 'Draft';
+    }
+  }
+
+  getApprovalBadgeClasses(label: string): string {
+    if (label === 'Approved') {
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    }
+    if (label.includes('Pending')) {
+      return 'border-amber-200 bg-amber-50 text-amber-700';
+    }
+    return 'border-slate-200 bg-slate-50 text-slate-600';
+  }
+
+  private isFasRole(): boolean {
+    return (this.authService.getCurrentUser()?.role || '') === 'FAS';
+  }
+
+  private isFasManagerRole(): boolean {
+    const role = this.authService.getCurrentUser()?.role || '';
+    return role === 'FasManager' || role === 'Fas manager';
+  }
+
+  canApproveClearingAdvance(index: number): boolean {
+    const status = this.getEffectiveClearingAdvanceStatus(index);
+    if (status === 'pending_fas') {
+      return this.authService.isAdminLevelRole() || this.isFasRole();
+    }
+    if (status === 'pending_fas_manager') {
+      return this.authService.isAdminLevelRole() || this.isFasManagerRole();
+    }
+    return false;
+  }
+
+  canApprovePaymentCosting(index: number): boolean {
+    const status = this.getEffectivePaymentCostingStatus(index);
+    return status === 'pending_fas_manager' && (
+      this.authService.isAdminLevelRole() ||
+      this.isFasManagerRole()
+    );
+  }
+
+  isPaymentAllocationUnlocked(index: number): boolean {
+    return this.getEffectiveClearingAdvanceStatus(index) === 'approved';
+  }
+
+  getPaymentAllocationWaitingMessage(index: number): string {
+    const status = this.getEffectiveClearingAdvanceStatus(index);
+    if (status === 'pending_fas_manager') return 'Waiting for FAS manager approval';
+    return 'Waiting for FAS approval';
   }
 
   getCostSheetRows(group: AbstractControl): FormArray {
@@ -849,6 +1039,7 @@ export class ShipmentBlDetailsComponent {
   }
 
   openStatusModal(index: number): void {
+    if (!this.canEditBlDetails()) return;
     this.statusModalShipmentIndex.set(index);
     this.statusModalVisible.set(true);
   }
@@ -883,6 +1074,7 @@ export class ShipmentBlDetailsComponent {
   }
 
   async saveBLDetails(index: number): Promise<void> {
+    if (!this.canEditBlDetails()) return;
     const row = this.formArray.at(index);
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!row || !shipmentId) return;
@@ -978,6 +1170,7 @@ export class ShipmentBlDetailsComponent {
   }
 
   async saveCostSheet(index: number): Promise<void> {
+    if (!this.canEditClearingAdvance()) return;
     const row = this.formArray.at(index);
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!row || !shipmentId) return;
@@ -1029,6 +1222,7 @@ export class ShipmentBlDetailsComponent {
   }
 
   async saveStorageAllocations(index: number): Promise<void> {
+    if (!this.canEditStorageAllocations()) return;
     const row = this.formArray.at(index);
     const shipmentId = this.shipmentData()?.shipment?._id;
     if (!row || !shipmentId) return;
@@ -1088,6 +1282,74 @@ export class ShipmentBlDetailsComponent {
       error: (error) => {
         this.savingKey.set(null);
         this.notificationService.error('Save failed', error.error?.message || 'Could not save storage allocations.');
+      }
+    });
+  }
+
+  async approveClearingAdvance(index: number): Promise<void> {
+    if (!this.canApproveClearingAdvance(index)) return;
+    const row = this.formArray.at(index);
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    if (!row || !shipmentId) return;
+
+    const containerId = row.get('containerId')?.value;
+    if (!containerId) {
+      this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
+      return;
+    }
+
+    const confirmed = await this.confirmDialog.ask({
+      message: `Approve clearing advance for Shipment ${index + 1}?`,
+      header: 'Approve Clearing Advance',
+      acceptLabel: 'Yes, Approve',
+    });
+    if (!confirmed) return;
+
+    this.savingKey.set(`cost-${index}`);
+    this.shipmentService.approveClearingAdvance(containerId).subscribe({
+      next: (response) => {
+        this.savingKey.set(null);
+        this.notificationService.success('Approved', response.message || 'Clearing advance approved successfully.');
+        this.ensureAccordionOpen(index);
+        this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+      },
+      error: (error) => {
+        this.savingKey.set(null);
+        this.notificationService.error('Approval failed', error.error?.message || 'Could not approve clearing advance.');
+      }
+    });
+  }
+
+  async approvePaymentCosting(index: number): Promise<void> {
+    if (!this.canApprovePaymentCosting(index)) return;
+    const row = this.formArray.at(index);
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    if (!row || !shipmentId) return;
+
+    const containerId = row.get('containerId')?.value;
+    if (!containerId) {
+      this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
+      return;
+    }
+
+    const confirmed = await this.confirmDialog.ask({
+      message: `Approve payment costing for Shipment ${index + 1}?`,
+      header: 'Approve Payment Costing',
+      acceptLabel: 'Yes, Approve',
+    });
+    if (!confirmed) return;
+
+    this.savingKey.set(`cost-${index}`);
+    this.shipmentService.approvePaymentCosting(containerId).subscribe({
+      next: (response) => {
+        this.savingKey.set(null);
+        this.notificationService.success('Approved', response.message || 'Payment costing approved successfully.');
+        this.ensureAccordionOpen(index);
+        this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+      },
+      error: (error) => {
+        this.savingKey.set(null);
+        this.notificationService.error('Approval failed', error.error?.message || 'Could not approve payment costing.');
       }
     });
   }

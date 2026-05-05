@@ -16,6 +16,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogService } from '../../../../../../core/services/confirm-dialog.service';
+import { RbacService } from '../../../../../../core/services/rbac.service';
 
 import {
   selectActiveSplitTab,
@@ -28,6 +29,8 @@ import {
 import * as ShipmentActions from '../../../../../../store/shipment/shipment.actions';
 import { ShipmentService } from '../../../../../../core/services/shipment.service';
 import { ScheduledHistoryEntry, ExtractBillNoResponse } from '../../../../../../core/models/shipment.model';
+
+type SplitTab = 'planned' | 'actual' | 'history' | 'report';
 
 export interface HistoryDiffRow {
   index: number;
@@ -81,6 +84,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   private shipmentService = inject(ShipmentService);
   private messageService = inject(MessageService);
   private confirmDialog = inject(ConfirmDialogService);
+  private rbacService = inject(RbacService);
 
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
   readonly isPlannedLocked = toSignal(this.store.select(selectIsPlannedLocked), {
@@ -102,6 +106,7 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   /** Row index for which bill-no extraction is in progress (show spinner). */
   readonly extractingBillNoRowIndex = signal<number | null>(null);
   readonly billDocumentFiles = signal<Record<number, File | null>>({});
+  readonly splitTabOrder: SplitTab[] = ['planned', 'actual', 'history', 'report'];
 
   // ─── Track Order Modal ────────────────────────────────────────────────────
   readonly trackOrderModalVisible = signal(false);
@@ -156,6 +161,14 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
   private plannedLockSub?: Subscription;
 
   constructor() {
+    effect(() => {
+      const currentTab = this.activeSplitTab();
+      const firstAllowedTab = this.splitTabOrder.find((tab) => this.canViewSplitTab(tab)) ?? 'planned';
+      if (!this.canViewSplitTab(currentTab)) {
+        this.store.dispatch(ShipmentActions.setActiveSplitTab({ tab: firstAllowedTab }));
+      }
+    });
+
     // Disable submitted actual rows whenever submitted indices change
     effect(() => {
       const indices = this.submittedActualIndices();
@@ -238,6 +251,27 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
 
     // Re-run bags/pallet calc when actual form values change (e.g. parent patched after add/load)
     // Subscription is set up in ngAfterViewInit when actualSplits is available.
+  }
+
+  canEditSplitStep(): boolean {
+    return this.rbacService.hasPermission('shipment.tab.shipment_tracker_split.edit');
+  }
+
+  canViewSplitTab(tab: SplitTab): boolean {
+    const permissionMap: Record<SplitTab, string> = {
+      planned: 'shipment.tab.shipment_tracker_split.scheduled.view',
+      actual: 'shipment.tab.shipment_tracker_split.actual.view',
+      history: 'shipment.tab.shipment_tracker_split.history.view',
+      report: 'shipment.tab.shipment_tracker_split.report.view',
+    };
+
+    return this.rbacService.hasPermission(permissionMap[tab]);
+  }
+
+  canOpenSplitTab(tab: SplitTab): boolean {
+    if (!this.canViewSplitTab(tab)) return false;
+    if (tab !== 'actual') return true;
+    return this.isPlannedLocked() || !this.canEditSplitStep();
   }
 
   ngAfterViewInit(): void {
@@ -442,7 +476,8 @@ export class ShipmentSplitComponent implements AfterViewInit, OnDestroy {
     this.updateActualBagCapacityError();
   }
 
-  setTab(tab: 'planned' | 'actual' | 'history' | 'report') {
+  setTab(tab: SplitTab) {
+    if (!this.canOpenSplitTab(tab)) return;
     this.store.dispatch(ShipmentActions.setActiveSplitTab({ tab }));
   }
 

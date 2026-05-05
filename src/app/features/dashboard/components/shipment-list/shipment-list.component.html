@@ -5,12 +5,14 @@
       <h1 class="font-bold text-xl md:text-2xl text-slate-900 tracking-tight">Shipments</h1>
       <p class="text-slate-500 text-xs md:text-sm">Monitor and manage your active logistics fleet</p>
     </div>
-    <div class="w-full sm:w-auto">
-      <button appButton routerLink="/shipments/create" class="w-full sm:w-auto shadow-sm" aria-label="Create new shipment">
-        <i class="pi pi-plus-circle mr-2" aria-hidden="true"></i>
-        <span>Create Shipment</span>
-      </button>
-    </div>
+    @if (canCreateShipment()) {
+      <div class="w-full sm:w-auto">
+        <button appButton routerLink="/shipments/create" class="w-full sm:w-auto shadow-sm" aria-label="Create new shipment">
+          <i class="pi pi-plus-circle mr-2" aria-hidden="true"></i>
+          <span>Create Shipment</span>
+        </button>
+      </div>
+    }
   </header>
 
   <!-- Table Container -->
