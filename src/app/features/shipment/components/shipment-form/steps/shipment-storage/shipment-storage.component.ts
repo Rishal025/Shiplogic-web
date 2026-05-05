@@ -18,6 +18,7 @@ import { WarehouseService } from '../../../../../../core/services/warehouse.serv
 import { ConfirmDialogService } from '../../../../../../core/services/confirm-dialog.service';
 import { RbacService } from '../../../../../../core/services/rbac.service';
 import { AuthService } from '../../../../../../core/services/auth.service';
+import { StorageAllocationApprovalState, StorageArrivalApprovalState } from '../../../../../../core/models/shipment.model';
 
 @Component({
   selector: 'app-shipment-storage',
@@ -118,6 +119,7 @@ export class ShipmentStorageComponent {
   // POINT 13: Global save all state
   readonly savingAllRows = signal(false);
   readonly saveAllProgress = signal<{ current: number; total: number } | null>(null);
+  readonly storageArrivalStatusOverrides = signal<Record<number, 'draft' | 'pending_warehouse_manager' | 'approved'>>({});
   readonly previewUrl = signal<string | null>(null);
   readonly previewTitle = signal('');
   readonly previewIsImage = signal(false);
@@ -162,6 +164,100 @@ export class ShipmentStorageComponent {
   private shouldEnforceTabPermissions(): boolean {
     const role = this.authService.getCurrentUser()?.role;
     return role !== 'Admin' && role !== 'Manager';
+  }
+
+  private getActualRow(index: number): any {
+    return this.shipmentData()?.actual?.[index] || null;
+  }
+
+  getStorageAllocationApproval(index: number): StorageAllocationApprovalState | null {
+    return this.getActualRow(index)?.storageAllocationApproval || null;
+  }
+
+  getStorageArrivalApproval(index: number): StorageArrivalApprovalState | null {
+    return this.getActualRow(index)?.storageArrivalApproval || null;
+  }
+
+  getStorageAllocationApprovalStatus(index: number): 'draft' | 'pending_warehouse_manager' | 'approved' {
+    return this.getStorageAllocationApproval(index)?.status || 'draft';
+  }
+
+  getStorageArrivalApprovalStatus(index: number): 'draft' | 'pending_warehouse_manager' | 'approved' {
+    return this.storageArrivalStatusOverrides()[index] || this.getStorageArrivalApproval(index)?.status || 'draft';
+  }
+
+  getStorageAllocationApprovalLabel(index: number): string {
+    const status = this.getStorageAllocationApprovalStatus(index);
+    return status === 'approved'
+      ? 'Approved'
+      : status === 'pending_warehouse_manager'
+        ? 'Pending Warehouse Manager Approval'
+        : 'Draft';
+  }
+
+  getStorageArrivalApprovalLabel(index: number): string {
+    const status = this.getStorageArrivalApprovalStatus(index);
+    return status === 'approved'
+      ? 'Approved'
+      : status === 'pending_warehouse_manager'
+        ? 'Pending for Approval'
+        : 'Draft';
+  }
+
+  isStorageAllocationApproved(index: number): boolean {
+    return this.getStorageAllocationApprovalStatus(index) === 'approved';
+  }
+
+  isStorageArrivalApproved(index: number): boolean {
+    return this.getStorageArrivalApprovalStatus(index) === 'approved';
+  }
+
+  isStorageArrivalPending(index: number): boolean {
+    return this.getStorageArrivalApprovalStatus(index) === 'pending_warehouse_manager';
+  }
+
+  isStorageArrivalLocked(index: number): boolean {
+    const status = this.getStorageArrivalApprovalStatus(index);
+    return status === 'pending_warehouse_manager' || status === 'approved';
+  }
+
+  canApproveStorageArrival(index: number): boolean {
+    if (this.getStorageArrivalApprovalStatus(index) !== 'pending_warehouse_manager') {
+      return false;
+    }
+    const role = this.authService.getCurrentUser()?.role;
+    if (role === 'warehouse' || role === 'Admin' || role === 'Manager' || role === 'Management') {
+      return true;
+    }
+    return this.rbacService.hasPermission('shipment.tab.storage.storage_arrival.approve_warehouse_manager');
+  }
+
+  async approveStorageArrival(index: number): Promise<void> {
+    const actualRow = this.getActualRow(index);
+    const containerId = actualRow?.containerId || (this.formArray.at(index) as FormGroup | null)?.get('containerId')?.value;
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    if (!containerId || !shipmentId || !this.canApproveStorageArrival(index)) return;
+
+    const confirmed = await this.confirmDialog.ask({
+      message: `Approve storage arrival for Shipment ${index + 1}?`,
+      header: 'Approve Storage Arrival',
+      acceptLabel: 'Yes, Approve',
+    });
+    if (!confirmed) return;
+
+    this.savingRowKey.set(`approve:${index}`);
+    this.shipmentService.approveStorageArrival(containerId).subscribe({
+      next: () => {
+        this.storageArrivalStatusOverrides.update((current) => ({ ...current, [index]: 'approved' }));
+        this.savingRowKey.set(null);
+        this.notificationService.success('Approved', 'Storage arrival approved successfully.');
+        this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+      },
+      error: (error) => {
+        this.savingRowKey.set(null);
+        this.notificationService.error('Approval failed', error.error?.message || 'Could not approve storage arrival.');
+      }
+    });
   }
 
   canViewShipmentTab(tab: 'allocation' | 'arrival'): boolean {
@@ -431,7 +527,12 @@ export class ShipmentStorageComponent {
     return this.savingRowKey() === this.saveRowKey(shipmentIndex, containerIndex);
   }
 
+  isApprovingStorageArrival(shipmentIndex: number): boolean {
+    return this.savingRowKey() === `approve:${shipmentIndex}`;
+  }
+
   async saveArrivalRow(index: number, containerIndex: number): Promise<void> {
+    if (this.isStorageArrivalLocked(index)) return;
     this.ensureAccordionOpen(index);
     this.setShipmentTab(index, 'arrival');
     const group = this.formArray.at(index) as FormGroup | null;
@@ -498,6 +599,7 @@ export class ShipmentStorageComponent {
     this.savingRowKey.set(this.saveRowKey(index, containerIndex));
     this.shipmentService.submitStorageArrivalRow(containerId, containerIndex, formData).subscribe({
       next: () => {
+        this.storageArrivalStatusOverrides.update((current) => ({ ...current, [index]: 'pending_warehouse_manager' }));
         this.savingRowKey.set(null);
         if (rowFile) this.clearRowFile(index, containerIndex);
         this.notificationService.success('Saved', `Storage arrival row ${containerIndex + 1} saved successfully.`);
@@ -515,6 +617,7 @@ export class ShipmentStorageComponent {
    * Single-row save is preserved alongside this.
    */
   async saveAllArrivalRows(shipmentIndex: number): Promise<void> {
+    if (this.isStorageArrivalLocked(shipmentIndex)) return;
     this.ensureAccordionOpen(shipmentIndex);
     this.setShipmentTab(shipmentIndex, 'arrival');
     const group = this.formArray.at(shipmentIndex) as FormGroup | null;
@@ -542,64 +645,91 @@ export class ShipmentStorageComponent {
 
     this.savingAllRows.set(true);
     this.saveAllProgress.set({ current: 0, total: containers.length });
-    let savedCount = 0;
-    let failedCount = 0;
 
-    for (let containerIndex = 0; containerIndex < containers.length; containerIndex++) {
-      const row = containers[containerIndex] as FormGroup;
-      if (!row) continue;
+    const missingRows: string[] = [];
+    const storageSplits = containers.map((control, containerIndex) => {
+      const row = control as FormGroup;
+      const receivedOnDate = row.get('receivedOnDate')?.value;
+      const receivedOnTime = row.get('receivedOnTime')?.value;
+      const grn = String(row.get('grn')?.value || '').trim();
+      const batch = String(row.get('batch')?.value || '').trim();
+      const productionDate = row.get('productionDate')?.value;
+      const expiryDate = row.get('expiryDate')?.value;
 
-      const formData = new FormData();
-      const rowFile = this.getRowFile(shipmentIndex, containerIndex);
-      if (rowFile) formData.append('storageRowDocument', rowFile, rowFile.name);
+      const missingArrivalFields: string[] = [];
+      if (!receivedOnDate) missingArrivalFields.push('Received On Date');
+      if (!receivedOnTime) missingArrivalFields.push('Received On Time');
+      if (!grn) missingArrivalFields.push('GRN #');
+      if (!batch) missingArrivalFields.push('Batch #');
+      if (!productionDate) missingArrivalFields.push('Production Date');
+      if (!expiryDate) missingArrivalFields.push('Expiry Date');
 
-      formData.append('containerSerialNo', row.get('containerSerialNo')?.value || '');
-      formData.append('bags', String(Number(row.get('bags')?.value) || 0));
-      formData.append('warehouse', row.get('warehouse')?.value || '');
-      formData.append('storageAvailability', String(Number(row.get('storageAvailability')?.value) || 0));
-      formData.append('receivedOnDate', this.toDate(row.get('receivedOnDate')?.value));
-      formData.append('receivedOnTime', this.toTime(row.get('receivedOnTime')?.value));
-      formData.append('customsInspection', row.get('customsInspection')?.value || 'No');
-      formData.append('grn', row.get('grn')?.value || '');
-      formData.append('batch', row.get('batch')?.value || '');
-      formData.append('productionDate', this.toDate(row.get('productionDate')?.value));
-      formData.append('expiryDate', this.toDate(row.get('expiryDate')?.value));
-      formData.append('remarks', row.get('remarks')?.value || '');
-      formData.append('documentUrl', row.get('documentUrl')?.value || '');
-      formData.append('documentName', row.get('documentName')?.value || '');
-
-      try {
-        await new Promise<void>((resolve, reject) => {
-          this.shipmentService.submitStorageArrivalRow(containerId, containerIndex, formData).subscribe({
-            next: () => {
-              if (rowFile) this.clearRowFile(shipmentIndex, containerIndex);
-              savedCount++;
-              this.saveAllProgress.set({ current: containerIndex + 1, total: containers.length });
-              resolve();
-            },
-            error: (err) => {
-              failedCount++;
-              this.saveAllProgress.set({ current: containerIndex + 1, total: containers.length });
-              reject(err);
-            }
-          });
-        });
-      } catch {
-        // continue with remaining rows even if one fails
+      if (missingArrivalFields.length > 0) {
+        missingRows.push(`Row ${containerIndex + 1}: ${missingArrivalFields.join(', ')}`);
       }
+
+      return {
+        containerSerialNo: row.get('containerSerialNo')?.value || '',
+        bags: Number(row.get('bags')?.value) || 0,
+        warehouse: row.get('warehouse')?.value || '',
+        storageAvailability: Number(row.get('storageAvailability')?.value) || 0,
+        receivedOnDate: this.toDate(receivedOnDate),
+        receivedOnTime: this.toTime(receivedOnTime),
+        customsInspection: row.get('customsInspection')?.value || 'No',
+        grn,
+        batch,
+        productionDate: this.toDate(productionDate),
+        expiryDate: this.toDate(expiryDate),
+        remarks: row.get('remarks')?.value || '',
+        documentUrl: row.get('documentUrl')?.value || '',
+        documentName: row.get('documentName')?.value || '',
+      };
+    });
+
+    if (missingRows.length > 0) {
+      this.savingAllRows.set(false);
+      this.saveAllProgress.set(null);
+      this.notificationService.error('Required Fields Missing', missingRows.join(' | '));
+      return;
     }
 
-    this.savingAllRows.set(false);
-    this.saveAllProgress.set(null);
+    const payload = new FormData();
+    payload.append('storageSplits', JSON.stringify(storageSplits));
 
-    if (savedCount > 0) {
-      this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+    const globalFile = this.getGlobalFile(shipmentIndex);
+    if (globalFile) {
+      payload.append('storageDocument', globalFile, globalFile.name);
     }
 
-    if (failedCount === 0) {
-      this.notificationService.success('All Saved', `${savedCount} storage arrival row(s) saved successfully.`);
-    } else {
-      this.notificationService.warn('Partial Save', `${savedCount} saved, ${failedCount} failed. Please retry the failed rows individually.`);
-    }
+    containers.forEach((_, containerIndex) => {
+      const rowFile = this.getRowFile(shipmentIndex, containerIndex);
+      if (rowFile) {
+        payload.append(`storageSplits_${containerIndex}_document`, rowFile, rowFile.name);
+      }
+    });
+
+    this.shipmentService.submitStorageDetails(containerId, payload).subscribe({
+      next: () => {
+        this.storageArrivalStatusOverrides.update((current) => ({ ...current, [shipmentIndex]: 'pending_warehouse_manager' }));
+        containers.forEach((_, containerIndex) => {
+          if (this.getRowFile(shipmentIndex, containerIndex)) {
+            this.clearRowFile(shipmentIndex, containerIndex);
+          }
+        });
+        if (globalFile) {
+          this.clearGlobalFile(shipmentIndex);
+        }
+        this.saveAllProgress.set({ current: containers.length, total: containers.length });
+        this.savingAllRows.set(false);
+        this.saveAllProgress.set(null);
+        this.notificationService.success('All Saved', `${containers.length} storage arrival row(s) saved successfully.`);
+        this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+      },
+      error: (error) => {
+        this.savingAllRows.set(false);
+        this.saveAllProgress.set(null);
+        this.notificationService.error('Save failed', error.error?.message || 'Could not save storage arrival rows.');
+      }
+    });
   }
 }

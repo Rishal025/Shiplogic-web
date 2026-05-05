@@ -209,7 +209,7 @@
             </span>
           </div>
 
-          @if (isStep3AllMilestonesCompleted()) {
+          @if (hasAnyStep3CompletedRow()) {
             <div class="sl-card overflow-hidden" [class.rbac-readonly-shell]="isStepReadOnly(4)">
               <app-shipment-arrival
                 [formArray]="arrivalTimeSplits"

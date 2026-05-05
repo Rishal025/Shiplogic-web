@@ -205,57 +205,70 @@ export class ShipmentArrivalComponent {
     }
 
     this.bulkSaving.set(true);
-    let savedCount = 0;
-
-    for (const section of pendingSections) {
-      try {
-        await this.saveLogisticsSectionQuiet(index, section);
-        savedCount++;
-      } catch {
-        // continue with remaining sections
-      }
-    }
-
-    this.bulkSaving.set(false);
-    this.closeBulkSaveModal();
-
-    if (savedCount > 0) {
-      this.messageService.add({
-        severity: 'success',
-        summary: 'Bulk Save Complete',
-        detail: `${savedCount} section(s) saved successfully.`
-      });
-    }
-  }
-
-  /** Save a section without confirmation dialog (used in bulk save) */
-  private async saveLogisticsSectionQuiet(
-    index: number,
-    section: 'arrivalNotice' | 'advanceRequest' | 'doReleased' | 'dpApproval' | 'customsClearance' | 'municipality' | 'transportation'
-  ): Promise<void> {
     const group = this.formArray.at(index);
     const containerId = group?.get('containerId')?.value;
     const shipmentId = this.shipmentData()?.shipment?._id;
-    if (!group || !containerId || !shipmentId) return;
+    if (!group || !containerId || !shipmentId) {
+      this.bulkSaving.set(false);
+      return;
+    }
     this.ensureAccordionOpen(index);
 
-    const toDate = (val: unknown) => (val ? new Date(val as Date).toISOString().split('T')[0] : '');
-    const payload = new FormData();
-    payload.append('sectionKey', section);
+    if (pendingSections.includes('transportation')) {
+      const transportationRows = this.getTransportationRows(group);
+      transportationRows.markAllAsTouched();
+      if (transportationRows.invalid) {
+        this.bulkSaving.set(false);
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Invalid transportation timing',
+          detail: 'Transportation date and time must be the same as or later than the arranged date and booking time.',
+        });
+        return;
+      }
+    }
 
-    if (section === 'transportation') {
-      this.updateDelayHours(index);
-      const transportationBooked = this.getTransportationRows(group).getRawValue().map((tb: any) => ({
-        containerSerialNo: tb.containerSerialNo || '',
-        transportCompanyName: tb.transportCompanyName || '',
-        bookedDate: toDate(tb.bookedDate),
-        bookingTime: this.toTimeString(tb.bookingTime),
-        transportDate: toDate(tb.transportDate),
-        transportTime: this.toTimeString(tb.transportTime),
-        delayHours: tb.delayHours ?? null,
-      }));
-      payload.append('transportationBooked', JSON.stringify(transportationBooked));
-    } else if (section === 'arrivalNotice') {
+    const payload = this.buildBulkLogisticsPayload(index, pendingSections);
+
+    this.shipmentService.submitLogistics(containerId, payload).subscribe({
+      next: () => {
+        this.lockedSections.update((current) => {
+          const next = { ...current };
+          pendingSections.forEach((section) => {
+            next[this.sectionKey(index, section)] = true;
+          });
+          return next;
+        });
+        this.applySectionLocks(index);
+        this.bulkSaving.set(false);
+        this.closeBulkSaveModal();
+        this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Bulk Save Complete',
+          detail: `${pendingSections.length} section(s) saved successfully.`,
+        });
+      },
+      error: (error) => {
+        this.bulkSaving.set(false);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Bulk Save Failed',
+          detail: error?.error?.message || 'Unable to save all Port & Customs sections in one request.',
+        });
+      }
+    });
+  }
+
+  private buildBulkLogisticsPayload(index: number, sections: LogisticsSectionKey[]): FormData {
+    const group = this.formArray.at(index);
+    const payload = new FormData();
+    const toDate = (val: unknown) => (val ? new Date(val as Date).toISOString().split('T')[0] : '');
+
+    payload.append('sectionKey', 'bulk');
+    payload.append('bulkSectionKeys', JSON.stringify(sections));
+
+    if (sections.includes('arrivalNotice')) {
       this.updateDerivedDates(index);
       payload.append('arrivalOn', toDate(group.get('arrivalOn')?.value));
       payload.append('shipmentFreeRetentionDate', toDate(group.get('shipmentFreeRetentionDate')?.value));
@@ -265,36 +278,47 @@ export class ShipmentArrivalComponent {
       payload.append('arrivalNoticeFreeRetentionDays', String(group.get('arrivalNoticeFreeRetentionDays')?.value ?? ''));
       const file = this.getFile(index, 'arrivalNotice');
       if (file) payload.append('arrivalNoticeDocument', file, file.name);
-    } else {
-      const sectionMap = {
-        advanceRequest: { date: 'advanceRequestDate', remarks: null as string | null, file: 'advanceRequestDocument' },
-        doReleased: { date: 'doReleasedDate', remarks: 'doReleasedRemarks', file: 'doReleasedDocument' },
-        dpApproval: { date: 'dpApprovalDate', remarks: 'dpApprovalRemarks', file: 'dpApprovalDocument' },
-        customsClearance: { date: 'customsClearanceDate', remarks: 'customsClearanceRemarks', file: 'customsClearanceDocument' },
-        municipality: { date: 'municipalityDate', remarks: 'municipalityRemarks', file: 'municipalityDocument' },
-      } as const;
-      const config = sectionMap[section as keyof typeof sectionMap];
-      if (!config) return;
+    }
+
+    const sectionMap = {
+      advanceRequest: { date: 'advanceRequestDate', remarks: null as string | null, file: 'advanceRequestDocument' },
+      doReleased: { date: 'doReleasedDate', remarks: 'doReleasedRemarks', file: 'doReleasedDocument' },
+      dpApproval: { date: 'dpApprovalDate', remarks: 'dpApprovalRemarks', file: 'dpApprovalDocument' },
+      customsClearance: { date: 'customsClearanceDate', remarks: 'customsClearanceRemarks', file: 'customsClearanceDocument' },
+      municipality: { date: 'municipalityDate', remarks: 'municipalityRemarks', file: 'municipalityDocument' },
+    } as const;
+
+    (['advanceRequest', 'doReleased', 'dpApproval', 'customsClearance', 'municipality'] as const).forEach((section) => {
+      if (!sections.includes(section)) return;
+      const config = sectionMap[section];
       payload.append(config.date, toDate(group.get(config.date)?.value));
-      if (config.remarks) payload.append(config.remarks, group.get(config.remarks)?.value || '');
+      if (config.remarks) {
+        payload.append(config.remarks, group.get(config.remarks)?.value || '');
+      }
       if (section === 'customsClearance') {
         payload.append('tokenReceivedDate', toDate(group.get('tokenReceivedDate')?.value));
       }
-      const file = this.getFile(index, section as any);
+      const file = this.getFile(index, section);
       if (file) payload.append(config.file, file, file.name);
+    });
+
+    if (sections.includes('transportation')) {
+      const transportationRows = this.getTransportationRows(group);
+      transportationRows.markAllAsTouched();
+      this.updateDelayHours(index);
+      const transportationBooked = transportationRows.getRawValue().map((tb: any) => ({
+        containerSerialNo: tb.containerSerialNo || '',
+        transportCompanyName: tb.transportCompanyName || '',
+        bookedDate: toDate(tb.bookedDate),
+        bookingTime: this.toTimeString(tb.bookingTime),
+        transportDate: toDate(tb.transportDate),
+        transportTime: this.toTimeString(tb.transportTime),
+        delayHours: tb.delayHours ?? null,
+      }));
+      payload.append('transportationBooked', JSON.stringify(transportationBooked));
     }
 
-    return new Promise<void>((resolve, reject) => {
-      this.shipmentService.submitLogistics(containerId, payload).subscribe({
-        next: () => {
-          this.lockedSections.update((current) => ({ ...current, [this.sectionKey(index, section)]: true }));
-          this.applySectionLocks(index);
-          this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
-          resolve();
-        },
-        error: reject
-      });
-    });
+    return payload;
   }
 
   readonly extractionMessages = [
@@ -523,7 +547,38 @@ export class ShipmentArrivalComponent {
   }
 
   isPrecedingSubmitted(index: number): boolean {
-    return this.precedingIndices().includes(index);
+    return this.isDocumentTrackerComplete(index) || this.precedingIndices().includes(index);
+  }
+
+  private isDocumentTrackerComplete(index: number): boolean {
+    const shipment = this.shipmentData()?.actual?.[index];
+    if (!shipment) return false;
+
+    const isBankReceiver = String(shipment.receiver || '').trim().toLowerCase() === 'bank';
+    const milestones = isBankReceiver
+      ? ['courier', 'receiving', 'inward', 'murabaha_process', 'murabaha_submit', 'release']
+      : ['courier', 'receiving', 'release'];
+
+    return milestones.every((milestone) => this.isDocumentTrackerMilestoneSaved(shipment, milestone));
+  }
+
+  private isDocumentTrackerMilestoneSaved(shipment: any, milestone: string): boolean {
+    switch (milestone) {
+      case 'courier':
+        return !!(shipment.courierTrackNo || shipment.courierServiceProvider || shipment.docArrivalNotes);
+      case 'receiving':
+        return !!(shipment.expectedDocDate || (shipment.receiver && shipment.bankName));
+      case 'inward':
+        return !!(shipment.inwardCollectionAdviceDate || shipment.inwardCollectionAdviceDocumentUrl);
+      case 'murabaha_process':
+        return !!(shipment.murabahaContractReleasedDate || shipment.murabahaContractApprovedDate);
+      case 'murabaha_submit':
+        return !!(shipment.murabahaContractSubmittedDate || shipment.murabahaContractSubmittedDocumentUrl);
+      case 'release':
+        return !!(shipment.documentsReleasedDate || shipment.documentsReleasedDocumentUrl);
+      default:
+        return false;
+    }
   }
 
   getTransportationRows(group: AbstractControl): FormArray {

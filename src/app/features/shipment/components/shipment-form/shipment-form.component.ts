@@ -193,7 +193,7 @@ export class ShipmentFormComponent implements OnDestroy {
         editPermissionKey: 'shipment.tab.port_customs.edit',
         label: 'Port and Customs Clearance Tracker',
         subLabel: 'Logistics',
-        completed: this.submittedActualIndices().length > 0 && this.allSubmitted(this.submittedActualIndices().length, this.submittedStep4Indices()),
+        completed: this.isStep3AllMilestonesCompleted() && this.submittedActualIndices().length > 0 && this.allSubmitted(this.submittedActualIndices().length, this.submittedStep4Indices()),
       },
       {
         index: 5,
@@ -353,39 +353,52 @@ export class ShipmentFormComponent implements OnDestroy {
     return this.allSubmitted(total, this.submittedStep4Indices());
   }
 
+  hasAnyStep3CompletedRow(): boolean {
+    if (this.documentationSplits.length > 0) {
+      return this.documentationSplits.controls.some((row) => this.isDocumentationRowComplete(row));
+    }
+
+    const actualRows = this.shipmentData()?.actual;
+    if (!actualRows || actualRows.length === 0) return false;
+
+    return actualRows.some((shipment: any) => this.isDocumentationRowComplete(shipment));
+  }
+
   /**
    * Returns true only when every actual shipment row has all 6 Document Tracker
    * milestones saved (courier, receiving, inward, murabaha_process, murabaha_submit, release).
    * Step 4 (Port & Customs) is gated behind this check.
    */
   isStep3AllMilestonesCompleted(): boolean {
+    if (this.documentationSplits.length > 0) {
+      return this.documentationSplits.controls.every((row) => this.isDocumentationRowComplete(row));
+    }
+
     const actualRows = this.shipmentData()?.actual;
     if (!actualRows || actualRows.length === 0) return false;
 
-    return actualRows.every((shipment: any) => {
-      const hasCourier =
-        !!(shipment.courierTrackNo || shipment.courierServiceProvider || shipment.docArrivalNotes);
-      const hasReceiving =
-        !!(shipment.expectedDocDate || (shipment.receiver && shipment.bankName));
-      const hasRelease =
-        !!(shipment.documentsReleasedDate || shipment.documentsReleasedDocumentUrl);
+    return actualRows.every((shipment: any) => this.isDocumentationRowComplete(shipment));
+  }
 
-      // For Direct receiver: only courier + receiving + release required (skip bank milestones)
-      const isDirect = shipment.receiver && String(shipment.receiver).toLowerCase() === 'direct';
-      if (isDirect) {
-        return hasCourier && hasReceiving && hasRelease;
-      }
+  private isDocumentationRowComplete(row: AbstractControl | any): boolean {
+    const getValue = (field: string) =>
+      row instanceof AbstractControl ? row.get(field)?.value : row?.[field];
 
-      // For Bank receiver: full chain required
-      const hasInward =
-        !!(shipment.inwardCollectionAdviceDate || shipment.inwardCollectionAdviceDocumentUrl);
-      const hasMurabahaProcess =
-        !!(shipment.murabahaContractReleasedDate || shipment.murabahaContractApprovedDate);
-      const hasMurabahaSubmit =
-        !!(shipment.murabahaContractSubmittedDate || shipment.murabahaContractSubmittedDocumentUrl);
+    const hasCourier = !!(getValue('courierTrackNo') || getValue('courierServiceProvider') || getValue('docArrivalNotes'));
+    const hasReceiving = !!(getValue('expectedDocDate') || (getValue('receiver') && getValue('bankName')));
+    const hasRelease = !!(getValue('documentsReleasedDate') || getValue('documentsReleasedDocumentUrl'));
 
-      return hasCourier && hasReceiving && hasInward && hasMurabahaProcess && hasMurabahaSubmit && hasRelease;
-    });
+    const receiver = String(getValue('receiver') || '').trim().toLowerCase();
+    const isDirect = receiver === 'direct';
+    if (isDirect) {
+      return hasCourier && hasReceiving && hasRelease;
+    }
+
+    const hasInward = !!(getValue('inwardCollectionAdviceDate') || getValue('inwardCollectionAdviceDocumentUrl'));
+    const hasMurabahaProcess = !!(getValue('murabahaContractReleasedDate') || getValue('murabahaContractApprovedDate'));
+    const hasMurabahaSubmit = !!(getValue('murabahaContractSubmittedDate') || getValue('murabahaContractSubmittedDocumentUrl'));
+
+    return hasCourier && hasReceiving && hasInward && hasMurabahaProcess && hasMurabahaSubmit && hasRelease;
   }
 
   isStep5Completed(): boolean {
@@ -406,6 +419,10 @@ export class ShipmentFormComponent implements OnDestroy {
   }
 
   private getBlockedByStep(targetStepIndex: number): number | null {
+    // Step 5+ (Port & Customs and beyond) requires Document Tracker milestone completion
+    if (targetStepIndex >= 4 && !this.hasAnyStep3CompletedRow()) {
+      return 3;
+    }
     // Step 6+ (Storage and beyond) requires Port & Customs (index 4) completion
     if (targetStepIndex >= 5 && !this.isStep4Completed()) {
       return 4;

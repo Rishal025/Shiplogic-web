@@ -16,6 +16,10 @@
   @apply rounded-[1.5rem] border border-slate-200 bg-slate-50/60 p-5 transition hover:border-slate-300 hover:bg-slate-50;
 }
 
+.access-role-list {
+  scrollbar-width: thin;
+}
+
 .permission-row {
   @apply flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 transition hover:border-slate-300;
 }

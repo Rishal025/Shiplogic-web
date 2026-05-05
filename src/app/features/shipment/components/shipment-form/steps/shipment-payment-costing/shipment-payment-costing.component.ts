@@ -50,6 +50,8 @@ export class ShipmentPaymentCostingComponent {
   @Input() initialTab: 'allocation' | 'costing' | null = null;
   /** POINT 7: When embedded inside BL Details, restrict to a single shipment index */
   @Input() singleShipmentIndex: number | null = null;
+  /** When true, the payment costing section has already been authority-approved and should stay read-only. */
+  @Input() costingApproved = false;
 
   @ViewChild('refBillDocInput') refBillDocInputRef?: ElementRef<HTMLInputElement>;
   @ViewChild('paymentCostingDocInput') paymentCostingDocInputRef?: ElementRef<HTMLInputElement>;

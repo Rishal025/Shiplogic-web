@@ -89,6 +89,20 @@
             <!-- ===== STORAGE ALLOCATION TABLE ===== -->
             @if (getShipmentTab(i) === 'allocation') {
               <div class="storage-allocation-shell rounded-xl border border-slate-200 overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
+                  <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Storage Allocation</span>
+                  <span
+                    class="inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider"
+                    [class.bg-emerald-50]="getStorageAllocationApprovalStatus(i) === 'approved'"
+                    [class.text-emerald-600]="getStorageAllocationApprovalStatus(i) === 'approved'"
+                    [class.bg-amber-50]="getStorageAllocationApprovalStatus(i) === 'pending_warehouse_manager'"
+                    [class.text-amber-600]="getStorageAllocationApprovalStatus(i) === 'pending_warehouse_manager'"
+                    [class.bg-slate-100]="getStorageAllocationApprovalStatus(i) === 'draft'"
+                    [class.text-slate-500]="getStorageAllocationApprovalStatus(i) === 'draft'"
+                  >
+                    {{ getStorageAllocationApprovalLabel(i) }}
+                  </span>
+                </div>
                 <div class="storage-allocation-viewport overflow-x-auto">
                   <table class="w-full border-separate border-spacing-0" style="min-width: 1040px;">
                     <thead>
@@ -127,11 +141,39 @@
                 <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200">
                   <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Storage Arrival</span>
                   <div class="flex items-center gap-2">
+                    <span
+                      class="inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider"
+                      [class.bg-emerald-50]="getStorageArrivalApprovalStatus(i) === 'approved'"
+                      [class.text-emerald-600]="getStorageArrivalApprovalStatus(i) === 'approved'"
+                      [class.bg-amber-50]="getStorageArrivalApprovalStatus(i) === 'pending_warehouse_manager'"
+                      [class.text-amber-600]="getStorageArrivalApprovalStatus(i) === 'pending_warehouse_manager'"
+                      [class.bg-slate-100]="getStorageArrivalApprovalStatus(i) === 'draft'"
+                      [class.text-slate-500]="getStorageArrivalApprovalStatus(i) === 'draft'"
+                    >
+                      {{ getStorageArrivalApprovalLabel(i) }}
+                    </span>
+                    @if (canApproveStorageArrival(i)) {
+                      <button
+                        type="button"
+                        (click)="approveStorageArrival(i)"
+                        [disabled]="isApprovingStorageArrival(i)"
+                        class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-blue-600 hover:bg-blue-100 disabled:opacity-50"
+                      >
+                        @if (isApprovingStorageArrival(i)) {
+                          <i class="pi pi-spin pi-spinner text-[10px]"></i>
+                          Approving...
+                        } @else {
+                          <i class="pi pi-check-circle text-[10px]"></i>
+                          Approve
+                        }
+                      </button>
+                    }
                     @if (saveAllProgress(); as progress) {
                       <span class="text-[10px] text-slate-500 font-semibold">
                         Saving {{ progress.current }} / {{ progress.total }}...
                       </span>
                     }
+                    @if (!isStorageArrivalLocked(i)) {
                     <button
                       type="button"
                       (click)="saveAllArrivalRows(i)"
@@ -146,6 +188,7 @@
                         Save All
                       }
                     </button>
+                    }
                   </div>
                 </div>
                 <div class="storage-arrival-viewport overflow-x-auto">
@@ -181,38 +224,42 @@
                             <input pInputText class="table-input-text w-full bg-slate-50" [value]="$any(cGroup).get('warehouse')?.value || ''" readonly placeholder="Warehouse" />
                           </td>
                           <td class="px-3 py-2">
-                            <p-datepicker formControlName="receivedOnDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                            <p-datepicker formControlName="receivedOnDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [disabled]="isStorageArrivalLocked(i)" />
                           </td>
                           <td class="px-3 py-2">
-                            <p-datepicker formControlName="receivedOnTime" appendTo="body" inputStyleClass="table-input" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" />
+                            <p-datepicker formControlName="receivedOnTime" appendTo="body" inputStyleClass="table-input" placeholder="HH:MM" styleClass="w-full" [timeOnly]="true" hourFormat="24" [disabled]="isStorageArrivalLocked(i)" />
                           </td>
                           <td class="px-3 py-2">
-                            <input pInputText formControlName="grn" class="table-input-text w-full" placeholder="GRN #" />
+                            <input pInputText formControlName="grn" class="table-input-text w-full" placeholder="GRN #" [readonly]="isStorageArrivalLocked(i)" />
                           </td>
                           <td class="px-3 py-2">
-                            <input pInputText formControlName="batch" class="table-input-text w-full" placeholder="Batch #" />
+                            <input pInputText formControlName="batch" class="table-input-text w-full" placeholder="Batch #" [readonly]="isStorageArrivalLocked(i)" />
                           </td>
                           <td class="px-3 py-2">
-                            <p-datepicker formControlName="productionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                            <p-datepicker formControlName="productionDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [disabled]="isStorageArrivalLocked(i)" />
                           </td>
                           <td class="px-3 py-2">
-                            <p-datepicker formControlName="expiryDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" />
+                            <p-datepicker formControlName="expiryDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full" dateFormat="dd/mm/yy" [disabled]="isStorageArrivalLocked(i)" />
                           </td>
                           <td class="px-3 py-2">
-                            <input pInputText formControlName="remarks" class="table-input-text w-full" placeholder="Remarks" />
+                            <input pInputText formControlName="remarks" class="table-input-text w-full" placeholder="Remarks" [readonly]="isStorageArrivalLocked(i)" />
                           </td>
                           <td class="px-3 py-2">
                             <div class="flex items-center gap-1">
+                              @if (!isStorageArrivalLocked(i)) {
                               <button type="button" (click)="clickRowFileInput(i, c)" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600">
                                 <i class="pi pi-upload text-[10px]"></i>
                               </button>
+                              }
                               @if (getRowFile(i, c)) {
                                 <button type="button" (click)="openDocumentPreview(getRowFile(i, c)!, 'Storage Row Document')" class="h-8 w-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 inline-flex items-center justify-center">
                                   <i class="pi pi-eye text-[10px]"></i>
                                 </button>
+                                @if (!isStorageArrivalLocked(i)) {
                                 <button type="button" (click)="clearRowFile(i, c)" class="h-8 w-8 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 inline-flex items-center justify-center">
                                   <i class="pi pi-trash text-[10px]"></i>
                                 </button>
+                                }
                               } @else if (getSavedRowDocumentUrl(cGroup)) {
                                 <button type="button" (click)="openRemoteDocumentPreview(getSavedRowDocumentUrl(cGroup), getSavedRowDocumentName(cGroup) || 'Storage Row Document')" class="h-8 w-8 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 inline-flex items-center justify-center">
                                   <i class="pi pi-eye text-[10px]"></i>
@@ -221,6 +268,7 @@
                             </div>
                           </td>
                           <td class="px-3 py-2">
+                            @if (!isStorageArrivalLocked(i)) {
                             <button
                               type="button"
                               (click)="saveArrivalRow(i, c)"
@@ -234,6 +282,7 @@
                                 Save
                               }
                             </button>
+                            }
                           </td>
                         </tr>
                       }

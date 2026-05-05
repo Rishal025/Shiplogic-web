@@ -126,19 +126,21 @@
               <i class="pi pi-file-export"></i>
               Generate Report
             </button>
-            <button
-              type="button"
-              (click)="saveCosting(singleShipmentIndex!)"
-              class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase text-emerald-600 hover:bg-emerald-100"
-            >
-              @if (savingRowIndex() === singleShipmentIndex) {
-                <i class="pi pi-spin pi-spinner"></i>
-                Saving...
-              } @else {
-                <i class="pi pi-check"></i>
-                Save
-              }
-            </button>
+            @if (!costingApproved) {
+              <button
+                type="button"
+                (click)="saveCosting(singleShipmentIndex!)"
+                class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-bold uppercase text-emerald-600 hover:bg-emerald-100"
+              >
+                @if (savingRowIndex() === singleShipmentIndex) {
+                  <i class="pi pi-spin pi-spinner"></i>
+                  Saving...
+                } @else {
+                  <i class="pi pi-check"></i>
+                  Save
+                }
+              </button>
+            }
           </div>
         </div>
 

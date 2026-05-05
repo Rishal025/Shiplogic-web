@@ -250,7 +250,7 @@
                         [value]="costSheetSearchTerm()[i] || ''"
                         (input)="setCostSheetSearchTerm(i, $any($event.target).value)"
                       />
-                      @if (canEditClearingAdvance() && !isCostSheetEditing(i) && isCostSheetSaved(i)) {
+                      @if (canEditClearingAdvance(i) && !isCostSheetEditing(i) && isCostSheetSaved(i)) {
                         <button
                           type="button"
                           (click)="enableCostSheetEdit(i)"
@@ -260,7 +260,7 @@
                           <i class="pi pi-pencil"></i>
                         </button>
                       }
-                      @if (canEditClearingAdvance()) {
+                      @if (canEditClearingAdvance(i)) {
                         <button
                           type="button"
                           (click)="generateCostSheetReport(i)"
@@ -291,10 +291,12 @@
                             Cancel
                           </button>
                         }
-                        <label class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0">
-                          <i class="pi pi-upload"></i>
-                          <input type="file" class="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" (change)="onBookingFileSelected($event, i)" />
-                        </label>
+                        @if (!isClearingAdvanceApproved(i)) {
+                          <label class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-blue-600 cursor-pointer shrink-0">
+                            <i class="pi pi-upload"></i>
+                            <input type="file" class="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" (change)="onBookingFileSelected($event, i)" />
+                          </label>
+                        }
                       }
                       @if (canApproveClearingAdvance(i)) {
                         <button
@@ -315,7 +317,7 @@
                         <button type="button" (click)="openDocumentPreview(getBookingFile(i)!, 'Cost Sheet Attachment')" class="w-10 h-10 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-blue-600 hover:bg-blue-50 shrink-0">
                           <i class="pi pi-eye"></i>
                         </button>
-                        @if (canEditClearingAdvance()) {
+                        @if (canEditClearingAdvance(i)) {
                           <button type="button" (click)="clearBookingFile(i)" class="w-10 h-10 rounded-lg border border-red-100 bg-red-50 text-red-500 hover:bg-red-100 shrink-0">
                             <i class="pi pi-trash"></i>
                           </button>
@@ -410,7 +412,7 @@
                   }
                 </div>
               } @else if (getActiveTab(i) === 'packaging') {
-                <div class="rounded-2xl border border-slate-200 overflow-hidden" [class.rbac-readonly-shell]="!canEditStorageAllocations()">
+                <div class="rounded-2xl border border-slate-200 overflow-hidden" [class.rbac-readonly-shell]="!canEditStorageAllocations(i)">
                   <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-3">
                     <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Packaging List</span>
                   </div>
@@ -452,15 +454,22 @@
                   </div>
                 </div>
               } @else if (getActiveTab(i) === 'storage') {
-                <div class="rounded-2xl border border-slate-200 overflow-hidden">
+                <div class="rounded-2xl border border-slate-200 overflow-hidden" [class.rbac-readonly-shell]="!canEditStorageAllocations()">
                   <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-3">
-                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Storage Allocations</span>
-                    @if (canEditStorageAllocations()) {
+                    <div class="flex items-center gap-2">
+                      <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Storage Allocations</span>
+                      <span class="inline-flex h-10 items-center rounded-lg border px-3 text-[9px] font-black uppercase tracking-wider whitespace-nowrap"
+                        [ngClass]="getApprovalBadgeClasses(getStorageAllocationApprovalLabel(i))">
+                        {{ getStorageAllocationApprovalLabel(i) }}
+                      </span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                    @if (canEditStorageAllocations(i)) {
                       <button
                         type="button"
                         (click)="saveStorageAllocations(i)"
                         [disabled]="isSaving(i, 'storage')"
-                        class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
+                        class="inline-flex h-10 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-[10px] font-black uppercase tracking-wider text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
                       >
                         @if (isSaving(i, 'storage')) {
                           <i class="pi pi-spin pi-spinner text-[10px]"></i>
@@ -470,6 +479,22 @@
                         Save
                       </button>
                     }
+                    @if (canApproveStorageAllocations(i)) {
+                      <button
+                        type="button"
+                        (click)="approveStorageAllocations(i)"
+                        [disabled]="isSaving(i, 'storage')"
+                        class="rbac-allow-interaction inline-flex h-10 items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-4 text-[10px] font-black uppercase tracking-wider text-violet-700 hover:bg-violet-100 disabled:opacity-50"
+                      >
+                        @if (isSaving(i, 'storage')) {
+                          <i class="pi pi-spin pi-spinner text-[10px]"></i>
+                        } @else {
+                          <i class="pi pi-check-circle text-[10px]"></i>
+                        }
+                        Approve
+                      </button>
+                    }
+                    </div>
                   </div>
                   @if (getStorageCloseMismatchWarnings(group).length) {
                     <div class="border-b border-amber-100 bg-amber-50/80 px-4 py-3">
@@ -575,7 +600,7 @@
               }
               <!-- POINT 7: Payment Costing tab (moved from Step 8) -->
               @if (getActiveTab(i) === 'payment_costing' && paymentFormArray) {
-                <div class="rounded-2xl border border-slate-200 overflow-hidden" [class.rbac-readonly-shell]="!canEditPaymentCosting()">
+                <div class="rounded-2xl border border-slate-200 overflow-hidden" [class.rbac-readonly-shell]="!canEditPaymentCosting(i)">
                   <div class="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-3">
                     <div class="flex items-center gap-2">
                       <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Payment Costing</span>
@@ -604,6 +629,7 @@
                     [formArray]="paymentFormArray"
                     [initialTab]="'costing'"
                     [singleShipmentIndex]="i"
+                    [costingApproved]="isPaymentCostingApproved(i)"
                   ></app-shipment-payment-costing>
                 </div>
               }

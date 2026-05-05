@@ -45,6 +45,8 @@ interface RowDefinition {
   /** Explicit permission key overrides for cases where a child row reuses a parent permission */
   viewPermissionKey?: string;
   editPermissionKey?: string;
+  /** Exact permission keys that belong to this row itself, excluding child sub-tabs */
+  ownPermissionKeys?: string[];
   children?: RowDefinition[];
   hiddenPermissionKeys?: string[];
 }
@@ -97,6 +99,18 @@ export class AccessControlComponent {
   );
 
   readonly filteredUsers = computed(() => this.users());
+
+  readonly generatedRoleKey = computed(() => {
+    if (this.editingRoleId()) {
+      return this.roleForm().key;
+    }
+
+    return String(this.roleForm().name || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+  });
 
   readonly selectedPermissionKeys = computed(() =>
     this.permissionGroups()
@@ -179,6 +193,11 @@ export class AccessControlComponent {
       key: 'bl_details',
       label: 'BL Details',
       tabKey: 'bl_details',
+      ownPermissionKeys: [
+        'shipment.tab.bl_details.view',
+        'shipment.tab.bl_details.edit',
+        'shipment.field.bl_details.blNo.edit',
+      ],
       hiddenPermissionKeys: [
         'shipment.tab.bl_details.clearing_advance.view',
         'shipment.tab.bl_details.clearing_advance.edit',
@@ -186,6 +205,7 @@ export class AccessControlComponent {
         'shipment.tab.bl_details.clearing_advance.approve_fas_manager',
         'shipment.tab.bl_details.storage_allocations.view',
         'shipment.tab.bl_details.storage_allocations.edit',
+        'shipment.tab.bl_details.storage_allocations.approve_warehouse_manager',
         'shipment.tab.bl_details.packaging_list.view',
         'shipment.tab.bl_details.packaging_list.edit',
         'shipment.tab.payment_costing.costing_table.approve_fas_manager',
@@ -226,6 +246,14 @@ export class AccessControlComponent {
           editPermissionKey: 'shipment.tab.bl_details.storage_allocations.edit',
           viewActionKey: 'storage_allocations_view',
           editActionKey: 'storage_allocations_edit',
+        },
+        {
+          key: 'storage_allocations_approve_warehouse_manager',
+          label: 'Storage Allocation Approval (Warehouse Manager)',
+          description: 'Allows Warehouse Manager users to approve storage allocations after submission.',
+          tabKey: 'bl_details',
+          editPermissionKey: 'shipment.tab.bl_details.storage_allocations.approve_warehouse_manager',
+          editActionKey: 'storage_allocations_approve_warehouse_manager',
         },
         {
           key: 'packaging_list',
@@ -269,11 +297,98 @@ export class AccessControlComponent {
       key: 'document_tracker',
       label: 'Document Tracker',
       tabKey: 'document_tracker',
+      ownPermissionKeys: [
+        'shipment.tab.document_tracker.view',
+        'shipment.tab.document_tracker.edit',
+        'shipment.tab.document_tracker.preview',
+      ],
+      hiddenPermissionKeys: [
+        'shipment.tab.document_tracker.milestone_1.view',
+        'shipment.tab.document_tracker.milestone_1.edit',
+        'shipment.tab.document_tracker.milestone_2.view',
+        'shipment.tab.document_tracker.milestone_2.edit',
+        'shipment.tab.document_tracker.milestone_3.view',
+        'shipment.tab.document_tracker.milestone_3.edit',
+        'shipment.tab.document_tracker.milestone_4.view',
+        'shipment.tab.document_tracker.milestone_4.edit',
+        'shipment.tab.document_tracker.milestone_5.view',
+        'shipment.tab.document_tracker.milestone_5.edit',
+        'shipment.tab.document_tracker.milestone_6.view',
+        'shipment.tab.document_tracker.milestone_6.edit',
+        'shipment.milestone.purchase.edit',
+        'shipment.milestone.fas.edit',
+      ],
+      children: [
+        {
+          key: 'document_tracker_milestone_1',
+          label: 'Milestone 1',
+          description: 'Courier Logistics with B/L, courier tracking number, courier provider, and document arrival notes.',
+          tabKey: 'document_tracker',
+          viewPermissionKey: 'shipment.tab.document_tracker.milestone_1.view',
+          editPermissionKey: 'shipment.tab.document_tracker.milestone_1.edit',
+          viewActionKey: 'milestone_1_view',
+          editActionKey: 'milestone_1_edit',
+        },
+        {
+          key: 'document_tracker_milestone_2',
+          label: 'Milestone 2',
+          description: 'Receiver and bank setup with receiver type, bank name, and expected document date.',
+          tabKey: 'document_tracker',
+          viewPermissionKey: 'shipment.tab.document_tracker.milestone_2.view',
+          editPermissionKey: 'shipment.tab.document_tracker.milestone_2.edit',
+          viewActionKey: 'milestone_2_view',
+          editActionKey: 'milestone_2_edit',
+        },
+        {
+          key: 'document_tracker_milestone_3',
+          label: 'Milestone 3',
+          description: 'Inward Collection Advice with notice date, upload, and preview actions.',
+          tabKey: 'document_tracker',
+          viewPermissionKey: 'shipment.tab.document_tracker.milestone_3.view',
+          editPermissionKey: 'shipment.tab.document_tracker.milestone_3.edit',
+          viewActionKey: 'milestone_3_view',
+          editActionKey: 'milestone_3_edit',
+        },
+        {
+          key: 'document_tracker_milestone_4',
+          label: 'Milestone 4',
+          description: 'Murabaha contract processing details and date controls for finance handling.',
+          tabKey: 'document_tracker',
+          viewPermissionKey: 'shipment.tab.document_tracker.milestone_4.view',
+          editPermissionKey: 'shipment.tab.document_tracker.milestone_4.edit',
+          viewActionKey: 'milestone_4_view',
+          editActionKey: 'milestone_4_edit',
+        },
+        {
+          key: 'document_tracker_milestone_5',
+          label: 'Milestone 5',
+          description: 'Murabaha submission milestone with submission date and supporting document actions.',
+          tabKey: 'document_tracker',
+          viewPermissionKey: 'shipment.tab.document_tracker.milestone_5.view',
+          editPermissionKey: 'shipment.tab.document_tracker.milestone_5.edit',
+          viewActionKey: 'milestone_5_view',
+          editActionKey: 'milestone_5_edit',
+        },
+        {
+          key: 'document_tracker_milestone_6',
+          label: 'Milestone 6',
+          description: 'Documents release milestone with release date and final document preview/upload actions.',
+          tabKey: 'document_tracker',
+          viewPermissionKey: 'shipment.tab.document_tracker.milestone_6.view',
+          editPermissionKey: 'shipment.tab.document_tracker.milestone_6.edit',
+          viewActionKey: 'milestone_6_view',
+          editActionKey: 'milestone_6_edit',
+        },
+      ],
     },
     {
       key: 'port_customs',
       label: 'Port & Customs',
       tabKey: 'port_customs',
+      ownPermissionKeys: [
+        'shipment.tab.port_customs.view',
+        'shipment.tab.port_customs.edit',
+      ],
       hiddenPermissionKeys: [
         'shipment.tab.port_customs.milestone_1.view',
         'shipment.tab.port_customs.milestone_1.edit',
@@ -365,6 +480,9 @@ export class AccessControlComponent {
       key: 'storage',
       label: 'Storage',
       tabKey: 'storage',
+      ownPermissionKeys: [
+        'shipment.tab.storage.view',
+      ],
       children: [
         {
           key: 'storage_allocation',
@@ -380,6 +498,14 @@ export class AccessControlComponent {
           viewActionKey: 'storage_arrival_view',
           editActionKey: 'storage_arrival_edit',
         },
+        {
+          key: 'storage_arrival_approve_warehouse_manager',
+          label: 'Storage Arrival Approval (Warehouse Manager)',
+          description: 'Warehouse manager approval for submitted storage arrival updates.',
+          tabKey: 'storage',
+          editPermissionKey: 'shipment.tab.storage.storage_arrival.approve_warehouse_manager',
+          editActionKey: 'storage_arrival_approve_warehouse_manager',
+        },
       ],
     },
     {
@@ -392,18 +518,23 @@ export class AccessControlComponent {
   /** Build a PermissionMatrixRow from a RowDefinition + flat permission list */
   private buildRow(def: RowDefinition, allPermissions: AccessPermission[]): PermissionMatrixRow {
     // Permissions that belong to this row's scope
-    const scopedPermissions = allPermissions.filter((p) => {
+    const baseScopedPermissions = allPermissions.filter((p) => {
       if (def.tabKey) return p.tab === def.tabKey;
       if (def.screenKey) return p.screen === def.screenKey && !p.tab;
       return false;
     });
+    const scopedPermissions = def.ownPermissionKeys?.length
+      ? baseScopedPermissions.filter((p) => def.ownPermissionKeys!.includes(p.key))
+      : baseScopedPermissions;
 
     // View permission: explicit action key OR key ending in '.view' with type tab/screen
     const viewPermission = def.viewPermissionKey
       ? (allPermissions.find((p) => p.key === def.viewPermissionKey) ?? null)
       : def.viewActionKey
       ? (scopedPermissions.find((p) => p.action === def.viewActionKey) ?? null)
-      : (scopedPermissions.find((p) => p.key.endsWith('.view') && (p.type === 'tab' || p.type === 'screen')) ?? null);
+      : (def.editPermissionKey || def.editActionKey)
+        ? null
+        : (scopedPermissions.find((p) => p.key.endsWith('.view') && (p.type === 'tab' || p.type === 'screen')) ?? null);
 
     // Edit permission: explicit action key OR key ending in '.edit' with type action (not field)
     const editPermission = def.editPermissionKey
@@ -541,8 +672,8 @@ export class AccessControlComponent {
 
   saveRole(): void {
     const form = this.roleForm();
-    if (!form.key.trim() || !form.name.trim()) {
-      this.error.set('Role key and role name are required.');
+    if (!form.name.trim()) {
+      this.error.set('Role name is required.');
       return;
     }
     this.saveLoading.set(true);
@@ -556,7 +687,7 @@ export class AccessControlComponent {
           isActive: form.isActive,
         })
       : this.accessControlService.createRole({
-          key: form.key.trim(),
+          key: this.generatedRoleKey(),
           name: form.name.trim(),
           description: form.description.trim(),
           isActive: form.isActive,

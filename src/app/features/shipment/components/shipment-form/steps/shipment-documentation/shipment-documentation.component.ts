@@ -120,27 +120,33 @@ export class ShipmentDocumentationComponent {
   private sanitizer = inject(DomSanitizer);
   private rbacService = inject(RbacService);
 
-  // POINT 9: Milestone permission keys
-  // M1 (courier) and M2 (receiving) → Purchase team
-  // M3–M6 (inward, murabaha_process, murabaha_submit, release) → FAS team
-  private readonly PURCHASE_MILESTONES = ['courier', 'receiving'];
-  private readonly FAS_MILESTONES = ['inward', 'murabaha_process', 'murabaha_submit', 'release'];
+  private readonly DOCUMENT_MILESTONE_VIEW_KEYS: Record<string, string> = {
+    courier: 'shipment.tab.document_tracker.milestone_1.view',
+    receiving: 'shipment.tab.document_tracker.milestone_2.view',
+    inward: 'shipment.tab.document_tracker.milestone_3.view',
+    murabaha_process: 'shipment.tab.document_tracker.milestone_4.view',
+    murabaha_submit: 'shipment.tab.document_tracker.milestone_5.view',
+    release: 'shipment.tab.document_tracker.milestone_6.view',
+  };
+
+  private readonly DOCUMENT_MILESTONE_EDIT_KEYS: Record<string, string> = {
+    courier: 'shipment.tab.document_tracker.milestone_1.edit',
+    receiving: 'shipment.tab.document_tracker.milestone_2.edit',
+    inward: 'shipment.tab.document_tracker.milestone_3.edit',
+    murabaha_process: 'shipment.tab.document_tracker.milestone_4.edit',
+    murabaha_submit: 'shipment.tab.document_tracker.milestone_5.edit',
+    release: 'shipment.tab.document_tracker.milestone_6.edit',
+  };
+
+  canViewMilestone(milestone: string): boolean {
+    const permissionKey = this.DOCUMENT_MILESTONE_VIEW_KEYS[milestone];
+    return permissionKey ? this.rbacService.hasPermission(permissionKey) : false;
+  }
 
   /** Returns true if the current user can edit the given milestone */
   canEditMilestone(milestone: string): boolean {
-    // Admin and Manager always have full access
-    if (this.rbacService.hasPermission('shipment.tab.document_tracker.edit')) {
-      return true;
-    }
-    // Purchase milestones (M1, M2)
-    if (this.PURCHASE_MILESTONES.includes(milestone)) {
-      return this.rbacService.hasPermission('shipment.milestone.purchase.edit');
-    }
-    // FAS milestones (M3–M6)
-    if (this.FAS_MILESTONES.includes(milestone)) {
-      return this.rbacService.hasPermission('shipment.milestone.fas.edit');
-    }
-    return false;
+    const permissionKey = this.DOCUMENT_MILESTONE_EDIT_KEYS[milestone];
+    return permissionKey ? this.rbacService.hasPermission(permissionKey) : false;
   }
 
   readonly shipmentData = toSignal(this.store.select(selectShipmentData));
@@ -324,12 +330,14 @@ export class ShipmentDocumentationComponent {
   }
 
   isMilestoneEditing(index: number, milestone: string): boolean {
+    if (!this.canEditMilestone(milestone)) return false;
     const rowEditing = this.editingMilestones()[index];
     if (rowEditing?.[milestone]) return true;
     return !this.isMilestoneSaved(index, milestone);
   }
 
   isMilestoneVisible(index: number, milestone: string, group: FormGroup): boolean {
+    if (!this.canViewMilestone(milestone)) return false;
     const hasMilestone1 =
       String(group.get('BLNo')?.value || '').trim().length > 0 &&
       String(group.get('courierTrackNo')?.value || '').trim().length > 0 &&
@@ -368,6 +376,14 @@ export class ShipmentDocumentationComponent {
     }
 
     return true;
+  }
+
+  hasEditableVisibleMilestones(index: number, group: FormGroup): boolean {
+    const milestones = ['courier', 'receiving', 'inward', 'murabaha_process', 'murabaha_submit', 'release'];
+    return milestones.some((milestone) =>
+      this.isMilestoneVisible(index, milestone, group) &&
+      this.canEditMilestone(milestone)
+    );
   }
 
   private isMilestoneFilled(group: FormGroup, milestone: string): boolean {

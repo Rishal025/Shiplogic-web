@@ -41,7 +41,7 @@
                 <i class="pi pi-compass text-[10px]"></i>
                 Tracker
               </button>
-              @if (isPrecedingSubmitted(i)) {
+              @if (isPrecedingSubmitted(i) && hasEditableVisibleMilestones(i, $any(group))) {
                 <!-- POINT 10: Bulk Save button -->
                 <button
                   type="button"
@@ -67,7 +67,7 @@
                 </button>
               } @else {
                 <span class="text-[9px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full shrink-0">
-                  Awaiting Step 3
+                  {{ isPrecedingSubmitted(i) ? 'View Only' : 'Awaiting Step 3' }}
                 </span>
               }
             </div>
@@ -417,16 +417,33 @@
                           <div class="flex flex-col sm:flex-row gap-3">
                             <p-datepicker formControlName="documentsReleasedDate" appendTo="body" inputStyleClass="table-input" placeholder="Select date" styleClass="w-full sm:max-w-xs" dateFormat="dd/mm/yy" [showIcon]="true" />
                             <div class="flex items-center gap-2">
-                              <button type="button" (click)="clickFileInput(i, 'documentsReleased')" class="flex-1 sm:flex-none inline-flex h-10 px-4 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50">
+                              <button type="button" (click)="clickFileInput(i, 'documentsReleased')" [disabled]="isMilestoneSaving(i, 'release')" class="flex-1 sm:flex-none inline-flex h-10 px-4 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed">
                                 <i class="pi pi-upload"></i>
                                 <span class="text-[10px] font-bold uppercase">Upload</span>
                               </button>
+                              @if (getFile(i, 'documentsReleased')) {
+                                <button type="button" (click)="openDocumentPreview(getFile(i, 'documentsReleased')!, 'Release Document')" class="icon-btn-secondary"><i class="pi pi-eye"></i></button>
+                                <button type="button" (click)="clearFile(i, 'documentsReleased')" class="icon-btn-danger"><i class="pi pi-trash"></i></button>
+                              } @else if (getSavedFileUrl(group, 'documentsReleased')) {
+                                <button type="button" (click)="openRemoteDocumentPreview(getSavedFileUrl(group, 'documentsReleased'), getSavedFileName(group, 'documentsReleased'))" class="icon-btn-secondary"><i class="pi pi-eye"></i></button>
+                              }
                             </div>
                           </div>
+                          @if (getFile(i, 'documentsReleased')) {
+                            <p class="text-[11px] text-emerald-600 font-medium">{{ getFile(i, 'documentsReleased')?.name }}</p>
+                          } @else if (getSavedFileName(group, 'documentsReleased')) {
+                            <p class="text-[11px] text-slate-400">{{ getSavedFileName(group, 'documentsReleased') }}</p>
+                          }
                         </div>
                         <div class="flex justify-end">
-                          <button (click)="saveMilestone(i, 'release')" class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-[10px] font-black uppercase tracking-wider text-white hover:bg-emerald-700 shadow-lg shadow-emerald-200/50 transition-all active:scale-95 disabled:opacity-50">
-                            <i class="pi pi-check mr-2"></i> Complete Documentation
+                          <button (click)="saveMilestone(i, 'release')" [disabled]="isMilestoneSaving(i, 'release')" class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-[10px] font-black uppercase tracking-wider text-white hover:bg-emerald-700 shadow-lg shadow-emerald-200/50 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                            @if (isMilestoneSaving(i, 'release')) {
+                              <i class="pi pi-spin pi-spinner"></i>
+                              Saving...
+                            } @else {
+                              <i class="pi pi-check mr-2"></i>
+                              Complete Documentation
+                            }
                           </button>
                         </div>
                       </div>
@@ -436,12 +453,15 @@
                           <span class="text-slate-400 font-medium">Released On</span>
                           <span class="text-slate-700 font-bold text-emerald-600">{{ (group.get('documentsReleasedDate')?.value | date:'dd/MM/yyyy') || 'N/A' }}</span>
                         </div>
-                        <div class="flex items-center gap-2">
-                          <span class="text-[9px] font-black uppercase bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full">Completed</span>
-                          @if (getSavedFileUrl(group, 'documentsReleased')) {
+                        @if (getSavedFileUrl(group, 'documentsReleased')) {
+                          <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg font-bold">
+                              <i class="pi pi-file-o"></i>
+                              <span>Contract Attached</span>
+                            </div>
                             <button type="button" (click)="openRemoteDocumentPreview(getSavedFileUrl(group, 'documentsReleased'), getSavedFileName(group, 'documentsReleased'))" class="icon-btn-secondary"><i class="pi pi-eye"></i></button>
-                          }
-                        </div>
+                          </div>
+                        }
                       </div>
                     }
                   </div>

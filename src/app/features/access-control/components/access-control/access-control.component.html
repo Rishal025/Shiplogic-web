@@ -17,8 +17,8 @@
     }
 
     @if (activeTab() === 'roles') {
-      <section class="grid grid-cols-1 gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-        <article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
+      <section class="grid grid-cols-1 gap-5 xl:grid-cols-[1.2fr_0.8fr] xl:items-start">
+        <article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm flex flex-col min-h-0 xl:max-h-[calc(100vh-16rem)]">
           <div class="flex items-center justify-between gap-3">
             <div>
               <h2 class="text-xl font-black tracking-tight text-slate-900">Available Roles</h2>
@@ -29,7 +29,7 @@
             </button>
           </div>
 
-          <div class="mt-5 space-y-3">
+          <div class="mt-5 space-y-3 overflow-y-auto pr-1 access-role-list">
             @if (rolesLoading()) {
               <p class="text-sm text-slate-500">Loading roles...</p>
             } @else {
@@ -57,7 +57,7 @@
           </div>
         </article>
 
-        <article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
+        <article class="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm self-start">
           <div>
             <h2 class="text-xl font-black tracking-tight text-slate-900">{{ editingRoleId() ? 'Update Role' : 'Create Role' }}</h2>
             <p class="mt-1 text-sm text-slate-500">Use this form to maintain internal RBAC roles.</p>
@@ -68,11 +68,10 @@
               <label class="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Role Key</label>
               <input
                 type="text"
-                [disabled]="!!editingRoleId()"
-                [ngModel]="roleForm().key"
-                (ngModelChange)="roleForm.set({ ...roleForm(), key: $event })"
+                [readonly]="true"
+                [ngModel]="generatedRoleKey()"
                 class="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-300 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
-                placeholder="Example: OperationsLead" />
+                placeholder="Auto-generated from role name" />
             </div>
             <div class="flex flex-col gap-2">
               <label class="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Role Name</label>

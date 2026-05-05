@@ -10,7 +10,7 @@ import { SelectModule } from 'primeng/select';
 import { ToastModule } from 'primeng/toast';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { MessageService, ConfirmationService } from 'primeng/api';
-import { WarehouseService, Warehouse } from '../../../core/services/warehouse.service';
+import { WarehouseService, Warehouse, WarehouseStorekeeperOption } from '../../../core/services/warehouse.service';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
 @Component({
@@ -102,6 +102,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
             <tr>
               <th class="bg-slate-50 text-slate-700 font-semibold py-4 text-[11px] uppercase tracking-wider">Name</th>
               <th class="bg-slate-50 text-slate-700 font-semibold py-4 text-[11px] uppercase tracking-wider">Code</th>
+              <th class="bg-slate-50 text-slate-700 font-semibold py-4 text-[11px] uppercase tracking-wider">Storekeepers</th>
               <th class="bg-slate-50 text-slate-700 font-semibold py-4 text-[11px] uppercase tracking-wider text-center">Status</th>
               <th class="bg-slate-50 text-slate-700 font-semibold py-4 text-[11px] uppercase tracking-wider text-right px-6">Actions</th>
             </tr>
@@ -110,6 +111,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
             <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0">
               <td class="py-4 font-semibold text-slate-800">{{ warehouse.name }}</td>
               <td class="py-4 text-slate-600 font-mono text-sm">{{ warehouse.code || '–' }}</td>
+              <td class="py-4 text-slate-600 text-sm">{{ getAssignedStorekeeperNames(warehouse) || '–' }}</td>
               <td class="py-4 text-center">
                 <span 
                   [class]="warehouse.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200'"
@@ -137,7 +139,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
           </ng-template>
           <ng-template pTemplate="emptymessage">
             <tr>
-              <td colspan="4" class="p-16 text-center text-slate-400">
+              <td colspan="5" class="p-16 text-center text-slate-400">
                 <i class="pi pi-warehouse text-5xl mb-4 block opacity-20"></i>
                 <p class="text-lg font-semibold mb-2">No warehouses found</p>
                 <p class="text-sm">Click "Add Warehouse" to create one.</p>
@@ -175,6 +177,31 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
             placeholder="Select Status"
             styleClass="w-full">
           </p-select>
+        </div>
+
+        <div class="field">
+          <label class="block text-sm font-bold text-slate-800 mb-2">Assigned Storekeepers</label>
+          <div class="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 max-h-56 overflow-y-auto">
+            @if (storekeepers().length) {
+              <div class="grid grid-cols-1 gap-3">
+                @for (user of storekeepers(); track user._id) {
+                  <label class="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      class="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600"
+                      [checked]="warehouseForm.get('assignedStorekeepers')?.value?.includes(user._id)"
+                      (change)="onStorekeeperToggle(user._id, $any($event.target).checked)" />
+                    <span class="min-w-0">
+                      <span class="block text-sm font-semibold text-slate-800">{{ user.name }}</span>
+                      <span class="block text-xs text-slate-500">{{ user.email }}</span>
+                    </span>
+                  </label>
+                }
+              </div>
+            } @else {
+              <p class="text-sm text-slate-500">No active storekeepers available.</p>
+            }
+          </div>
         </div>
 
         <div class="flex justify-end gap-3 mt-4 pt-4 border-t border-slate-200">
@@ -217,6 +244,7 @@ export class WarehouseManagementComponent implements OnInit {
   private confirmationService = inject(ConfirmationService);
 
   warehouses = signal<Warehouse[]>([]);
+  storekeepers = signal<WarehouseStorekeeperOption[]>([]);
   loading = signal(false);
   saving = signal(false);
   displayDialog = false;
@@ -228,7 +256,8 @@ export class WarehouseManagementComponent implements OnInit {
     // location: [''],
     // managerName: [''],
     // capacity: [null],
-    status: ['Active', Validators.required]
+    status: ['Active', Validators.required],
+    assignedStorekeepers: [[] as string[]],
   });
 
   statusOptions = [
@@ -238,6 +267,7 @@ export class WarehouseManagementComponent implements OnInit {
 
   ngOnInit() {
     this.loadWarehouses();
+    this.loadStorekeepers();
   }
 
   loadWarehouses() {
@@ -254,16 +284,45 @@ export class WarehouseManagementComponent implements OnInit {
     });
   }
 
+  loadStorekeepers() {
+    this.warehouseService.getAssignableStorekeepers().subscribe({
+      next: (users) => {
+        this.storekeepers.set(users);
+      },
+      error: () => {
+        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Could not load storekeepers' });
+      }
+    });
+  }
+
   openAddDialog() {
     this.editingWarehouse.set(null);
-    this.warehouseForm.reset({ status: 'Active' });
+    this.warehouseForm.reset({ status: 'Active', assignedStorekeepers: [] });
     this.displayDialog = true;
   }
 
   openEditDialog(warehouse: Warehouse) {
     this.editingWarehouse.set(warehouse);
-    this.warehouseForm.patchValue(warehouse);
+    this.warehouseForm.patchValue({
+      ...warehouse,
+      assignedStorekeepers: (warehouse.assignedStorekeepers || []).map((user) => user._id),
+    });
     this.displayDialog = true;
+  }
+
+  onStorekeeperToggle(userId: string, checked: boolean) {
+    const current: string[] = this.warehouseForm.get('assignedStorekeepers')?.value || [];
+    const next = checked
+      ? Array.from(new Set([...current, userId]))
+      : current.filter((id) => id !== userId);
+    this.warehouseForm.patchValue({ assignedStorekeepers: next });
+  }
+
+  getAssignedStorekeeperNames(warehouse: Warehouse): string {
+    return (warehouse.assignedStorekeepers || [])
+      .map((user) => user.name)
+      .filter(Boolean)
+      .join(', ');
   }
 
   saveWarehouse() {

@@ -588,6 +588,22 @@ export interface PaymentCostingApprovalState {
   fasManagerApprovedBy?: string | null;
 }
 
+export interface StorageAllocationApprovalState {
+  status?: 'draft' | 'pending_warehouse_manager' | 'approved';
+  submittedAt?: string | null;
+  submittedBy?: string | null;
+  warehouseManagerApprovedAt?: string | null;
+  warehouseManagerApprovedBy?: string | null;
+}
+
+export interface StorageArrivalApprovalState {
+  status?: 'draft' | 'pending_warehouse_manager' | 'approved';
+  submittedAt?: string | null;
+  submittedBy?: string | null;
+  warehouseManagerApprovedAt?: string | null;
+  warehouseManagerApprovedBy?: string | null;
+}
+
 // Steps 2-7: Actual Container Data
 export interface ActualContainer {
   containerId: string;
@@ -670,6 +686,8 @@ export interface ActualContainer {
     warehouse?: string;
     storageAvailability?: number;
   }[];
+  storageAllocationApproval?: StorageAllocationApprovalState;
+  storageArrivalApproval?: StorageArrivalApprovalState;
   // Step 3: Documentation — Purchase
   DHL?: string;
   courierTrackNo?: string;

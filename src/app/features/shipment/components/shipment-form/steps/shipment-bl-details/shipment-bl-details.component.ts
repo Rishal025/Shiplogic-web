@@ -251,7 +251,8 @@ export class ShipmentBlDetailsComponent {
     return this.rbacService.hasPermission('shipment.tab.bl_details.clearing_advance.view');
   }
 
-  canEditClearingAdvance(): boolean {
+  canEditClearingAdvance(index?: number): boolean {
+    if (index != null && this.isClearingAdvanceApproved(index)) return false;
     if (this.authService.isAdminLevelRole()) return true;
     return this.canViewClearingAdvance() && this.rbacService.hasPermission('shipment.tab.bl_details.clearing_advance.edit');
   }
@@ -261,7 +262,8 @@ export class ShipmentBlDetailsComponent {
     return this.rbacService.hasPermission('shipment.tab.bl_details.storage_allocations.view');
   }
 
-  canEditStorageAllocations(): boolean {
+  canEditStorageAllocations(index?: number): boolean {
+    if (index != null && this.isStorageAllocationsApproved(index)) return false;
     if (this.authService.isAdminLevelRole()) return true;
     return this.canViewStorageAllocations() && this.rbacService.hasPermission('shipment.tab.bl_details.storage_allocations.edit');
   }
@@ -293,7 +295,8 @@ export class ShipmentBlDetailsComponent {
     return this.rbacService.hasPermission('shipment.tab.payment_costing.costing_table.view');
   }
 
-  canEditPaymentCosting(): boolean {
+  canEditPaymentCosting(index?: number): boolean {
+    if (index != null && this.isPaymentCostingApproved(index)) return false;
     if (this.authService.isAdminLevelRole()) return true;
     return this.canViewPaymentCosting() && this.rbacService.hasPermission('shipment.tab.payment_costing.costing_table.edit');
   }
@@ -346,12 +349,41 @@ export class ShipmentBlDetailsComponent {
     return hasSavedData ? 'pending_fas_manager' : 'draft';
   }
 
+  private getEffectiveStorageAllocationStatus(index: number): 'draft' | 'pending_warehouse_manager' | 'approved' {
+    const actual = this.getActualShipment(index);
+    const rawStatus = actual?.storageAllocationApproval?.status || 'draft';
+    if (rawStatus !== 'draft') return rawStatus;
+    const rows = actual?.storageAllocations || [];
+    const hasSavedData = Array.isArray(rows) && rows.some((entry: any) =>
+      String(entry?.containerSerialNo || '').trim().length > 0 ||
+      Number(entry?.bags || 0) > 0 ||
+      String(entry?.warehouse || '').trim().length > 0
+    );
+    return hasSavedData ? 'pending_warehouse_manager' : 'draft';
+  }
+
+  isClearingAdvanceApproved(index: number): boolean {
+    return this.getEffectiveClearingAdvanceStatus(index) === 'approved';
+  }
+
+  isPaymentCostingApproved(index: number): boolean {
+    return this.getEffectivePaymentCostingStatus(index) === 'approved';
+  }
+
+  isStorageAllocationsApproved(index: number): boolean {
+    return this.getEffectiveStorageAllocationStatus(index) === 'approved';
+  }
+
   getClearingAdvanceApproval(index: number): any {
     return this.getActualShipment(index)?.clearingAdvanceApproval || { status: 'draft' };
   }
 
   getPaymentCostingApproval(index: number): any {
     return this.getActualShipment(index)?.paymentCostingApproval || { status: 'draft' };
+  }
+
+  getStorageAllocationApproval(index: number): any {
+    return this.getActualShipment(index)?.storageAllocationApproval || { status: 'draft' };
   }
 
   getClearingAdvanceApprovalLabel(index: number): string {
@@ -380,6 +412,18 @@ export class ShipmentBlDetailsComponent {
     }
   }
 
+  getStorageAllocationApprovalLabel(index: number): string {
+    const status = this.getEffectiveStorageAllocationStatus(index);
+    switch (status) {
+      case 'pending_warehouse_manager':
+        return 'Pending Warehouse Manager Approval';
+      case 'approved':
+        return 'Approved';
+      default:
+        return 'Draft';
+    }
+  }
+
   getApprovalBadgeClasses(label: string): string {
     if (label === 'Approved') {
       return 'border-emerald-200 bg-emerald-50 text-emerald-700';
@@ -399,6 +443,11 @@ export class ShipmentBlDetailsComponent {
     return role === 'FasManager' || role === 'Fas manager';
   }
 
+  private isWarehouseManagerRole(): boolean {
+    const role = this.authService.getCurrentUser()?.role || '';
+    return role === 'warehouse' || role === 'Warehouse' || role === 'Warehouse manager';
+  }
+
   canApproveClearingAdvance(index: number): boolean {
     const status = this.getEffectiveClearingAdvanceStatus(index);
     if (status === 'pending_fas') {
@@ -415,6 +464,14 @@ export class ShipmentBlDetailsComponent {
     return status === 'pending_fas_manager' && (
       this.authService.isAdminLevelRole() ||
       this.isFasManagerRole()
+    );
+  }
+
+  canApproveStorageAllocations(index: number): boolean {
+    const status = this.getEffectiveStorageAllocationStatus(index);
+    return status === 'pending_warehouse_manager' && (
+      this.authService.isAdminLevelRole() ||
+      this.isWarehouseManagerRole()
     );
   }
 
@@ -1316,6 +1373,40 @@ export class ShipmentBlDetailsComponent {
       error: (error) => {
         this.savingKey.set(null);
         this.notificationService.error('Approval failed', error.error?.message || 'Could not approve clearing advance.');
+      }
+    });
+  }
+
+  async approveStorageAllocations(index: number): Promise<void> {
+    if (!this.canApproveStorageAllocations(index)) return;
+    const row = this.formArray.at(index);
+    const shipmentId = this.shipmentData()?.shipment?._id;
+    if (!row || !shipmentId) return;
+
+    const containerId = row.get('containerId')?.value;
+    if (!containerId) {
+      this.notificationService.warn('Missing container', 'This shipment row is not linked to a container yet.');
+      return;
+    }
+
+    const confirmed = await this.confirmDialog.ask({
+      message: `Approve storage allocations for Shipment ${index + 1}?`,
+      header: 'Approve Storage Allocations',
+      acceptLabel: 'Yes, Approve',
+    });
+    if (!confirmed) return;
+
+    this.savingKey.set(`storage-${index}`);
+    this.shipmentService.approveStorageAllocations(containerId).subscribe({
+      next: () => {
+        this.savingKey.set(null);
+        this.notificationService.success('Approved', 'Storage allocations approved successfully.');
+        this.ensureAccordionOpen(index);
+        this.store.dispatch(ShipmentActions.loadShipmentDetail({ id: shipmentId }));
+      },
+      error: (error) => {
+        this.savingKey.set(null);
+        this.notificationService.error('Approval failed', error.error?.message || 'Could not approve storage allocations.');
       }
     });
   }

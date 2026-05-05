@@ -348,6 +348,14 @@ export class ShipmentService {
     return this.http.patch<ShipmentContainerApprovalResponse>(`${this.apiUrl}/container/payment-costing/${containerId}/approve`, {});
   }
 
+  approveStorageAllocations(containerId: string): Observable<ShipmentContainerApprovalResponse> {
+    return this.http.patch<ShipmentContainerApprovalResponse>(`${this.apiUrl}/container/bl-details/${containerId}/storage-allocations/approve`, {});
+  }
+
+  approveStorageArrival(containerId: string): Observable<ShipmentContainerApprovalResponse> {
+    return this.http.patch<ShipmentContainerApprovalResponse>(`${this.apiUrl}/container/storage/${containerId}/approve`, {});
+  }
+
   /**
    * Submit GRN details (Step 7)
    * PATCH /shipment/container/grn/:id
